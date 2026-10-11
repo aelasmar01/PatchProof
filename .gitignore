@@ -1,0 +1,51 @@
+# --- Working documents that must never be committed (owner instruction) ---
+# Agent-authored plans, scratch notes, and any documentation not required by
+# PROJECT_SPEC.md Section 20 stays local.
+/notes/
+/scratch/
+*.plan.md
+IMPLEMENTATION_PLAN.md
+PLAN.md
+PatchProof_Local_AppSec_Project_Spec.md
+
+# --- Private operational state (PROJECT_SPEC.md 5.3) ---
+# Never commit real target source, raw evidence, or the local database.
+/private/
+/state/
+*.sqlite
+*.sqlite3
+*.db
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# --- Node / frontend ---
+node_modules/
+web/dist/
+.vite/
+
+# --- Reports and exports (user-selected export folder, not the repo) ---
+/exports/
+/reports/
+
+# --- macOS ---
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# --- Editor ---
+.vscode/
+.idea/
+*.swp
