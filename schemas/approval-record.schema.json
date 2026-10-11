@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:approval-record:1.0",
+  "title": "Pack approval record",
+  "description": "PROJECT_SPEC.md 7.5 and INV-10. Binds the exact pack, collection, verifier, and profile identities a human reviewed. Records are immutable: a replacement names the record it supersedes and the old record is preserved. Run authorization (snapshot hashes, target image, repetition plan) is a separate record defined in PP-007/PP-009. This is workflow accountability, not proof of a separate human reviewer: reviewer.basis records that the identity is a local, unverified assertion.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "approval_id", "kind", "created_at", "supersedes",
+    "bindings", "reviewer", "rationale", "scope"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+    "approval_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/approvalId" },
+    "kind": { "const": "pack-approval" },
+    "created_at": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/timestamp" },
+    "supersedes": {
+      "description": "The approval this one replaces, or null for a first approval. Never mutated after creation.",
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "urn:patchproof:schema:common:1.0#/$defs/approvalId" }
+      ]
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pack_id", "pack_version", "pack_schema_version", "manifest_sha256",
+        "pack_tree_sha256", "expected_collection", "verifier_image_id",
+        "verifier_plugin_version", "profile_id", "profile_sha256"
+      ],
+      "properties": {
+        "pack_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier" },
+        "pack_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver" },
+        "pack_schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+        "manifest_sha256": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256" },
+        "pack_tree_sha256": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256" },
+        "expected_collection": {
+          "description": "Exact node IDs collected in the verifier environment at review time (7.4).",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "nodeid"],
+            "properties": {
+              "id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testId" },
+              "nodeid": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/pytestNodeId" }
+            }
+          }
+        },
+        "verifier_image_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/imageId" },
+        "verifier_plugin_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver" },
+        "profile_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier" },
+        "profile_sha256": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256" }
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asserted_identity", "basis"],
+      "properties": {
+        "asserted_identity": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText" },
+        "basis": {
+          "description": "The only supported basis. The same OS account can edit these files; nothing here proves who reviewed.",
+          "const": "local-assertion-unverified"
+        }
+      }
+    },
+    "rationale": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText" },
+    "scope": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText" }
+  }
+}

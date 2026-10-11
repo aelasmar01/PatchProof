@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "approval_id": "apr-00000000000000000000000000000001",
+  "kind": "pack-approval",
+  "created_at": "2026-10-11T12:00:00Z",
+  "supersedes": null,
+  "bindings": {
+    "pack_id": "document-owner-access",
+    "pack_version": "1.0.0",
+    "pack_schema_version": "1.0",
+    "manifest_sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "pack_tree_sha256": "sha256:dddddddd",
+    "expected_collection": [
+      {
+        "id": "AUTH-001",
+        "nodeid": "tests/test_documents.py::test_nonowner_cannot_read"
+      },
+      {
+        "id": "AUTH-002",
+        "nodeid": "tests/test_documents.py::test_unauthenticated_access_denied"
+      },
+      {
+        "id": "FUNC-001",
+        "nodeid": "tests/test_documents.py::test_owner_can_read"
+      }
+    ],
+    "verifier_image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "verifier_plugin_version": "0.1.0",
+    "profile_id": "papertrail-reference",
+    "profile_sha256": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "reviewer": {
+    "asserted_identity": "Ali El-Asmar",
+    "basis": "local-assertion-unverified"
+  },
+  "rationale": "AUTH-001 witnesses disclosure by matching the synthetic private marker for a non-owner; FUNC-001 keeps owner access tested.",
+  "scope": "Document read endpoint only. No claim about other endpoints."
+}

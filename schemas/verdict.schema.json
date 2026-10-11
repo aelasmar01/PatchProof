@@ -1,0 +1,248 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:verdict:1.0",
+  "title": "Comparison verdict",
+  "description": "PROJECT_SPEC.md 8.3-8.6. Output of the pure verdict engine (PP-004) for one run. Flags are computed from trusted observations only and are all reported, whatever the primary verdict. The conditionals below are a second line of defense: a record that claims VERIFIED_FOR_CASES while carrying any flag, a failed precondition, or another reason code is schema-invalid. Rule IDs refer to docs/architecture/verdict-specification.md section 6.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "engine_version", "verdict", "display_label",
+    "decision_rule", "reason_codes", "flags", "preconditions", "counts", "evaluated_at"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+    "run_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/runId" },
+    "engine_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver" },
+    "verdict": {
+      "enum": [
+        "VERIFIED_FOR_CASES", "NOT_FIXED", "REGRESSION_DETECTED",
+        "NOT_REPRODUCED", "INCONCLUSIVE", "BLOCKED"
+      ]
+    },
+    "display_label": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText" },
+    "decision_rule": { "enum": ["V-01", "V-02", "V-03", "V-04", "V-05", "V-06", "V-07", "V-08", "V-09", "V-10"] },
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/reasonCode" }
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "incomplete_checks", "candidate_violation", "functional_regression",
+        "harness_drift", "flaky_observations", "baseline_not_reproduced",
+        "baseline_control_failed"
+      ],
+      "properties": {
+        "incomplete_checks": { "type": "boolean" },
+        "candidate_violation": { "type": "boolean" },
+        "functional_regression": { "type": "boolean" },
+        "harness_drift": { "type": "boolean" },
+        "flaky_observations": { "type": "boolean" },
+        "baseline_not_reproduced": { "type": "boolean" },
+        "baseline_control_failed": { "type": "boolean" }
+      }
+    },
+    "preconditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authorization", "pack_integrity", "source_identity",
+        "environment_identity", "result_provenance"
+      ],
+      "properties": {
+        "authorization": { "$ref": "#/$defs/checkState" },
+        "pack_integrity": { "$ref": "#/$defs/checkState" },
+        "source_identity": { "$ref": "#/$defs/checkState" },
+        "environment_identity": { "$ref": "#/$defs/checkState" },
+        "result_provenance": { "$ref": "#/$defs/checkState" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["security_tests", "functional_tests", "pairs_planned", "pairs_completed"],
+      "properties": {
+        "security_tests": { "type": "integer", "minimum": 0, "maximum": 200 },
+        "functional_tests": { "type": "integer", "minimum": 0, "maximum": 200 },
+        "pairs_planned": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "pairs_completed": { "type": "integer", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "evaluated_at": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/timestamp" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "verdict": { "const": "VERIFIED_FOR_CASES" } } },
+      "then": {
+        "properties": {
+          "display_label": { "const": "Verified for the selected cases" },
+          "decision_rule": { "const": "V-09" },
+          "reason_codes": { "const": ["ALL_CONDITIONS_SATISFIED"] },
+          "flags": { "$ref": "#/$defs/allFlagsFalse" },
+          "preconditions": { "$ref": "#/$defs/allPreconditionsPassed" },
+          "counts": {
+            "properties": {
+              "security_tests": { "minimum": 1 },
+              "functional_tests": { "minimum": 1 },
+              "pairs_planned": { "minimum": 1 },
+              "pairs_completed": { "minimum": 1 }
+            }
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "display_label": { "not": { "const": "Verified for the selected cases" } },
+          "reason_codes": { "not": { "contains": { "const": "ALL_CONDITIONS_SATISFIED" } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "BLOCKED" } } },
+      "then": {
+        "properties": {
+          "display_label": { "const": "Blocked" },
+          "decision_rule": { "const": "V-01" },
+          "preconditions": { "$ref": "#/$defs/somePreconditionFailed" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "NOT_FIXED" } } },
+      "then": {
+        "properties": {
+          "display_label": { "const": "Not fixed" },
+          "decision_rule": { "const": "V-03" },
+          "flags": { "properties": { "candidate_violation": { "const": true } } },
+          "preconditions": { "$ref": "#/$defs/allPreconditionsPassed" },
+          "reason_codes": { "contains": { "enum": ["CANDIDATE_VIOLATION_CONFIRMED", "NEW_SECURITY_VIOLATION"] } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "REGRESSION_DETECTED" } } },
+      "then": {
+        "properties": {
+          "display_label": { "const": "Regression detected" },
+          "decision_rule": { "const": "V-04" },
+          "flags": {
+            "properties": {
+              "candidate_violation": { "const": false },
+              "functional_regression": { "const": true }
+            }
+          },
+          "preconditions": { "$ref": "#/$defs/allPreconditionsPassed" },
+          "reason_codes": { "contains": { "const": "FUNCTIONAL_REGRESSION" } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "NOT_REPRODUCED" } } },
+      "then": {
+        "properties": {
+          "display_label": { "const": "Not reproduced" },
+          "decision_rule": { "const": "V-08" },
+          "flags": {
+            "properties": {
+              "incomplete_checks": { "const": false },
+              "candidate_violation": { "const": false },
+              "functional_regression": { "const": false },
+              "harness_drift": { "const": false },
+              "flaky_observations": { "const": false },
+              "baseline_not_reproduced": { "const": true },
+              "baseline_control_failed": { "const": false }
+            }
+          },
+          "preconditions": { "$ref": "#/$defs/allPreconditionsPassed" },
+          "reason_codes": { "contains": { "enum": ["BASELINE_NOT_REPRODUCED", "BASELINE_PARTIALLY_REPRODUCED"] } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "INCONCLUSIVE" } } },
+      "then": {
+        "properties": {
+          "display_label": { "const": "Inconclusive" },
+          "decision_rule": { "enum": ["V-02", "V-05", "V-06", "V-07", "V-10"] },
+          "flags": {
+            "properties": {
+              "candidate_violation": { "const": false },
+              "functional_regression": { "const": false }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "checkState": { "enum": ["PASSED", "FAILED", "NOT_EVALUATED"] },
+    "allFlagsFalse": {
+      "properties": {
+        "incomplete_checks": { "const": false },
+        "candidate_violation": { "const": false },
+        "functional_regression": { "const": false },
+        "harness_drift": { "const": false },
+        "flaky_observations": { "const": false },
+        "baseline_not_reproduced": { "const": false },
+        "baseline_control_failed": { "const": false }
+      }
+    },
+    "allPreconditionsPassed": {
+      "properties": {
+        "authorization": { "const": "PASSED" },
+        "pack_integrity": { "const": "PASSED" },
+        "source_identity": { "const": "PASSED" },
+        "environment_identity": { "const": "PASSED" },
+        "result_provenance": { "const": "PASSED" }
+      }
+    },
+    "somePreconditionFailed": {
+      "anyOf": [
+        { "properties": { "authorization": { "const": "FAILED" } } },
+        { "properties": { "pack_integrity": { "const": "FAILED" } } },
+        { "properties": { "source_identity": { "const": "FAILED" } } },
+        { "properties": { "environment_identity": { "const": "FAILED" } } },
+        { "properties": { "result_provenance": { "const": "FAILED" } } }
+      ]
+    },
+    "reasonCode": {
+      "enum": [
+        "ALL_CONDITIONS_SATISFIED",
+        "APPROVAL_MISSING",
+        "APPROVAL_STALE",
+        "PACK_INTEGRITY_FAILED",
+        "PACK_INCOMPLETE_FOR_FIX_VERIFICATION",
+        "PACK_COLLECTION_MISMATCH",
+        "UNSUPPORTED_TARGET_PROFILE",
+        "RUNTIME_POLICY_FAILED",
+        "ENVIRONMENT_NONCOMPARABLE",
+        "SOURCE_IDENTITY_MISMATCH",
+        "EVENT_STREAM_TRUNCATED",
+        "EVENT_STREAM_MALFORMED",
+        "EVENT_STREAM_IDENTITY_MISMATCH",
+        "RESULT_CAP_EXCEEDED",
+        "EVIDENCE_INCOMPLETE",
+        "CANDIDATE_VIOLATION_CONFIRMED",
+        "NEW_SECURITY_VIOLATION",
+        "FUNCTIONAL_REGRESSION",
+        "REQUIRED_CHECK_INCOMPLETE",
+        "CHECK_INCONCLUSIVE",
+        "HARNESS_ERROR",
+        "EXECUTION_FAILED",
+        "REPETITION_INCOMPLETE",
+        "INCONSISTENT_REPETITIONS",
+        "BASELINE_CONTROL_FAILED",
+        "BASELINE_SECURITY_UNEXPECTED",
+        "BASELINE_NOT_REPRODUCED",
+        "BASELINE_PARTIALLY_REPRODUCED",
+        "RUN_CANCELED",
+        "RUN_INTERRUPTED",
+        "UNCLASSIFIED_EVIDENCE"
+      ]
+    }
+  }
+}

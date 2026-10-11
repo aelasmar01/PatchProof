@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "pair": 1,
+  "side": "baseline",
+  "seq": 0,
+  "type": "target_log",
+  "payload": {
+    "verifier_plugin_version": "0.1.0",
+    "pack_tree_sha256": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

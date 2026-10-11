@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "pair": 1,
+  "side": "candidate",
+  "test_id": "FUNC-001",
+  "nodeid": "tests/test_documents.py::test_owner_can_read",
+  "kind": "functional",
+  "stream_status": "COMPLETE",
+  "lifecycle_outcome": "TIMED_OUT",
+  "semantic_outcome": "NONE",
+  "harness_errors": [],
+  "evidence_refs": [],
+  "provenance": "verifier-event-stream"
+}

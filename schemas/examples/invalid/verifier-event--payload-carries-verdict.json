@@ -1,0 +1,13 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "pair": 1,
+  "side": "baseline",
+  "seq": 13,
+  "type": "session_end",
+  "payload": {
+    "tests_reported": 3,
+    "observations_emitted": 2,
+    "verdict": "VERIFIED_FOR_CASES"
+  }
+}

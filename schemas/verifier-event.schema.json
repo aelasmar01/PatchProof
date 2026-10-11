@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:verifier-event:1.0",
+  "title": "Verifier event",
+  "description": "PROJECT_SPEC.md 10.3. One record of the structured protocol emitted by the approved verifier plugin and read by the host from the exact verifier container's output channel. The target never writes this channel (INV-09). Stream-level rules (seq starts at 0 and has no gaps, exactly one session_start first and one session_end last, identity matches the run plan, every collected test has setup/call/teardown reports) are checked by the host collector in PP-008; see docs/architecture/verdict-specification.md section 4.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "pair", "side", "seq", "type", "payload"],
+  "properties": {
+    "schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+    "run_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/runId" },
+    "pair": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/pairIndex" },
+    "side": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/side" },
+    "seq": { "type": "integer", "minimum": 0, "maximum": 100000 },
+    "type": { "enum": ["session_start", "collected", "test_report", "observation", "session_end"] },
+    "payload": { "type": "object" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "session_start" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/sessionStart" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "collected" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/collected" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "test_report" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/testReport" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "observation" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/observation" } } }
+    },
+    {
+      "if": { "properties": { "type": { "const": "session_end" } } },
+      "then": { "properties": { "payload": { "$ref": "#/$defs/sessionEnd" } } }
+    }
+  ],
+  "$defs": {
+    "sessionStart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verifier_plugin_version", "pack_tree_sha256"],
+      "properties": {
+        "verifier_plugin_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver" },
+        "pack_tree_sha256": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256" }
+      }
+    },
+    "collected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tests"],
+      "properties": {
+        "tests": {
+          "type": "array",
+          "maxItems": 200,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "nodeid"],
+            "properties": {
+              "id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testId" },
+              "nodeid": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/pytestNodeId" }
+            }
+          }
+        }
+      }
+    },
+    "testReport": {
+      "description": "One pytest phase report. failure_class is assigned by the approved plugin, never parsed from target text.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test_id", "phase", "outcome", "failure_class", "xfail"],
+      "properties": {
+        "test_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testId" },
+        "phase": { "enum": ["setup", "call", "teardown"] },
+        "outcome": { "enum": ["passed", "failed", "skipped"] },
+        "failure_class": {
+          "enum": ["none", "assertion", "security_terminal", "helper_misuse", "timeout", "exception"]
+        },
+        "xfail": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "outcome": { "enum": ["passed", "skipped"] } } },
+          "then": { "properties": { "failure_class": { "const": "none" } } }
+        },
+        {
+          "if": { "properties": { "outcome": { "const": "failed" } } },
+          "then": { "properties": { "failure_class": { "not": { "const": "none" } } } }
+        }
+      ]
+    },
+    "observation": {
+      "description": "A terminal security observation from check.secure / check.violation / check.inconclusive (7.3).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test_id", "outcome", "summary", "evidence_refs"],
+      "properties": {
+        "test_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testId" },
+        "outcome": { "enum": ["VIOLATION_CONFIRMED", "SECURE", "INCONCLUSIVE"] },
+        "summary": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText" },
+        "evidence_refs": {
+          "type": "array",
+          "maxItems": 16,
+          "items": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/evidenceRef" }
+        }
+      }
+    },
+    "sessionEnd": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tests_reported", "observations_emitted"],
+      "properties": {
+        "tests_reported": { "type": "integer", "minimum": 0, "maximum": 200 },
+        "observations_emitted": { "type": "integer", "minimum": 0, "maximum": 200 }
+      }
+    }
+  }
+}

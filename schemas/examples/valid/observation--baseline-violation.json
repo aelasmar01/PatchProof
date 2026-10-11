@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "pair": 1,
+  "side": "baseline",
+  "test_id": "AUTH-001",
+  "nodeid": "tests/test_documents.py::test_nonowner_cannot_read",
+  "kind": "security",
+  "stream_status": "COMPLETE",
+  "lifecycle_outcome": "COMPLETED",
+  "semantic_outcome": "VIOLATION_CONFIRMED",
+  "harness_errors": [],
+  "evidence_refs": [
+    {
+      "artifact_id": "art-00000000000000000000000000000001",
+      "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    }
+  ],
+  "provenance": "verifier-event-stream"
+}

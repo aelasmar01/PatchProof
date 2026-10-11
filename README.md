@@ -7,8 +7,9 @@ human-reviewed security checks against each in separate disposable environments,
 preserve evidence of what was — and was not — demonstrated.
 
 > **Project status: pre-implementation.** This repository currently contains the
-> specification, the working agreement, and a measured host environment report.
-> There is no runnable code yet. Everything in the Roadmap below is planned, not
+> specification, the working agreement, a measured host environment report, the threat
+> model, the verdict specification, and versioned record schemas. There is no runnable
+> application code yet. Everything in the Roadmap below is planned, not
 > achieved.
 
 ---
@@ -53,6 +54,8 @@ Two guarantees shape the design:
 | Project specification | Done — `PROJECT_SPEC.md` |
 | Agent working agreement | Done — `CLAUDE.md` |
 | Issue tracking | Done — `STATUS.md`, `docs/backlog.md` |
+| Threat model and verdict specification | Drafted, awaiting review — `docs/threat-model.md`, `docs/architecture/` |
+| Record schemas with validated examples | Drafted, awaiting review — `schemas/`, `tests/unit/test_schemas.py` |
 
 Nothing else. No CLI, no API, no container runner, no verdict engine.
 
@@ -109,6 +112,10 @@ with mocks.
 | `CLAUDE.md` | Working agreement for agent-assisted implementation |
 | `docs/backlog.md` | PP-001 through PP-028 and the optional backlog |
 | `docs/environment.lock.md` | Measured host facts and conflicts against the specification |
+| `docs/threat-model.md` | Trust boundaries, abuse cases, planned mitigations and their evidence issues |
+| `docs/architecture/verdict-specification.md` | Verdict inputs, trust predicate, ordered decision table |
+| `docs/adr/` | Architecture decision records |
+| `schemas/` | Versioned JSON Schemas and valid/invalid example records |
 
 ## Setup
 

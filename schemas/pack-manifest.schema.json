@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:pack-manifest:1.0",
+  "title": "Verification pack manifest (pack.json)",
+  "description": "PROJECT_SPEC.md 7.1-7.2. A valid manifest is necessary but never sufficient for execution: the pack must also be collected in the verifier environment and approved (7.4-7.5). Cross-field rules that JSON Schema cannot express (unique test IDs, unique node IDs, files existing on disk, collection matching) are enforced by pack validation in PP-007; see docs/architecture/verdict-specification.md section 9.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "pack_id", "pack_version", "title", "expectation",
+    "adapter", "fixture_contract", "tests", "repetitions", "limits"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+    "pack_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier" },
+    "pack_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver" },
+    "title": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText" },
+    "expectation": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText" },
+    "adapter": { "const": "python-asgi-http-v1" },
+    "fixture_contract": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier" },
+    "tests": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 200,
+      "items": { "$ref": "#/$defs/requiredTest" },
+      "allOf": [
+        {
+          "description": "INV-08 / 18.2: a pack without a legitimate-behavior control cannot verify a fix.",
+          "contains": { "properties": { "kind": { "const": "functional" } } }
+        },
+        {
+          "description": "INV-06: at least one security check must expect the baseline violation, otherwise baseline reproduction is impossible by construction.",
+          "contains": {
+            "properties": {
+              "kind": { "const": "security" },
+              "baseline_expected": { "const": "VIOLATION_CONFIRMED" }
+            }
+          }
+        }
+      ]
+    },
+    "repetitions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pairs", "fixture_seed_policy"],
+      "properties": {
+        "pairs": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "fixture_seed_policy": { "const": "same-within-pair-different-between-pairs" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_response_bytes", "case_timeout_seconds"],
+      "properties": {
+        "max_response_bytes": { "type": "integer", "minimum": 1, "maximum": 1048576 },
+        "case_timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 120 }
+      }
+    }
+  },
+  "$defs": {
+    "requiredTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "nodeid", "kind", "baseline_expected", "candidate_expected"],
+      "properties": {
+        "id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testId" },
+        "nodeid": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/pytestNodeId" },
+        "kind": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testKind" },
+        "baseline_expected": { "enum": ["VIOLATION_CONFIRMED", "SECURE", "PASS"] },
+        "candidate_expected": { "enum": ["SECURE", "PASS"] }
+      },
+      "allOf": [
+        {
+          "description": "A security check's candidate expectation is always SECURE: a fix that is expected to still violate is not a fix.",
+          "if": { "properties": { "kind": { "const": "security" } } },
+          "then": {
+            "properties": {
+              "baseline_expected": { "enum": ["VIOLATION_CONFIRMED", "SECURE"] },
+              "candidate_expected": { "const": "SECURE" }
+            }
+          }
+        },
+        {
+          "description": "A functional control must pass on both revisions (INV-08).",
+          "if": { "properties": { "kind": { "const": "functional" } } },
+          "then": {
+            "properties": {
+              "baseline_expected": { "const": "PASS" },
+              "candidate_expected": { "const": "PASS" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

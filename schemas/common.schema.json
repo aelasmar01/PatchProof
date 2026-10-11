@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:common:1.0",
+  "title": "PatchProof shared definitions",
+  "description": "Reusable bounded types. Not a record schema on its own. Every string is length-bounded; free text excludes C0 control characters (including ESC) and DEL so that terminal escapes cannot be stored in reviewed records.",
+  "$defs": {
+    "schemaVersion": {
+      "description": "Record schema version. Only 1.0 exists; any other value is unsupported and rejected.",
+      "const": "1.0"
+    },
+    "identifier": {
+      "description": "Lower-case slug for packs, profiles, and fixture contracts.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "semver": {
+      "type": "string",
+      "maxLength": 32,
+      "pattern": "^(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})$"
+    },
+    "sha256": {
+      "description": "SHA-256 digest of bytes or of a deterministic manifest, prefixed with the algorithm.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "imageId": {
+      "description": "Local Docker image ID (content digest). Tags are never an identity; floating tags are not representable.",
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "commitId": {
+      "description": "Full Git object ID: 40 hex digits for SHA-1 repositories, 64 for SHA-256 repositories. Abbreviations are rejected.",
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^run-[0-9a-f]{32}$"
+    },
+    "approvalId": {
+      "type": "string",
+      "pattern": "^apr-[0-9a-f]{32}$"
+    },
+    "artifactId": {
+      "type": "string",
+      "pattern": "^art-[0-9a-f]{32}$"
+    },
+    "testId": {
+      "description": "Stable reviewed test identifier, e.g. AUTH-001.",
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]{1,15}-[0-9]{3}$"
+    },
+    "pytestNodeId": {
+      "description": "Pytest node ID inside the pack's tests/ directory. Every path segment starts with a letter, digit, or underscore, so '.', '..', hidden files, absolute paths, and option-like values are unrepresentable. An optional class and a bounded parametrize suffix are allowed.",
+      "type": "string",
+      "maxLength": 255,
+      "pattern": "^tests/([A-Za-z0-9_][A-Za-z0-9_-]{0,63}/){0,4}test_[A-Za-z0-9_]{1,64}\\.py::([A-Z][A-Za-z0-9_]{0,63}::)?test_[A-Za-z0-9_]{1,64}(\\[[A-Za-z0-9_.-]{1,64}\\])?$"
+    },
+    "relativePath": {
+      "description": "Safe relative POSIX path. No leading slash, no empty segments, and no segment beginning with '.' (which excludes '.', '..', and hidden files).",
+      "type": "string",
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}(/[A-Za-z0-9_][A-Za-z0-9_.-]{0,99}){0,15}$"
+    },
+    "timestamp": {
+      "description": "UTC timestamp in RFC 3339 form with a literal Z offset.",
+      "type": "string",
+      "maxLength": 32,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,6})?Z$"
+    },
+    "shortText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[^\\u0000-\\u001F\\u007F]*$"
+    },
+    "longText": {
+      "description": "Multi-line reviewed text. Tab, LF, and CR are the only permitted control characters.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000,
+      "pattern": "^[^\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F]*$"
+    },
+    "pairIndex": {
+      "description": "1-based repetition pair index.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "side": {
+      "enum": ["baseline", "candidate"]
+    },
+    "testKind": {
+      "enum": ["security", "functional"]
+    },
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_id", "sha256"],
+      "properties": {
+        "artifact_id": { "$ref": "#/$defs/artifactId" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "containerLimits": {
+      "description": "Per-container resource limits. All fields are required; a profile cannot omit a limit. Bounds are schema sanity limits, not approval: the reviewed values are bound by the profile hash.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpus", "memory_bytes", "pids", "scratch_tmpfs_bytes"],
+      "properties": {
+        "cpus": { "type": "number", "exclusiveMinimum": 0, "maximum": 4 },
+        "memory_bytes": { "type": "integer", "minimum": 67108864, "maximum": 4294967296 },
+        "pids": { "type": "integer", "minimum": 16, "maximum": 1024 },
+        "scratch_tmpfs_bytes": { "type": "integer", "minimum": 1048576, "maximum": 1073741824 }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "pair": 1,
+  "side": "baseline",
+  "seq": 3,
+  "type": "observation",
+  "payload": {
+    "test_id": "AUTH-001",
+    "outcome": "PASS",
+    "summary": "Synthetic owner relationship established; response body compared with the protected marker.",
+    "evidence_refs": [
+      {
+        "artifact_id": "art-00000000000000000000000000000001",
+        "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      }
+    ]
+  }
+}

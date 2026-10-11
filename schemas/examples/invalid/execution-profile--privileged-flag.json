@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "profile_id": "papertrail-reference",
+  "profile_version": "0.1.0",
+  "adapter": "python-asgi-http-v1",
+  "target_image_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "verifier_image_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "asgi_app": "papertrail.app:app",
+  "fixture_contract": "synthetic-documents-v1",
+  "network_policy": "none-shared-loopback-v1",
+  "source_scope": {
+    "include": [
+      "papertrail",
+      "fixtures/synthetic"
+    ]
+  },
+  "resources": {
+    "target": {
+      "cpus": 1,
+      "memory_bytes": 1073741824,
+      "pids": 128,
+      "scratch_tmpfs_bytes": 268435456
+    },
+    "verifier": {
+      "cpus": 1,
+      "memory_bytes": 536870912,
+      "pids": 128,
+      "scratch_tmpfs_bytes": 134217728
+    }
+  },
+  "timeouts": {
+    "readiness_seconds": 30,
+    "request_connect_seconds": 5,
+    "request_read_seconds": 5,
+    "revision_deadline_seconds": 180,
+    "cancellation_grace_seconds": 5
+  },
+  "logging": {
+    "max_file_bytes": 5242880,
+    "max_files": 2
+  },
+  "result_cap_bytes": 10485760,
+  "privileged": true
+}

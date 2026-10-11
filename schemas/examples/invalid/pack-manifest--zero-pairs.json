@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "document-owner-access",
+  "pack_version": "1.0.0",
+  "title": "Document content remains private to its owner",
+  "expectation": "An authenticated non-owner cannot obtain another user's private document content.",
+  "adapter": "python-asgi-http-v1",
+  "fixture_contract": "synthetic-documents-v1",
+  "tests": [
+    {
+      "id": "AUTH-001",
+      "nodeid": "tests/test_documents.py::test_nonowner_cannot_read",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "AUTH-002",
+      "nodeid": "tests/test_documents.py::test_unauthenticated_access_denied",
+      "kind": "security",
+      "baseline_expected": "SECURE",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "FUNC-001",
+      "nodeid": "tests/test_documents.py::test_owner_can_read",
+      "kind": "functional",
+      "baseline_expected": "PASS",
+      "candidate_expected": "PASS"
+    }
+  ],
+  "repetitions": {
+    "pairs": 0,
+    "fixture_seed_policy": "same-within-pair-different-between-pairs"
+  },
+  "limits": {
+    "max_response_bytes": 262144,
+    "case_timeout_seconds": 20
+  }
+}

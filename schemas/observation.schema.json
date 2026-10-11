@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:observation:1.0",
+  "title": "Observation (one required test, one pair, one side)",
+  "description": "PROJECT_SPEC.md 8.1, 12.1. Derived by the host collector from verifier events only (provenance is fixed). It records three facts separately and does not decide trust: whether the side's event stream was complete, how the pytest lifecycle ended, and what the reviewed check observed. The trust predicate and verdict are defined in docs/architecture/verdict-specification.md and implemented in PP-004.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "pair", "side", "test_id", "nodeid", "kind",
+    "stream_status", "lifecycle_outcome", "semantic_outcome", "harness_errors",
+    "evidence_refs", "provenance"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+    "run_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/runId" },
+    "pair": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/pairIndex" },
+    "side": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/side" },
+    "test_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testId" },
+    "nodeid": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/pytestNodeId" },
+    "kind": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testKind" },
+    "stream_status": {
+      "description": "Validity of the whole event stream for this pair/side. Anything but COMPLETE makes every observation from that stream untrusted.",
+      "enum": ["COMPLETE", "TRUNCATED", "MALFORMED", "IDENTITY_MISMATCH", "OVER_CAP", "ABSENT"]
+    },
+    "lifecycle_outcome": {
+      "enum": [
+        "COMPLETED", "SETUP_ERROR", "CALL_ERROR", "TEARDOWN_ERROR", "SKIPPED",
+        "XFAILED", "XPASSED", "TIMED_OUT", "NOT_RUN", "NOT_COLLECTED"
+      ]
+    },
+    "semantic_outcome": {
+      "enum": ["VIOLATION_CONFIRMED", "SECURE", "INCONCLUSIVE", "PASS", "FAIL", "NONE"]
+    },
+    "harness_errors": {
+      "type": "array",
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "MISSING_TERMINAL_OBSERVATION",
+          "MULTIPLE_TERMINAL_OBSERVATIONS",
+          "SUPPRESSED_TERMINAL_EXCEPTION",
+          "MALFORMED_EVIDENCE",
+          "ERROR_AFTER_OBSERVATION",
+          "OBSERVATION_ON_FUNCTIONAL_TEST",
+          "DUPLICATE_TEST_REPORT"
+        ]
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "maxItems": 16,
+      "items": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/evidenceRef" }
+    },
+    "provenance": {
+      "description": "INV-09: target stdout, target files, and target-supplied fields are not a representable source.",
+      "const": "verifier-event-stream"
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "security" } } },
+      "then": {
+        "properties": {
+          "semantic_outcome": { "enum": ["VIOLATION_CONFIRMED", "SECURE", "INCONCLUSIVE", "NONE"] }
+        }
+      }
+    },
+    {
+      "description": "A functional PASS/FAIL is only meaningful for a completed lifecycle; a timeout or crash is not a FAIL.",
+      "if": { "properties": { "kind": { "const": "functional" } } },
+      "then": {
+        "properties": { "semantic_outcome": { "enum": ["PASS", "FAIL", "NONE"] } },
+        "if": { "properties": { "lifecycle_outcome": { "not": { "const": "COMPLETED" } } } },
+        "then": { "properties": { "semantic_outcome": { "const": "NONE" } } }
+      }
+    }
+  ]
+}
