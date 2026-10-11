@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-11
+**Updated:** 2026-10-11 (Docker compatibility check completed)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -44,14 +44,26 @@ No test suite exists yet. Nothing was executed, so nothing failed. There is no
    This project now shadows it and is contained; the home repository is untouched.
    See `docs/environment.lock.md` §6.1.
 
-2. **Docker daemon not running; no isolation property measured.** Invariants
+2. **Installed Docker Desktop 4.42.1 is unsupported and carries an on-path critical
+   container-escape CVE.** Current release is 4.94.0 (2026-10-05); 4.42.1 is ~16
+   months old, past Docker's 6-month download and support windows, and predates
+   macOS 26. **CVE-2025-9074 (CVSS 9.3, fixed in 4.44.3)** lets a running Linux
+   container reach the Docker Engine API unauthenticated and escape to the host, with
+   a public proof-of-concept. That bypasses **INV-02** at the runtime layer:
+   PatchProof enforces "no Docker socket in a container" by configuration, which the
+   CVE routes around. Eleven further advisories post-date 4.42.1.
+
+   macOS 26.3.1 and Intel are both fine — Docker supports the current plus two
+   previous macOS majors and still ships an Intel build for 4.94.0. The version is
+   the sole problem. See `docs/environment.lock.md` §6.5.
+
+3. **Docker daemon not running; no isolation property measured.** Invariants
    INV-01 through INV-03 are unverified on this host. The §15.1 exit gate requires a
    recorded tested result for each runtime restriction; none exist. v0.0 cannot pass
    on this report alone.
 
-3. **Docker Desktop 4.42.1 vs macOS 26.3.1 compatibility is unverified.** §5.1
-   requires a currently supported Intel release matched to the actual macOS. Not
-   confirmed, and §5.1 forbids a silent fallback to an untested backend.
+   The daemon must **not** be started on 4.42.1: isolation evidence gathered on a
+   runtime with a known-broken escape boundary would be invalid for §15.1.
 
 4. **Git 2.42.0 is roughly three years old** (installed 2023-09-06; current stable
    2.56.0). §9.2 requires a supported patched release, and the snapshot path depends
@@ -66,14 +78,14 @@ In the order they block work:
 
 | # | Approval needed | Unblocks |
 |---|---|---|
-| 1 | Decide whether to remove `/Users/aliel-asmar/.git` (nothing is tracked; recommend backing up its config first) | Safe local Git hygiene |
-| 2 | `brew upgrade git` (2.42.0 → current) | PP-005 |
-| 3 | Install current Python 3.13.x and pin it | PP-004 packaging |
-| 4 | Any Docker Desktop upgrade, after compatibility is checked | PP-003 |
-| 5 | Start the Docker daemon and run the PP-003 isolation probe suite | v0.0 exit gate |
+| 1 | **Upgrade Docker Desktop 4.42.1 → 4.94.0 (Intel build).** Unsupported release; CVE-2025-9074 breaks INV-02 at the runtime layer | PP-003 and all container execution |
+| 2 | `brew upgrade git` (2.42.0 → current 2.56.0) | PP-005 |
+| 3 | Decide whether to remove `/Users/aliel-asmar/.git` (nothing is tracked; recommend backing up its config first) | Safe local Git hygiene |
+| 4 | Install current Python 3.13.x and pin it | PP-004 packaging |
+| 5 | Start the Docker daemon and run the PP-003 isolation probe suite — **only after item 1** | v0.0 exit gate |
 
-Item 4's compatibility check is agent work and needs no approval; only the resulting
-upgrade does.
+The Docker/macOS compatibility check that was previously listed here as agent work is
+**complete** (2026-10-11). Its outcome became item 1.
 
 ## Is the current release safe to demonstrate?
 

@@ -17,12 +17,15 @@ entry. A release gate is not complete because its files exist.
 |---|---|---|---|
 | PP-001 | Read-only host preflight and project tracking | Actual environment report, approved/unapproved actions, initialized status/backlog | `READY_FOR_REVIEW` |
 | PP-002 | Threat model, ADRs, schemas, and verdict specification | Reviewed trust boundaries and machine-validated example records | `NOT_STARTED` |
-| PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `NOT_STARTED` |
+| PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `BLOCKED` |
 | PP-004 | Pure verdict engine and initial negative tests | Truth-table tests; no Docker dependency for unit tests | `NOT_STARTED` |
 
-PP-003 is blocked on the owner approvals in `docs/environment.lock.md` §8 (items 4
-and 5): the Docker daemon is not running and no runtime restriction has a recorded
-tested result.
+PP-003 is `BLOCKED`, not merely unstarted. The installed Docker Desktop 4.42.1 is an
+unsupported release affected by CVE-2025-9074 (CVSS 9.3), which lets a container
+reach the Docker Engine API unauthenticated and escape to the host — bypassing INV-02
+at the runtime layer. Isolation evidence gathered on that runtime would be invalid for
+the §15.1 gate, so the daemon must not be started until Docker Desktop is upgraded to
+the current 4.94.0 Intel build. See `docs/environment.lock.md` §6.5 and §8 item 1.
 
 ## v0.1 — Verification core (useful CLI)
 

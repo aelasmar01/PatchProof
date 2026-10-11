@@ -151,18 +151,93 @@ is first built. Node is a build-time dependency only — §3.1 confirms producti
 serves built assets and does not run Node — so this does not affect any security
 invariant. Decide at PP-013 rather than installing now.
 
-### 6.5 Informational — macOS 26.3.1 on Intel hardware
+### 6.5 UNRESOLVED (BLOCKER) — installed Docker Desktop 4.42.1 is unsupported and carries an on-path critical container-escape CVE
 
-The machine runs macOS 26.3.1 on `x86_64`. §5.1 requires a "currently supported
-Docker Desktop Intel release compatible with the actual macOS installation" and warns
-that Docker's macOS support policy shifts with OS releases [R1].
+**Checked 2026-10-11** against Docker's official documentation. Resolved in three
+parts; only the third is a problem.
 
-Docker Desktop 4.42.1 is installed. Whether that build is supported on macOS 26 is
-**UNRESOLVED** — it was not verified, and the daemon was not started.
+**macOS version — OK.** Docker's stated policy is: *"Docker Desktop is supported on
+the current and two previous major macOS releases."* [R1] macOS 26 is the current
+release, so macOS 26.3.1 is inside the support window.
 
-*Required before PP-003:* check Docker's current macOS platform requirements against
-macOS 26.3.1 and Docker Desktop 4.42.1; if unsupported, present an approved upgrade,
-or evaluate Colima's Intel support as §5.1 allows. Do not fall back silently.
+**Intel architecture — OK.** Docker still publishes a "Mac with Intel chip" build for
+the current release (4.94.0), and the install page keeps a dedicated Intel system
+requirements section. No Intel deprecation or end-of-life date is announced. [R1]
+Minimum RAM is 4 GiB; this host has 32 GiB.
+
+**Installed Docker Desktop version — NOT SUPPORTED.**
+
+| Fact | Value |
+|---|---|
+| Installed | **4.42.1**, placed 2025-06-17, built against the macOS 14.5 SDK (`DTPlatformVersion = 14.5`) |
+| Current release | **4.94.0**, released 2026-10-05 |
+| Gap | ~16 months, ~52 releases |
+| Docker download policy | "Docker Desktop versions older than 6 months from the latest release are not available for download" |
+| Docker support policy | Pro/Team support the latest version only; Business supports up to 6 months older, with fixes applied to the latest version only |
+
+4.42.1 is roughly 16 months old, so it is outside every window Docker offers: not
+downloadable, not supported, and not receiving fixes. It was also built before macOS
+26 existed, so its compatibility with macOS 26.3.1 is untested by Docker rather than
+merely undocumented. §5.1 requires "a currently supported Docker Desktop Intel
+release compatible with the actual macOS installation." **4.42.1 does not meet that
+requirement.**
+
+#### Why this is a blocker and not a hygiene item
+
+Docker Desktop sits inside PatchProof's trusted computing base. §4.1 states this
+directly: the daemon can mount and modify host files, so "the runner therefore
+belongs to the trusted computing base" [R3]. Running deliberately vulnerable target
+code against an unpatched runtime puts the untrusted side of the design next to the
+component the design trusts most.
+
+Docker's security announcements list at least twelve Docker Desktop advisories fixed
+*after* 4.42.1. Two matter here:
+
+| CVE | Affected | Fixed in | Note |
+|---|---|---|---|
+| **CVE-2025-9074** | **≤ 4.44.2** | 4.44.3 (2025-08-20) | **Critical, CVSS 9.3.** A running Linux container can reach the Docker Engine API unauthenticated, leading to container escape and host compromise on macOS and Windows. A public proof-of-concept exists. |
+| CVE-2025-23266 | ≤ 4.43.x | 4.44.0 (2025-07-31) | Critical. |
+| CVE-2025-6587 | ≤ 4.42.x | 4.43.0 (2025-07-03) | Affects the installed version directly. |
+
+Later advisories fixed through 4.47.0, 4.49.0, 4.54.0, 4.62.0 (×2), 4.67.0, 4.68.0,
+4.71.0 and 4.86.0 also post-date 4.42.1.
+
+**CVE-2025-9074 directly undermines INV-02.** That invariant says no target or
+verifier container receives the Docker socket. PatchProof enforces it by
+configuration — by not mounting the socket. On an affected runtime a container can
+reach the Engine API *without* being given the socket, so the configuration control
+is bypassed at the runtime layer. The invariant would read as satisfied in the
+execution plan while being false in practice.
+
+The exposure is on-path rather than theoretical. §4.1 classifies the target
+application and everything it returns as lower-trust execution, and §1.3 makes
+running vulnerable revisions the product's normal operation. Any PP-003 probe or
+PP-008 run would place lower-trust code in exactly the position this CVE requires.
+
+#### Required action, in order
+
+1. **Do not start the daemon on 4.42.1.** Starting it to measure isolation would
+   generate v0.0 gate evidence from a runtime whose escape boundary is known broken.
+   Any such measurement would be invalid for §15.1.
+2. **Approve upgrading Docker Desktop to the current 4.94.0 Intel build** (owner
+   action — §5.1 forbids silent fallback, and §23.2 requires approval for
+   installation). This is the smallest supported adjustment and changes no security
+   invariant.
+3. Re-measure: record `docker info` server version, OS, architecture, `NCPU`,
+   `MemTotal`, and the active context in this file.
+4. Then run the PP-003 probe suite and record a tested result per restriction.
+
+If the upgrade turns out to be unavailable for this hardware or macOS combination,
+§5.1 permits evaluating Colima's Intel support instead [R2]. Do not proceed on
+4.42.1 either way.
+
+#### Recorded limitation
+
+Upgrading to a supported release removes these known advisories. It does not make the
+container boundary a comprehensive protection guarantee — §4.1 already places
+container-runtime vulnerabilities outside that guarantee. The honest claim after
+upgrading is "a currently supported runtime with no known applicable advisories at
+the recorded date," not "escape-proof."
 
 ### 6.6 Informational — project location
 
@@ -184,15 +259,19 @@ Desktop sync is ever enabled in iCloud, would become a cloud-synced destination.
 - No resource limit has been shown to be enforced. §5.2 is a design envelope only.
 - No image digest is pinned; `containers/` is unwritten.
 - No dependency set is resolved; there is no `pyproject.toml` or `uv.lock` yet.
-- Docker Desktop's compatibility with macOS 26.3.1 is unconfirmed.
+- Docker Desktop 4.42.1's compatibility with macOS 26.3.1 is untested by Docker; it
+  predates macOS 26. Resolved as a blocker in 6.5 rather than left open.
 - The applicability of specific Git advisories to 2.42.0 is unconfirmed.
 
 ## 8. Required next actions, in order
 
 | # | Action | Who | Blocking |
 |---|---|---|---|
-| 1 | Decide on removing `~/.git` (6.1) | Owner | Safe local Git hygiene |
+| 1 | **Approve upgrading Docker Desktop 4.42.1 → 4.94.0 (Intel).** Unsupported release; CVE-2025-9074 (CVSS 9.3) breaks INV-02 at the runtime layer (6.5) | Owner | PP-003 and all execution |
 | 2 | Approve `brew upgrade git` (6.2) | Owner | PP-005 |
-| 3 | Approve Python 3.13.x patch + pin (6.3) | Owner | PP-004 packaging |
-| 4 | Verify Docker Desktop 4.42.1 vs macOS 26.3.1 (6.5) | Agent, then owner approves any upgrade | PP-003 |
-| 5 | Approve starting the Docker daemon and running the PP-003 probe suite | Owner | v0.0 exit gate |
+| 3 | Decide on removing `~/.git` (6.1) | Owner | Safe local Git hygiene |
+| 4 | Approve Python 3.13.x patch + pin (6.3) | Owner | PP-004 packaging |
+| 5 | Approve starting the Docker daemon and running the PP-003 probe suite — **only after action 1** | Owner | v0.0 exit gate |
+
+Action 4 in the previous revision of this table ("verify Docker Desktop vs macOS 26")
+was completed on 2026-10-11; its result is Section 6.5 and it is now action 1.
