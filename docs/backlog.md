@@ -16,9 +16,13 @@ entry. A release gate is not complete because its files exist.
 | Issue | Work package | Completion evidence required | Status |
 |---|---|---|---|
 | PP-001 | Read-only host preflight and project tracking | Actual environment report, approved/unapproved actions, initialized status/backlog | `ACCEPTED` (2026-10-11) |
-| PP-002 | Threat model, ADRs, schemas, and verdict specification | Reviewed trust boundaries and machine-validated example records | `READY_FOR_REVIEW` |
+| PP-002 | Threat model, ADRs, schemas, and verdict specification | Reviewed trust boundaries and machine-validated example records | `ACCEPTED` (2026-10-11, commit `682ef63`) |
 | PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `NOT_STARTED` |
 | PP-004 | Pure verdict engine and initial negative tests | Truth-table tests; no Docker dependency for unit tests | `NOT_STARTED` |
+
+PP-002 accepted by owner on 2026-10-11, including decisions D1–D6, ADR-008, ADR-009 and the
+reviewed scenarios. Accepted at commit `682ef63039df72ecdb3de13d2861c4dea8cda9fd`, where
+`tests/unit/test_schemas.py` gave 201 passed, 0 failed, 0 skipped.
 
 PP-002 evidence: `docs/threat-model.md`, `docs/architecture/verdict-specification.md`,
 `docs/adr/`, `schemas/`, `tests/unit/test_schemas.py`. PP-004 must implement decision

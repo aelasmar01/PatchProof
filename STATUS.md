@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-11 (PP-002 remediation committed with owner decisions D6, ADR-008, ADR-009; awaiting final acceptance review)
+**Updated:** 2026-10-11 (PP-002 ACCEPTED by owner; PP-003 execution plan awaiting owner approval)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -8,13 +8,29 @@
 ## Current release and issue
 
 **Release:** v0.0 — Foundation and execution boundaries
-**Issue:** PP-002 — Threat model, ADRs, schemas, and verdict specification
-**State:** `READY_FOR_REVIEW`
+**Issue:** PP-003 — Harmless container isolation probe suite
+**State:** `NOT_STARTED`
 
-PP-002 is documentation and data-contract work. No software was installed, no
-container run, no target executed, and no network used. The owner's first review
-(2026-10-11) returned decisions D1–D5 and contract corrections; this revision applies
-them. PP-002 is **not** accepted.
+The PP-003 execution plan was prepared through read-only inspection only. It is waiting
+for owner approval. No container has been created or run, no image pulled, and no
+Docker setting changed.
+
+## Accepted issues
+
+### PP-002 — `ACCEPTED` by owner, 2026-10-11
+
+Accepted scope:
+
+- the verdict specification, including owner decisions D1–D6;
+- ADR-008 (strict schema contracts) and ADR-009 (container security policy as code);
+- the reviewed verdict scenarios and the schema-validation requirements.
+
+Accepted at commit `682ef63039df72ecdb3de13d2861c4dea8cda9fd`. Validation evidence at
+that commit: 201 passed, 0 failed, 0 skipped, plus the weakening and invariant checks
+recorded under "Failed tests, risks, and blockers".
+
+PP-002 was documentation and data-contract work. No software was installed, no container
+run, no target executed, and no network used.
 
 PP-002 evidence:
 
@@ -39,7 +55,7 @@ PP-002 evidence:
   host-observed byte count (scenarios S24–S26).
 - **ADR-008 and ADR-009 accepted**, with conditions recorded in each ADR.
 
-None of these is acceptance of PP-002 or of the v0.0 gate.
+PP-002 acceptance is acceptance of that issue only. **It is not the v0.0 release gate.**
 
 **Acceptance-readiness review (2026-10-11) also changed two things:**
 
@@ -58,17 +74,22 @@ None of these is acceptance of PP-002 or of the v0.0 gate.
 
 ## Last completed gate and its evidence
 
-**No release gate has passed.** v0.0 is open.
+**No release gate has passed.** v0.0 is open. It needs PP-003 and PP-004 plus the §15.1
+demonstration.
 
-**PP-001 ACCEPTED** by owner on 2026-10-11. Evidence: `docs/environment.lock.md`.
+| Issue | Accepted | Evidence |
+|---|---|---|
+| PP-001 | 2026-10-11 | `docs/environment.lock.md` |
+| PP-002 | 2026-10-11 | commit `682ef63`; see "Accepted issues" above |
 
 ## Next permitted issue
 
-**None until PP-002 is accepted.** Only PP-001 is accepted, and §16 allows one issue at a
-time.
+**PP-003**, the harmless container isolation probes, is next in backlog order. It is
+permitted to start only after the owner approves its execution plan. Execution needs
+explicit approval to:
 
-After PP-002 is accepted, the next issue in backlog order is **PP-003**, the isolation
-probes. It needs owner approval to run containers and to pull one pinned base image.
+- pull one pinned base image (network access);
+- create, run, and remove probe containers.
 
 PP-004, the pure verdict engine, follows. It needs a pinned Python and a
 `pyproject.toml` (approval item 3). Taking PP-004 before PP-003 would need an explicit
@@ -172,12 +193,11 @@ In the order they block work:
 
 | # | Approval needed | Unblocks |
 |---|---|---|
-| 1 | Final acceptance review of PP-002, including the 26-scenario truth table | PP-004 rule set |
-| 2 | Run the PP-003 isolation probe suite (harmless probes only; no target code) | v0.0 exit gate |
-| 3 | Install current Python 3.13.x and pin it; approve pinning the validation/test dependencies | PP-004 packaging |
-| 4 | `brew upgrade git` (2.42.0 → 2.56.0) | PP-005 |
-| 5 | Decide whether to remove `/Users/aliel-asmar/.git` (nothing is tracked; recommend backing up its config first) | Safe local Git hygiene |
-| 6 | Claude Code permissions: §23.1 advises against broad bypass mode on this Mac; PP-002 ran with it active (`docs/threat-model.md` AC-8) | Agent-boundary hygiene |
+| 1 | Approve the PP-003 execution plan: one pinned image pull, then harmless probe containers with labeled, ID-scoped cleanup | v0.0 exit gate |
+| 2 | Install current Python 3.13.x and pin it; approve pinning the validation/test dependencies | PP-004 packaging |
+| 3 | `brew upgrade git` (2.42.0 → 2.56.0) | PP-005 |
+| 4 | Decide whether to remove `/Users/aliel-asmar/.git` (nothing is tracked; recommend backing up its config first) | Safe local Git hygiene |
+| 5 | Claude Code permissions: §23.1 advises against broad bypass mode on this Mac; PP-002 ran with it active (`docs/threat-model.md` AC-8) | Agent-boundary hygiene |
 
 **Cleared 2026-10-11:** Docker Desktop upgraded 4.42.1 → 4.94.0 (server 29.8.2). The
 runtime now meets §5.1 and all advisories listed in `docs/environment.lock.md` §6.5
