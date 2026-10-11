@@ -22,7 +22,10 @@ entry. A release gate is not complete because its files exist.
 
 PP-002 evidence: `docs/threat-model.md`, `docs/architecture/verdict-specification.md`,
 `docs/adr/`, `schemas/`, `tests/unit/test_schemas.py`. PP-004 must implement decision
-table V-01–V-10 and properties P-1–P-7 from the verdict specification.
+table V-01–V-10, input validation M1–M7/G1–G5, per-execution result-cap enforcement (D6), and
+properties P-1–P-9 from the verdict specification, and reproduce all 26 expected verdicts in
+`schemas/examples/scenarios/`. PP-007 owes Pydantic/JSON Schema parity tests (ADR-008); PP-008
+owes safe encoding of target-derived event content (D6) and code-level resource ceilings (ADR-009).
 
 PP-003's runtime blocker is cleared. Docker Desktop was upgraded 4.42.1 → 4.94.0
 (server 29.8.2) on 2026-10-11, so the CVE-2025-9074 exposure that bypassed INV-02 at

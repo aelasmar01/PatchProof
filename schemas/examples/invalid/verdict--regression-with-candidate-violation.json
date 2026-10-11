@@ -1,12 +1,22 @@
 {
   "schema_version": "1.0",
   "run_id": "run-00000000000000000000000000000001",
-  "engine_version": "0.1.0",
+  "engine_version": "0.0.0",
   "verdict": "REGRESSION_DETECTED",
   "display_label": "Regression detected",
   "decision_rule": "V-04",
+  "execution_started": true,
+  "run_termination": "normal",
   "reason_codes": [
     "FUNCTIONAL_REGRESSION"
+  ],
+  "details": [
+    {
+      "reason_code": "FUNCTIONAL_REGRESSION",
+      "pair": 1,
+      "side": "candidate",
+      "test_id": "FUNC-001"
+    }
   ],
   "flags": {
     "incomplete_checks": false,
@@ -28,7 +38,10 @@
     "security_tests": 2,
     "functional_tests": 1,
     "pairs_planned": 1,
-    "pairs_completed": 1
+    "pairs_terminated_normally": 1,
+    "pairs_with_trusted_evidence": 1,
+    "required_cells": 6,
+    "trusted_cells": 6
   },
   "evaluated_at": "2026-10-11T12:00:00Z"
 }

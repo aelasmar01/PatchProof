@@ -1,13 +1,16 @@
 {
   "schema_version": "1.0",
   "run_id": "run-00000000000000000000000000000001",
-  "engine_version": "0.1.0",
+  "engine_version": "0.0.0",
   "verdict": "VERIFIED_FOR_CASES",
   "display_label": "Verified for the selected cases",
   "decision_rule": "V-09",
+  "execution_started": true,
+  "run_termination": "normal",
   "reason_codes": [
     "ALL_CONDITIONS_SATISFIED"
   ],
+  "details": [],
   "flags": {
     "incomplete_checks": false,
     "candidate_violation": false,
@@ -28,7 +31,10 @@
     "security_tests": 2,
     "functional_tests": 0,
     "pairs_planned": 1,
-    "pairs_completed": 1
+    "pairs_terminated_normally": 1,
+    "pairs_with_trusted_evidence": 1,
+    "required_cells": 6,
+    "trusted_cells": 6
   },
   "evaluated_at": "2026-10-11T12:00:00Z"
 }

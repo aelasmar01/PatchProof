@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "engine_version": "0.0.0",
+  "verdict": "NOT_FIXED",
+  "display_label": "Not fixed",
+  "decision_rule": "V-03",
+  "execution_started": true,
+  "run_termination": "canceled",
+  "reason_codes": [
+    "RUN_CANCELED",
+    "REPETITION_INCOMPLETE",
+    "REQUIRED_CHECK_INCOMPLETE",
+    "CANDIDATE_VIOLATION_CONFIRMED"
+  ],
+  "details": [
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 2,
+      "side": "baseline",
+      "test_id": "AUTH-001"
+    },
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 2,
+      "side": "baseline",
+      "test_id": "AUTH-002"
+    },
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 2,
+      "side": "baseline",
+      "test_id": "FUNC-001"
+    },
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 2,
+      "side": "candidate",
+      "test_id": "AUTH-001"
+    },
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 2,
+      "side": "candidate",
+      "test_id": "AUTH-002"
+    },
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 2,
+      "side": "candidate",
+      "test_id": "FUNC-001"
+    },
+    {
+      "reason_code": "CANDIDATE_VIOLATION_CONFIRMED",
+      "pair": 1,
+      "side": "candidate",
+      "test_id": "AUTH-001"
+    }
+  ],
+  "flags": {
+    "incomplete_checks": true,
+    "candidate_violation": true,
+    "functional_regression": false,
+    "harness_drift": false,
+    "flaky_observations": false,
+    "baseline_not_reproduced": false,
+    "baseline_control_failed": false
+  },
+  "preconditions": {
+    "authorization": "PASSED",
+    "pack_integrity": "PASSED",
+    "source_identity": "PASSED",
+    "environment_identity": "PASSED",
+    "result_provenance": "PASSED"
+  },
+  "counts": {
+    "security_tests": 2,
+    "functional_tests": 1,
+    "pairs_planned": 2,
+    "pairs_terminated_normally": 1,
+    "pairs_with_trusted_evidence": 1,
+    "required_cells": 12,
+    "trusted_cells": 6
+  },
+  "evaluated_at": "2026-10-11T12:00:00Z"
+}

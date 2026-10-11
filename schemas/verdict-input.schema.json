@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:verdict-input:1.0",
+  "title": "Verdict engine input",
+  "description": "The complete, normalized input of the pure verdict engine (PP-004). It contains only reviewed pack expectations, the planned pair count, precondition results, host-observed execution records, and verifier-derived observations. It has no field for target stdout, target logs, target files, or any target-supplied status (INV-09). Schema validity is necessary but not sufficient: matrix and consistency validation (verdict specification section 5.2) runs before any rule and fails closed. uniqueItems rejects byte-identical duplicate records; duplicates that differ in content are rejected by the matrix validation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "pack_tests", "pairs_planned", "result_cap_bytes", "preconditions",
+    "run_termination", "executions", "observations"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+    "run_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/runId" },
+    "pack_tests": {
+      "description": "The required-test table from the approved pack manifest.",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 200,
+      "uniqueItems": true,
+      "items": { "$ref": "urn:patchproof:schema:pack-manifest:1.0#/$defs/requiredTest" }
+    },
+    "pairs_planned": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "result_cap_bytes": {
+      "description": "The approved profile's per-execution structured result cap (5.2). The engine compares each execution's host-observed stream.bytes_received with it and never relies on a supplied stream status alone (D6).",
+      "type": "integer",
+      "minimum": 65536,
+      "maximum": 52428800
+    },
+    "preconditions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authorization", "pack_integrity", "source_identity",
+        "environment_identity", "result_provenance"
+      ],
+      "properties": {
+        "authorization": { "$ref": "#/$defs/precondition" },
+        "pack_integrity": { "$ref": "#/$defs/precondition" },
+        "source_identity": { "$ref": "#/$defs/precondition" },
+        "environment_identity": { "$ref": "#/$defs/precondition" },
+        "result_provenance": { "$ref": "#/$defs/precondition" }
+      }
+    },
+    "run_termination": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/runTermination" },
+    "executions": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": { "$ref": "urn:patchproof:schema:execution:1.0" }
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 4000,
+      "uniqueItems": true,
+      "items": { "$ref": "urn:patchproof:schema:observation:1.0" }
+    }
+  },
+  "$defs": {
+    "precondition": {
+      "description": "detected_phase is relative to comparison execution start (verdict specification section 5.3).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "detected_phase", "reason_codes"],
+      "properties": {
+        "state": { "enum": ["PASSED", "FAILED", "NOT_EVALUATED"] },
+        "detected_phase": { "enum": [null, "pre_execution", "post_execution"] },
+        "reason_codes": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/reasonCode" }
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "state": { "const": "FAILED" } } },
+          "then": {
+            "properties": {
+              "detected_phase": { "enum": ["pre_execution", "post_execution"] },
+              "reason_codes": { "minItems": 1 }
+            }
+          },
+          "else": {
+            "properties": {
+              "detected_phase": { "const": null },
+              "reason_codes": { "maxItems": 0 }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

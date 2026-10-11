@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:execution:1.0",
+  "title": "Revision execution (one pair, one side)",
+  "description": "PROJECT_SPEC.md 10.3, 12.1 (RevisionExecution), 12.2 (executions/pair-NNN-<side>.json). Host-observed facts about one target/verifier execution, normalized by the runner (PP-008) from Docker inspection and the verifier event stream. The verdict engine reads these facts; it never calls Docker. A session_end event alone never establishes a trustworthy execution: the execution trust predicate (verdict specification section 4.2) also requires host-confirmed normal verifier termination.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "pair", "side", "started", "target", "verifier",
+    "deadline_exceeded", "canceled", "runtime_errors", "stream"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+    "run_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/runId" },
+    "pair": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/pairIndex" },
+    "side": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/side" },
+    "started": {
+      "description": "True once any container of this execution was started (docker start), i.e. once target or verifier code could run. Creation and inspection alone are not a start.",
+      "type": "boolean"
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readiness", "oom_killed", "exited_during_tests"],
+      "properties": {
+        "readiness": { "enum": ["READY", "STARTUP_FAILED", "READINESS_TIMEOUT", "NOT_STARTED"] },
+        "oom_killed": { "type": "boolean" },
+        "exited_during_tests": { "type": "boolean" }
+      }
+    },
+    "verifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["termination", "exit_code", "signal", "oom_killed"],
+      "properties": {
+        "termination": {
+          "description": "EXITED: process exit observed with a status code. SIGNALED: killed by a signal. NOT_STARTED: never started. NOT_OBSERVED: the host could not determine how it ended (for example after a worker crash).",
+          "enum": ["EXITED", "SIGNALED", "NOT_STARTED", "NOT_OBSERVED"]
+        },
+        "exit_code": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0, "maximum": 255 }] },
+        "signal": { "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 1, "maximum": 64 }] },
+        "oom_killed": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "termination": { "const": "EXITED" } } },
+          "then": { "properties": { "exit_code": { "type": "integer" }, "signal": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "termination": { "const": "SIGNALED" } } },
+          "then": { "properties": { "exit_code": { "type": "null" }, "signal": { "type": "integer" } } }
+        },
+        {
+          "if": { "properties": { "termination": { "enum": ["NOT_STARTED", "NOT_OBSERVED"] } } },
+          "then": { "properties": { "exit_code": { "type": "null" }, "signal": { "type": "null" } } }
+        }
+      ]
+    },
+    "deadline_exceeded": { "type": "boolean" },
+    "canceled": { "type": "boolean" },
+    "runtime_errors": {
+      "type": "array",
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "enum": ["CONTAINER_CREATE_FAILED", "CONTAINER_START_FAILED", "ATTACH_FAILED", "INSPECT_FAILED"] }
+    },
+    "stream": {
+      "description": "Facts computed by the host collector from the events it actually received, never copied from session_end.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "session_end_received", "events_received", "bytes_received", "failed_reports"],
+      "properties": {
+        "status": { "enum": ["COMPLETE", "TRUNCATED", "MALFORMED", "IDENTITY_MISMATCH", "OVER_CAP", "ABSENT"] },
+        "session_end_received": { "type": "boolean" },
+        "events_received": { "type": "integer", "minimum": 0, "maximum": 100001 },
+        "bytes_received": {
+          "description": "Bytes the host actually read from the verifier channel. The collector stops reading once the cap is exceeded, so a recorded value is at most cap + 1.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 52428801
+        },
+        "failed_reports": {
+          "description": "Number of test_report events with outcome 'failed' received on this stream.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 400
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "COMPLETE" } } },
+          "then": { "properties": { "session_end_received": { "const": true } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "TRUNCATED" } } },
+          "then": { "properties": { "session_end_received": { "const": false } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "ABSENT" } } },
+          "then": {
+            "properties": {
+              "session_end_received": { "const": false },
+              "events_received": { "const": 0 },
+              "bytes_received": { "const": 0 },
+              "failed_reports": { "const": 0 }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "description": "An execution that never started has no observed behavior.",
+      "if": { "properties": { "started": { "const": false } } },
+      "then": {
+        "properties": {
+          "target": { "properties": { "readiness": { "const": "NOT_STARTED" }, "oom_killed": { "const": false }, "exited_during_tests": { "const": false } } },
+          "verifier": { "properties": { "termination": { "const": "NOT_STARTED" }, "oom_killed": { "const": false } } },
+          "stream": { "properties": { "status": { "const": "ABSENT" } } }
+        }
+      },
+      "else": {
+        "properties": { "target": { "properties": { "readiness": { "not": { "const": "NOT_STARTED" } } } } }
+      }
+    },
+    {
+      "description": "If the target never became ready, the verifier is not started.",
+      "if": { "properties": { "target": { "properties": { "readiness": { "enum": ["STARTUP_FAILED", "READINESS_TIMEOUT", "NOT_STARTED"] } } } } },
+      "then": {
+        "properties": {
+          "verifier": { "properties": { "termination": { "const": "NOT_STARTED" } } },
+          "stream": { "properties": { "status": { "const": "ABSENT" } } }
+        }
+      }
+    }
+  ]
+}

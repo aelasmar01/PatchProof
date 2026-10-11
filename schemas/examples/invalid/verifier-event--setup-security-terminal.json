@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "pair": 1,
+  "side": "baseline",
+  "seq": 2,
+  "type": "test_report",
+  "payload": {
+    "test_id": "AUTH-001",
+    "phase": "setup",
+    "outcome": "failed",
+    "failure_class": "security_terminal",
+    "xfail": false
+  }
+}

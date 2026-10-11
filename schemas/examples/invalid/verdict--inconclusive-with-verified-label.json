@@ -1,12 +1,29 @@
 {
   "schema_version": "1.0",
   "run_id": "run-00000000000000000000000000000001",
-  "engine_version": "0.1.0",
+  "engine_version": "0.0.0",
   "verdict": "INCONCLUSIVE",
   "display_label": "Verified for the selected cases",
   "decision_rule": "V-06",
+  "execution_started": true,
+  "run_termination": "normal",
   "reason_codes": [
-    "INCONSISTENT_REPETITIONS"
+    "INCONSISTENT_REPETITIONS",
+    "BASELINE_NOT_REPRODUCED"
+  ],
+  "details": [
+    {
+      "reason_code": "INCONSISTENT_REPETITIONS",
+      "pair": null,
+      "side": "baseline",
+      "test_id": "AUTH-001"
+    },
+    {
+      "reason_code": "BASELINE_NOT_REPRODUCED",
+      "pair": null,
+      "side": "baseline",
+      "test_id": "AUTH-001"
+    }
   ],
   "flags": {
     "incomplete_checks": false,
@@ -14,7 +31,7 @@
     "functional_regression": false,
     "harness_drift": false,
     "flaky_observations": true,
-    "baseline_not_reproduced": false,
+    "baseline_not_reproduced": true,
     "baseline_control_failed": false
   },
   "preconditions": {
@@ -27,8 +44,11 @@
   "counts": {
     "security_tests": 2,
     "functional_tests": 1,
-    "pairs_planned": 3,
-    "pairs_completed": 3
+    "pairs_planned": 2,
+    "pairs_terminated_normally": 2,
+    "pairs_with_trusted_evidence": 2,
+    "required_cells": 12,
+    "trusted_cells": 12
   },
   "evaluated_at": "2026-10-11T12:00:00Z"
 }

@@ -102,6 +102,58 @@
         "sha256": { "$ref": "#/$defs/sha256" }
       }
     },
+    "preconditionName": {
+      "enum": ["authorization", "pack_integrity", "source_identity", "environment_identity", "result_provenance"]
+    },
+    "runTermination": {
+      "description": "How the run ended. canceled = explicit operator cancellation (run lifecycle CANCELED); interrupted = worker or host stop without a normal finish (lifecycle INTERRUPTED).",
+      "enum": ["normal", "canceled", "interrupted"]
+    },
+    "reasonCode": {
+      "description": "Declaration order is the canonical output order (verdict specification section 8).",
+      "enum": [
+        "ALL_CONDITIONS_SATISFIED",
+        "APPROVAL_MISSING",
+        "APPROVAL_STALE",
+        "PACK_INTEGRITY_FAILED",
+        "PACK_INCOMPLETE_FOR_FIX_VERIFICATION",
+        "PACK_COLLECTION_MISMATCH",
+        "UNSUPPORTED_TARGET_PROFILE",
+        "RUNTIME_POLICY_FAILED",
+        "ENVIRONMENT_NONCOMPARABLE",
+        "SOURCE_IDENTITY_MISMATCH",
+        "EVENT_STREAM_MALFORMED",
+        "EVENT_STREAM_IDENTITY_MISMATCH",
+        "EVIDENCE_INCOMPLETE",
+        "PRECONDITION_NOT_EVALUATED",
+        "OBSERVATION_MATRIX_INVALID",
+        "EXECUTION_EVIDENCE_INCONSISTENT",
+        "RUN_CANCELED",
+        "RUN_INTERRUPTED",
+        "TARGET_STARTUP_FAILED",
+        "EXECUTION_TIMED_OUT",
+        "EXECUTION_OOM_KILLED",
+        "TARGET_EXITED_DURING_TESTS",
+        "VERIFIER_TERMINATED_ABNORMALLY",
+        "RUNTIME_ERROR",
+        "EXECUTION_CANCELED",
+        "RESULT_CAP_EXCEEDED",
+        "EVENT_STREAM_TRUNCATED",
+        "REPETITION_INCOMPLETE",
+        "REQUIRED_CHECK_INCOMPLETE",
+        "CHECK_INCONCLUSIVE",
+        "HARNESS_ERROR",
+        "CANDIDATE_VIOLATION_CONFIRMED",
+        "NEW_SECURITY_VIOLATION",
+        "FUNCTIONAL_REGRESSION",
+        "INCONSISTENT_REPETITIONS",
+        "BASELINE_CONTROL_FAILED",
+        "BASELINE_SECURITY_UNEXPECTED",
+        "BASELINE_NOT_REPRODUCED",
+        "BASELINE_PARTIALLY_REPRODUCED",
+        "UNCLASSIFIED_EVIDENCE"
+      ]
+    },
     "containerLimits": {
       "description": "Per-container resource limits. All fields are required; a profile cannot omit a limit. Bounds are schema sanity limits, not approval: the reviewed values are bound by the profile hash.",
       "type": "object",

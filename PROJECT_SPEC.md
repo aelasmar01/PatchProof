@@ -7,6 +7,7 @@
 **Primary objective:** Demonstrate hands-on application security engineering through a useful, locally operated developer tool.  
 **Development machine:** User's 2019 Intel Mac; exact model, macOS, memory, and available storage must be measured.  
 **Primary coding agent:** Claude Code.  
+**Amendments:** 2026-10-11, PP-002 review — §5.2 result-cap enforcement (per-execution scope retained, D6), §13.2 exit-code precedence, §17.3 items 3, 6, 9, 11 reconciled with `docs/architecture/verdict-specification.md`.  
 **Implementation status:** Specification only. Every capability, benchmark, and release gate below is planned—not an achieved result.  
 **Recommended completion target:** Product v1.0. Optional v1.1 and v2.0 are not prerequisites for a strong portfolio project.
 
@@ -242,7 +243,7 @@ These are initial **limits and design targets**, not measurements of Ali's machi
 | Cancellation grace | 5 seconds, then force-remove only containers owned by that run |
 | Source snapshot cap | 100 MiB total, 20,000 entries, 10 MiB per file |
 | Collected log cap | 5 MiB per container; truncation is recorded; daemon-side logs are also bounded |
-| Structured result cap | 10 MiB per revision; exceeding it invalidates that revision's verification evidence |
+| Structured result cap | 10 MiB per revision; exceeding it invalidates that revision execution's verification evidence only (owner decision D6; verdict specification §4.1). The verdict engine checks the host-observed byte count itself. |
 
 A 16 GiB host is a development planning target, not a mandatory fact about the machine. On lower-memory hardware, run the UI build and heavy scanners separately from comparisons. If limits are adjusted, save and approve a named profile; never silently remove them. Docker does not impose CPU/memory caps by default, so configured limits and enforcement probes are required. [R4]
 
@@ -711,6 +712,8 @@ Separate noninteractive automation from interactive approval. A generic `--yes`,
 - `22`: explicitly canceled.
 - `2`: command usage error before execution.
 
+Lifecycle takes precedence over verdict when choosing the exit code: a `CANCELED` run exits 22 and an `INTERRUPTED` run exits 20, even when its verdict record preserves an independently established semantic verdict such as `NOT_FIXED`. Otherwise the verdict mapping above applies.
+
 JSON output must include the semantic verdict and run ID; consumers must not infer more from an exit code than this contract establishes.
 
 ### 13.3 Local API
@@ -969,15 +972,15 @@ Add at least these **12 planned failure scenarios**, each with an explicit revie
 
 1. Baseline already secure: `NOT_REPRODUCED`.
 2. Baseline startup failure: `INCONCLUSIVE`.
-3. Candidate timeout or OOM: `INCONCLUSIVE`, with trustworthy prior violations preserved separately if any.
+3. Candidate timeout or OOM: that execution's observations are untrusted and preserved; `INCONCLUSIVE` unless other trustworthy completed executions establish `NOT_FIXED` or `REGRESSION_DETECTED`.
 4. Required test not collected: `INCONCLUSIVE` or pre-execution `BLOCKED`, depending on detection phase.
 5. Required test skipped/xfail/xpass: never verified.
-6. Approved pack changed: `BLOCKED` until reapproved.
+6. Approved pack changed: `BLOCKED` until reapproved when detected before execution begins; `INCONCLUSIVE` if detected after.
 7. Target emits forged passing-result JSON: ignore it as verdict input.
 8. Candidate deletes repository tests: external pack remains unchanged and still executes.
-9. Target image/dependency contract drifts: `BLOCKED` as noncomparable.
+9. Target image/dependency contract drifts: `BLOCKED` as noncomparable when detected before execution begins; `INCONCLUSIVE` if detected after.
 10. Repeated observations disagree: never verified; record flakiness.
-11. Verifier result is truncated or lacks completion events: `INCONCLUSIVE`.
+11. Verifier result is truncated or lacks completion events, or the verifier terminates abnormally despite reporting completion: `INCONCLUSIVE`.
 12. Evidence bundle is changed after creation: integrity verification fails.
 
 Publish each scenario and its classification. Different injected failures are not necessarily independent real-world vulnerability samples. Do not convert “24 planned scenarios” into claims of universal vulnerability-detection accuracy.

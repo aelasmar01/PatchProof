@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "engine_version": "0.0.0",
+  "verdict": "INCONCLUSIVE",
+  "display_label": "Inconclusive",
+  "decision_rule": "V-05",
+  "execution_started": true,
+  "run_termination": "normal",
+  "reason_codes": [
+    "TARGET_STARTUP_FAILED",
+    "REPETITION_INCOMPLETE",
+    "REQUIRED_CHECK_INCOMPLETE"
+  ],
+  "details": [
+    {
+      "reason_code": "TARGET_STARTUP_FAILED",
+      "pair": 1,
+      "side": "baseline",
+      "test_id": null
+    },
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 1,
+      "side": "baseline",
+      "test_id": "AUTH-001"
+    },
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 1,
+      "side": "baseline",
+      "test_id": "AUTH-002"
+    },
+    {
+      "reason_code": "REQUIRED_CHECK_INCOMPLETE",
+      "pair": 1,
+      "side": "baseline",
+      "test_id": "FUNC-001"
+    }
+  ],
+  "flags": {
+    "incomplete_checks": true,
+    "candidate_violation": false,
+    "functional_regression": false,
+    "harness_drift": false,
+    "flaky_observations": false,
+    "baseline_not_reproduced": false,
+    "baseline_control_failed": false
+  },
+  "preconditions": {
+    "authorization": "PASSED",
+    "pack_integrity": "PASSED",
+    "source_identity": "PASSED",
+    "environment_identity": "PASSED",
+    "result_provenance": "PASSED"
+  },
+  "counts": {
+    "security_tests": 2,
+    "functional_tests": 1,
+    "pairs_planned": 1,
+    "pairs_terminated_normally": 0,
+    "pairs_with_trusted_evidence": 0,
+    "required_cells": 6,
+    "trusted_cells": 3
+  },
+  "evaluated_at": "2026-10-11T12:00:00Z"
+}

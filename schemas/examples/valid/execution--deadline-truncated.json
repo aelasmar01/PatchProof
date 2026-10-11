@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "pair": 3,
+  "side": "candidate",
+  "started": true,
+  "target": {
+    "readiness": "READY",
+    "oom_killed": false,
+    "exited_during_tests": false
+  },
+  "verifier": {
+    "termination": "SIGNALED",
+    "exit_code": null,
+    "signal": 9,
+    "oom_killed": false
+  },
+  "deadline_exceeded": true,
+  "canceled": false,
+  "runtime_errors": [],
+  "stream": {
+    "status": "TRUNCATED",
+    "session_end_received": false,
+    "events_received": 8,
+    "bytes_received": 4096,
+    "failed_reports": 0
+  }
+}

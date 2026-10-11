@@ -1,6 +1,6 @@
 # ADR-008 — Versioned JSON Schema contracts with a strict loader
 
-**Status:** Proposed — awaiting owner review (PP-002)
+**Status:** Accepted by owner, 2026-10-11 (PP-002 review). Acceptance of this ADR is not acceptance of PP-002 or of the v0.0 gate.
 **Date:** 2026-10-11
 **Source:** §7.1, §12.2; new in PP-002
 
@@ -38,6 +38,12 @@ reviewer), so every consumer needs the same contract.
   replace them, after source verification.
 - Schema bounds are sanity limits, not approvals. Reviewed limits are bound by profile
   and pack hashes (§7.5).
+
+## Owner acceptance conditions (2026-10-11)
+- PP-007 must include Pydantic/JSON Schema parity tests that run the existing valid and
+  invalid example corpus, including the scenario corpus, through both.
+- Pin the validation tool versions during the approved implementation step that first
+  packages the project. They are not pinned yet.
 
 ## Verification
 `tests/unit/test_schemas.py`: schema meta-validation, valid examples, reason-pinned

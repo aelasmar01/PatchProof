@@ -1,6 +1,6 @@
 # ADR-009 — Container security policy is code, not profile data
 
-**Status:** Proposed — awaiting owner review (PP-002)
+**Status:** Accepted by owner, 2026-10-11 (PP-002 review). Acceptance of this ADR is not acceptance of PP-002 or of the v0.0 gate.
 **Date:** 2026-10-11
 **Source:** §10.2, §11.2, INV-16; new in PP-002
 
@@ -32,6 +32,18 @@ A profile can choose only the following:
   `--bridge-network.json` are rejected by the schema.
 - The runner must still inspect each created container and probe enforcement. Absence
   of a field is not proof the runtime enforced the policy (§10.2; PP-003).
+
+## Owner acceptance conditions (2026-10-11)
+- Profiles must not permit changes to:
+  - container privileges, capabilities, or security options;
+  - mounts or network topology;
+  - arbitrary environment variables;
+  - entry commands or raw Docker arguments.
+- Selectable images must remain approved and identity-pinned.
+- Resource limits must be bounded by **enforced code-level ceilings** in the runner
+  (PP-008). The schema bounds are sanity limits and not a substitute.
+- ASGI identifiers, fixture contracts, and source scopes must remain strictly validated.
+- No configuration or browser request may weaken the locked security invariants.
 
 ## Verification
 PP-002 rejection examples; PP-008 container inspection tests; Semgrep rule 2 in PP-026.

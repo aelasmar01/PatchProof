@@ -1,0 +1,227 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "pack_tests": [
+    {
+      "id": "AUTH-001",
+      "nodeid": "tests/test_documents.py::test_nonowner_cannot_read",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "AUTH-002",
+      "nodeid": "tests/test_documents.py::test_unauthenticated_access_denied",
+      "kind": "security",
+      "baseline_expected": "SECURE",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "FUNC-001",
+      "nodeid": "tests/test_documents.py::test_owner_can_read",
+      "kind": "functional",
+      "baseline_expected": "PASS",
+      "candidate_expected": "PASS"
+    }
+  ],
+  "pairs_planned": 2,
+  "result_cap_bytes": 10485760,
+  "preconditions": {
+    "authorization": {
+      "state": "PASSED",
+      "detected_phase": null,
+      "reason_codes": []
+    },
+    "pack_integrity": {
+      "state": "PASSED",
+      "detected_phase": null,
+      "reason_codes": []
+    },
+    "source_identity": {
+      "state": "PASSED",
+      "detected_phase": null,
+      "reason_codes": []
+    },
+    "environment_identity": {
+      "state": "PASSED",
+      "detected_phase": null,
+      "reason_codes": []
+    },
+    "result_provenance": {
+      "state": "PASSED",
+      "detected_phase": null,
+      "reason_codes": []
+    }
+  },
+  "run_termination": "canceled",
+  "executions": [
+    {
+      "schema_version": "1.0",
+      "run_id": "run-00000000000000000000000000000001",
+      "pair": 1,
+      "side": "baseline",
+      "started": true,
+      "target": {
+        "readiness": "READY",
+        "oom_killed": false,
+        "exited_during_tests": false
+      },
+      "verifier": {
+        "termination": "EXITED",
+        "exit_code": 1,
+        "signal": null,
+        "oom_killed": false
+      },
+      "deadline_exceeded": false,
+      "canceled": false,
+      "runtime_errors": [],
+      "stream": {
+        "status": "COMPLETE",
+        "session_end_received": true,
+        "events_received": 16,
+        "bytes_received": 4096,
+        "failed_reports": 1
+      }
+    },
+    {
+      "schema_version": "1.0",
+      "run_id": "run-00000000000000000000000000000001",
+      "pair": 1,
+      "side": "candidate",
+      "started": true,
+      "target": {
+        "readiness": "READY",
+        "oom_killed": false,
+        "exited_during_tests": false
+      },
+      "verifier": {
+        "termination": "EXITED",
+        "exit_code": 1,
+        "signal": null,
+        "oom_killed": false
+      },
+      "deadline_exceeded": false,
+      "canceled": false,
+      "runtime_errors": [],
+      "stream": {
+        "status": "COMPLETE",
+        "session_end_received": true,
+        "events_received": 16,
+        "bytes_received": 4096,
+        "failed_reports": 1
+      }
+    }
+  ],
+  "observations": [
+    {
+      "schema_version": "1.0",
+      "run_id": "run-00000000000000000000000000000001",
+      "pair": 1,
+      "side": "baseline",
+      "test_id": "AUTH-001",
+      "nodeid": "tests/test_documents.py::test_nonowner_cannot_read",
+      "kind": "security",
+      "stream_status": "COMPLETE",
+      "lifecycle_outcome": "COMPLETED",
+      "semantic_outcome": "VIOLATION_CONFIRMED",
+      "harness_errors": [],
+      "evidence_refs": [
+        {
+          "artifact_id": "art-00000000000000000000000000000001",
+          "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ],
+      "provenance": "verifier-event-stream"
+    },
+    {
+      "schema_version": "1.0",
+      "run_id": "run-00000000000000000000000000000001",
+      "pair": 1,
+      "side": "baseline",
+      "test_id": "AUTH-002",
+      "nodeid": "tests/test_documents.py::test_unauthenticated_access_denied",
+      "kind": "security",
+      "stream_status": "COMPLETE",
+      "lifecycle_outcome": "COMPLETED",
+      "semantic_outcome": "SECURE",
+      "harness_errors": [],
+      "evidence_refs": [
+        {
+          "artifact_id": "art-00000000000000000000000000000001",
+          "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ],
+      "provenance": "verifier-event-stream"
+    },
+    {
+      "schema_version": "1.0",
+      "run_id": "run-00000000000000000000000000000001",
+      "pair": 1,
+      "side": "baseline",
+      "test_id": "FUNC-001",
+      "nodeid": "tests/test_documents.py::test_owner_can_read",
+      "kind": "functional",
+      "stream_status": "COMPLETE",
+      "lifecycle_outcome": "COMPLETED",
+      "semantic_outcome": "PASS",
+      "harness_errors": [],
+      "evidence_refs": [],
+      "provenance": "verifier-event-stream"
+    },
+    {
+      "schema_version": "1.0",
+      "run_id": "run-00000000000000000000000000000001",
+      "pair": 1,
+      "side": "candidate",
+      "test_id": "AUTH-001",
+      "nodeid": "tests/test_documents.py::test_nonowner_cannot_read",
+      "kind": "security",
+      "stream_status": "COMPLETE",
+      "lifecycle_outcome": "COMPLETED",
+      "semantic_outcome": "VIOLATION_CONFIRMED",
+      "harness_errors": [],
+      "evidence_refs": [
+        {
+          "artifact_id": "art-00000000000000000000000000000001",
+          "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ],
+      "provenance": "verifier-event-stream"
+    },
+    {
+      "schema_version": "1.0",
+      "run_id": "run-00000000000000000000000000000001",
+      "pair": 1,
+      "side": "candidate",
+      "test_id": "AUTH-002",
+      "nodeid": "tests/test_documents.py::test_unauthenticated_access_denied",
+      "kind": "security",
+      "stream_status": "COMPLETE",
+      "lifecycle_outcome": "COMPLETED",
+      "semantic_outcome": "SECURE",
+      "harness_errors": [],
+      "evidence_refs": [
+        {
+          "artifact_id": "art-00000000000000000000000000000001",
+          "sha256": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        }
+      ],
+      "provenance": "verifier-event-stream"
+    },
+    {
+      "schema_version": "1.0",
+      "run_id": "run-00000000000000000000000000000001",
+      "pair": 1,
+      "side": "candidate",
+      "test_id": "FUNC-001",
+      "nodeid": "tests/test_documents.py::test_owner_can_read",
+      "kind": "functional",
+      "stream_status": "COMPLETE",
+      "lifecycle_outcome": "COMPLETED",
+      "semantic_outcome": "PASS",
+      "harness_errors": [],
+      "evidence_refs": [],
+      "provenance": "verifier-event-stream"
+    }
+  ]
+}

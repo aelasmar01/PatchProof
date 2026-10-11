@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "run_id": "run-00000000000000000000000000000001",
+  "engine_version": "0.0.0",
+  "verdict": "BLOCKED",
+  "display_label": "Blocked",
+  "decision_rule": "V-01",
+  "execution_started": true,
+  "run_termination": "normal",
+  "reason_codes": [
+    "APPROVAL_STALE",
+    "PRECONDITION_NOT_EVALUATED"
+  ],
+  "details": [],
+  "flags": {
+    "incomplete_checks": true,
+    "candidate_violation": false,
+    "functional_regression": false,
+    "harness_drift": false,
+    "flaky_observations": false,
+    "baseline_not_reproduced": false,
+    "baseline_control_failed": false
+  },
+  "preconditions": {
+    "authorization": "FAILED",
+    "pack_integrity": "NOT_EVALUATED",
+    "source_identity": "NOT_EVALUATED",
+    "environment_identity": "NOT_EVALUATED",
+    "result_provenance": "NOT_EVALUATED"
+  },
+  "counts": {
+    "security_tests": 2,
+    "functional_tests": 1,
+    "pairs_planned": 1,
+    "pairs_terminated_normally": 0,
+    "pairs_with_trusted_evidence": 0,
+    "required_cells": 6,
+    "trusted_cells": 0
+  },
+  "evaluated_at": "2026-10-11T12:00:00Z"
+}

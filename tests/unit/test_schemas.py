@@ -5,11 +5,18 @@ reason recorded in INVALID_CASES*, so an example cannot pass this suite by faili
 on an unrelated typo. The strict loader below is the reference behavior for the
 production loader in PP-007 (duplicate keys and non-finite numbers rejected before
 schema validation, 7.1).
+
+The scenario corpus (schemas/examples/scenarios/) pairs a verdict-engine input with
+its reviewed expected verdict. These tests check that both records are schema-valid,
+mutually consistent, and listed identically in the verdict specification's scenario
+table. They do not evaluate verdicts: that is the PP-004 engine's job, and PP-004
+must reproduce every expected verdict exactly.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -22,6 +29,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_DIR = ROOT / "schemas"
 VALID_DIR = SCHEMA_DIR / "examples" / "valid"
 INVALID_DIR = SCHEMA_DIR / "examples" / "invalid"
+SCENARIO_DIR = SCHEMA_DIR / "examples" / "scenarios"
+VERDICT_SPEC = ROOT / "docs" / "architecture" / "verdict-specification.md"
 
 RECORD_SCHEMAS = (
     "pack-manifest",
@@ -29,6 +38,8 @@ RECORD_SCHEMAS = (
     "approval-record",
     "verifier-event",
     "observation",
+    "execution",
+    "verdict-input",
     "verdict",
 )
 
@@ -61,17 +72,32 @@ INVALID_CASES: dict[str, tuple[str, str]] = {
     "verifier-event--target-log-type.json": ("enum", "/type"),
     "verifier-event--failed-without-class.json": ("not", "/payload/failure_class"),
     "verifier-event--payload-carries-verdict.json": ("additionalProperties", "/payload"),
+    "verifier-event--setup-security-terminal.json": ("not", "/payload/failure_class"),
     "observation--target-stdout-provenance.json": ("const", "/provenance"),
     "observation--timeout-recorded-as-fail.json": ("const", "/semantic_outcome"),
     "observation--security-test-pass.json": ("enum", "/semantic_outcome"),
+    "observation--complete-stream-interrupted.json": ("not", "/lifecycle_outcome"),
+    "observation--setup-error-with-observation.json": ("const", "/semantic_outcome"),
+    "execution--complete-stream-without-session-end.json": ("const", "/stream/session_end_received"),
+    "execution--signaled-with-exit-code.json": ("type", "/verifier/exit_code"),
+    "execution--not-started-with-stream.json": ("const", "/stream/status"),
+    "verdict-input--identical-duplicate-observation.json": ("uniqueItems", "/observations"),
+    "verdict-input--failed-precondition-without-reason.json": ("minItems", "/preconditions/authorization/reason_codes"),
+    "verdict-input--target-log-field.json": ("additionalProperties", ""),
+    "verdict-input--missing-result-cap.json": ("required", ""),
     "verdict--verified-with-flaky-flag.json": ("const", "/flags/flaky_observations"),
     "verdict--verified-with-failed-precondition.json": ("const", "/preconditions/result_provenance"),
     "verdict--verified-with-extra-reason.json": ("const", "/reason_codes"),
     "verdict--verified-without-functional-tests.json": ("minimum", "/counts/functional_tests"),
+    "verdict--verified-canceled.json": ("const", "/run_termination"),
+    "verdict--verified-with-details.json": ("maxItems", "/details"),
     "verdict--not-fixed-without-candidate-violation.json": ("const", "/flags/candidate_violation"),
     "verdict--regression-with-candidate-violation.json": ("const", "/flags/candidate_violation"),
     "verdict--inconclusive-with-verified-label.json": ("not", "/display_label"),
+    "verdict--inconclusive-with-candidate-violation.json": ("const", "/flags/candidate_violation"),
     "verdict--blocked-all-preconditions-passed.json": ("anyOf", "/preconditions"),
+    "verdict--blocked-after-execution-started.json": ("const", "/execution_started"),
+    "verdict--not-evaluated-without-reason.json": ("contains", "/reason_codes"),
 }
 
 
@@ -169,6 +195,8 @@ def _valid_files() -> list[Path]:
 
 def test_every_record_schema_has_a_valid_example() -> None:
     covered = {schema_name_for(p) for p in _valid_files()}
+    if _scenario_dirs():
+        covered |= {"verdict-input", "verdict"}
     assert covered == set(RECORD_SCHEMAS)
 
 
@@ -208,6 +236,109 @@ def test_invalid_example_rejected_for_recorded_reason(filename: str) -> None:
     assert errors, f"{filename} was accepted"
     found = {(e.validator, _pointer(e)) for e in errors}
     assert (keyword, pointer) in found, f"{filename} rejected for other reasons: {sorted(found)}"
+
+
+# ------------------------------------------------------------ scenario corpus
+
+PRECONDITIONS = ("authorization", "pack_integrity", "source_identity", "environment_identity", "result_provenance")
+SCENARIO_ROW = re.compile(r"^\| (S\d{2}) \| `([A-Za-z0-9-]+)` \| [^|]+ \| `([A-Z_]+)` \| (V-\d{2}) \|$")
+
+
+def _scenario_dirs() -> list[Path]:
+    return sorted(p for p in SCENARIO_DIR.iterdir() if p.is_dir()) if SCENARIO_DIR.exists() else []
+
+
+def _scenario(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+    (inp,) = load_records(path / "verdict-input.json")
+    (out,) = load_records(path / "verdict.json")
+    return inp, out
+
+
+def _cell_keys(inp: dict[str, Any]) -> list[tuple[int, str, str]]:
+    return [(o["pair"], o["side"], o["test_id"]) for o in inp["observations"]]
+
+
+def test_scenario_table_in_spec_matches_corpus() -> None:
+    rows = [m.groups() for line in VERDICT_SPEC.read_text(encoding="utf-8").splitlines() if (m := SCENARIO_ROW.match(line))]
+    assert rows, "scenario table not found in verdict specification"
+    on_disk = {}
+    for path in _scenario_dirs():
+        _, out = _scenario(path)
+        on_disk[path.name] = (out["verdict"], out["decision_rule"])
+    assert {name: (verdict, rule) for _, name, verdict, rule in rows} == on_disk
+    assert all(name.startswith(sid + "-") for sid, name, _, _ in rows)
+
+
+@pytest.mark.parametrize("path", _scenario_dirs(), ids=lambda p: p.name)
+def test_scenario_records_validate(path: Path) -> None:
+    inp, out = _scenario(path)
+    for name, record in (("verdict-input", inp), ("verdict", out)):
+        errors = [f"{_pointer(e)}: {e.message}" for e in validator_for(name).iter_errors(record)]
+        assert errors == [], name
+
+
+@pytest.mark.parametrize("path", _scenario_dirs(), ids=lambda p: p.name)
+def test_scenario_expected_verdict_is_consistent_with_input(path: Path) -> None:
+    inp, out = _scenario(path)
+    tests = inp["pack_tests"]
+    assert out["run_id"] == inp["run_id"]
+    assert out["run_termination"] == inp["run_termination"]
+    started = any(e["started"] for e in inp["executions"]) or bool(inp["observations"])
+    assert out["execution_started"] is started
+    counts = out["counts"]
+    assert counts["security_tests"] == sum(t["kind"] == "security" for t in tests)
+    assert counts["functional_tests"] == sum(t["kind"] == "functional" for t in tests)
+    assert counts["pairs_planned"] == inp["pairs_planned"]
+    assert counts["required_cells"] == 2 * inp["pairs_planned"] * len(tests)
+    assert counts["pairs_with_trusted_evidence"] <= counts["pairs_terminated_normally"] <= counts["pairs_planned"]
+    assert counts["trusted_cells"] <= counts["required_cells"]
+    cells_per_pair = 2 * len(tests)
+    assert counts["pairs_with_trusted_evidence"] * cells_per_pair <= counts["trusted_cells"]
+    if out["verdict"] == "VERIFIED_FOR_CASES":
+        assert counts["pairs_terminated_normally"] == counts["pairs_planned"]
+        assert counts["pairs_with_trusted_evidence"] == counts["pairs_planned"]
+        assert counts["trusted_cells"] == counts["required_cells"]
+    for name in PRECONDITIONS:
+        supplied, effective = inp["preconditions"][name]["state"], out["preconditions"][name]
+        # The engine may only make a precondition stricter (input validation failure).
+        assert effective == supplied or (name == "result_provenance" and effective == "FAILED")
+    known = {(t["id"]) for t in tests}
+    for detail in out["details"]:
+        assert detail["test_id"] is None or detail["test_id"] in known
+        assert detail["pair"] is None or detail["pair"] <= inp["pairs_planned"]
+
+
+@pytest.mark.parametrize("path", _scenario_dirs(), ids=lambda p: p.name)
+def test_result_cap_overflow_is_reported_per_execution(path: Path) -> None:
+    """D6: an over-cap execution is identified by pair and side, judged from the host byte count."""
+    inp, out = _scenario(path)
+    cap = inp["result_cap_bytes"]
+    over = {
+        (e["pair"], e["side"])
+        for e in inp["executions"]
+        if e["stream"]["status"] == "OVER_CAP" or e["stream"]["bytes_received"] > cap
+    }
+    reported = {(d["pair"], d["side"]) for d in out["details"] if d["reason_code"] == "RESULT_CAP_EXCEEDED"}
+    assert reported == over
+    if over:
+        assert out["verdict"] != "VERIFIED_FOR_CASES"
+        assert out["flags"]["incomplete_checks"] is True
+        assert out["counts"]["pairs_with_trusted_evidence"] <= inp["pairs_planned"] - len({p for p, _ in over})
+        # Over-cap is local (D6): it never fails result_provenance on its own.
+        if inp["preconditions"]["result_provenance"]["state"] == "PASSED" and out["preconditions"]["result_provenance"] == "FAILED":
+            assert {"OBSERVATION_MATRIX_INVALID", "EXECUTION_EVIDENCE_INCONSISTENT", "EVENT_STREAM_MALFORMED",
+                    "EVENT_STREAM_IDENTITY_MISMATCH"} & set(out["reason_codes"])
+
+
+@pytest.mark.parametrize("path", _scenario_dirs(), ids=lambda p: p.name)
+def test_duplicate_cells_only_where_expected_and_never_trusted(path: Path) -> None:
+    inp, out = _scenario(path)
+    keys = _cell_keys(inp)
+    has_duplicate = len(keys) != len(set(keys))
+    if has_duplicate:
+        assert "OBSERVATION_MATRIX_INVALID" in out["reason_codes"]
+        assert out["verdict"] == "INCONCLUSIVE" and out["decision_rule"] == "V-02"
+        assert out["counts"]["trusted_cells"] == 0
 
 
 # --------------------------------------------------------------- strict loader

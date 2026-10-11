@@ -103,11 +103,16 @@ Randomized fixtures and process separation reduce these risks; they do not remov
 | Planned mitigation | Spec | Evidence issue |
 |---|---|---|
 | Pack is external to the snapshot. Deleting repository tests cannot remove pack checks. | §7.1, §10.2 | PP-008, PP-020 |
-| Exact expected collection; unexpected, missing, skipped, xfail, and xpass results all count as incomplete | §7.4; verdict spec §4 | PP-007, PP-004 |
+| Exact expected collection; unexpected, missing, skipped, xfail, and xpass results all count as incomplete | §7.4; verdict spec §3.2, §4.3 | PP-007, PP-004 |
 | Verdict computed from verifier events only; the engine has no input for target output | verdict spec §2 | PP-004 (type), PP-008 (channel) |
-| Crash, timeout, or OOM leads to untrusted cells and `INCONCLUSIVE`, never `FAIL` or success | verdict spec §3, V-05 | PP-004, PP-008 |
+| Crash, timeout, OOM, or abnormal verifier exit makes that execution untrusted: `INCONCLUSIVE`, never `FAIL` or success, unless other trusted executions demonstrate a violation or regression | verdict spec §4.2, D1, V-05 | PP-004, PP-008 |
 | A deny-all candidate is caught by functional controls (V-04) | INV-08; pack schema `contains` | PP-004, PP-006 |
-| An explicit semantic witness is required; HTTP 500 or a generic assertion is not a violation | INV-05, §7.3 | PP-007 plugin |
+| An explicit semantic witness is required; HTTP 500 or a generic assertion is not a violation | INV-05, §7.3; verdict spec §3.2 L8 | PP-007 plugin, PP-004 |
+
+**Scenario evidence now:** S06 (truncated stream with an apparent violation), S13 (abnormal termination
+after `session_end`), S23 (generic assertion in a security test), S24 and S26 (over-cap streams)
+all have reviewed expected verdicts other than `NOT_FIXED` or `VERIFIED_FOR_CASES`. S25 shows
+that an over-cap execution cannot erase a trusted violation from another pair.
 
 **Schema evidence now:** `pack-manifest--no-functional-control.json` and
 `pack-manifest--no-baseline-violation-expected.json` are rejected;
@@ -153,6 +158,7 @@ Randomized fixtures and process separation reduce these risks; they do not remov
 | Planned mitigation | Spec | Evidence issue |
 |---|---|---|
 | Target logs stored as separately labeled untrusted data and never parsed as events | §10.3 | PP-008 |
+| Target-derived content placed in verifier events is safely encoded, escaped, and bounded; invalid data is handled explicitly with recorded limitations, never silently discarded or rewritten to validate | verdict spec D6 | PP-008 |
 | Verifier events travel on a dedicated channel the target cannot write to, under the assumed container boundary | §10.3 | PP-003 (boundary probe), PP-008 |
 | Reviewed free-text fields exclude C0 controls (including ESC) and DEL | schema `common.shortText`/`longText` | **PP-002 (schema)** |
 | Escaped rendering, no ANSI interpretation, no `dangerouslySetInnerHTML`, strict CSP, script-free static HTML, no remote images | §11.3, §12.3 | PP-013, PP-021 |
@@ -170,7 +176,7 @@ Randomized fixtures and process separation reduce these risks; they do not remov
 | Limits enforced *and probed*. `docker info` capability is not enforcement (`environment.lock.md` §4.5). | §5.2 | **PP-003** |
 | Readiness, request, and per-revision deadlines; cancellation grace, then force-remove of only that run's containers | §5.2, §10.6 | PP-008, PP-014 |
 | Daemon-side rotating log limit inspected and flood-tested; a profile is blocked if the limit cannot be enforced | §10.3 | PP-003, PP-008 |
-| Result cap exceeded leads to `OVER_CAP`, untrusted evidence, and V-02 | §5.2; verdict spec §4 | PP-008 |
+| Result cap exceeded invalidates only that execution, enforced by the engine from the host byte count; it cannot erase a trusted violation established by another execution | §5.2; verdict spec §4.1, D6 | PP-008, PP-004 |
 
 **Schema evidence now:** `execution-profile--missing-memory-limit.json` is rejected.
 The VM ceiling is 7.75 GiB (`environment.lock.md` §4.4); one comparison needs about
@@ -206,7 +212,8 @@ The VM ceiling is 7.75 GiB (`environment.lock.md` §4.4); one comparison needs a
 | Reconciliation removes only exact recorded IDs whose labels match; never `docker system prune` or bulk removal | §5.4, §10.6 | PP-014; must preserve A8 |
 | Evidence is written to staging and finalized atomically; interruptions produce a structured incomplete record | §12.2 | PP-009 |
 | Restart never converts a partial run into success; there is no automatic retry | §8.2, §10.6 | PP-011, PP-014 |
-| A stream missing `session_end` leaves the whole side untrusted | verdict spec §4, D3 | PP-004, PP-008 |
+| A stream missing `session_end` leaves that execution untrusted; a `session_end` alone is not trusted without host-confirmed normal verifier termination | verdict spec §4.2, D3 | PP-004, PP-008 |
+| Duplicate, conflicting, or orphaned observation cells fail closed (V-02); the engine never normalizes them | verdict spec §5.2 | PP-004 |
 
 ### AC-8 A coding agent changes the verification expectations to make its own patch appear successful
 

@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-11 (PP-001 accepted by owner; PP-002 ready for review)
+**Updated:** 2026-10-11 (PP-002 remediation committed with owner decisions D6, ADR-008, ADR-009; awaiting final acceptance review)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -12,33 +12,49 @@
 **State:** `READY_FOR_REVIEW`
 
 PP-002 is documentation and data-contract work. No software was installed, no
-container run, no target executed, and no network used.
+container run, no target executed, and no network used. The owner's first review
+(2026-10-11) returned decisions D1–D5 and contract corrections; this revision applies
+them. PP-002 is **not** accepted.
 
 PP-002 evidence:
 
 | Artifact | Contents |
 |---|---|
 | `docs/threat-model.md` | Assets, trust zones, nine trust boundaries (STRIDE), the eight §4.3 abuse cases with planned mitigations and the issue owing evidence, invariant coverage |
-| `docs/architecture/verdict-specification.md` | Engine inputs, trust predicate, ordered decision table V-01–V-10, flags, §8.5/§17.3 mapping, properties PP-004 must test |
+| `docs/architecture/verdict-specification.md` | Engine inputs; pytest event grammar and lifecycle derivation; local vs global stream failures; host-confirmed execution trust E1–E4; cell trust T1–T5; input validation M1–M7/G1–G5; execution-start definition; decision table V-01–V-10; independent flags; reason/detail rules; decided D1–D6; 26-scenario truth table; properties P-1–P-9 |
 | `docs/adr/ADR-001`–`ADR-007` | The §3.3 decisions, recorded |
-| `docs/adr/ADR-008`, `ADR-009` | **Proposed**: schema contract conventions; container policy is code, not profile data |
-| `schemas/*.schema.json` | `common`, `pack-manifest`, `execution-profile`, `approval-record`, `verifier-event`, `observation`, `verdict` (JSON Schema 2020-12) |
-| `schemas/examples/valid/` | 13 example records, including the §7.2 manifest verbatim and a full baseline event stream |
-| `schemas/examples/invalid/` | 37 rejection examples, each pinned to the keyword and location it must fail on |
-| `tests/unit/test_schemas.py` | Machine validation of all of the above |
+| `docs/adr/ADR-008`, `ADR-009` | **Accepted by owner 2026-10-11**, with recorded conditions: schema contracts; container policy is code, not profile data |
+| `schemas/*.schema.json` | 9 schemas: `common`, `pack-manifest`, `execution-profile`, `approval-record`, `verifier-event`, `observation`, `execution` (new), `verdict-input` (new), `verdict` |
+| `schemas/examples/valid/` | 10 standalone example records |
+| `schemas/examples/invalid/` | 52 rejection examples, each pinned to the keyword and location it must fail on |
+| `schemas/examples/scenarios/` | 26 engine-input / expected-verdict pairs: the review-controlled truth table PP-004 must reproduce |
+| `tests/unit/test_schemas.py` | Machine validation of all of the above, plus a check that the specification's scenario table matches the corpus |
+| `PROJECT_SPEC.md` | Amended §5.2 (per-execution result cap enforced from the host byte count, D6), §13.2, §17.3 items 3, 6, 9, 11 |
 
-**Owner decisions requested in PP-002** (`verdict-specification.md` §10). Each chosen
-reading is the conservative one:
+**Owner decisions** recorded in `verdict-specification.md` §11:
 
-- D1: a timeout or crash makes that side's cells untrusted (V-05), not a provenance
-  failure.
-- D2: a trusted candidate violation in any pair gives `NOT_FIXED`, even if another pair
-  was secure.
-- D3: a violation from a truncated stream is untrusted, so the result is `INCONCLUSIVE`.
-- D4: partial baseline reproduction gives `NOT_REPRODUCED`.
-- D5: environment drift found after start gives `INCONCLUSIVE`; found before start, it
-  gives `BLOCKED`.
-- ADR-008 and ADR-009 accept or amend.
+- **D1–D5**, decided in the 2026-10-11 review.
+- **D6**, decided in the acceptance-readiness review: a result-cap overflow invalidates
+  only the affected `(pair, side)` execution. The engine enforces this from the
+  host-observed byte count (scenarios S24–S26).
+- **ADR-008 and ADR-009 accepted**, with conditions recorded in each ADR.
+
+None of these is acceptance of PP-002 or of the v0.0 gate.
+
+**Acceptance-readiness review (2026-10-11) also changed two things:**
+
+- `pairs_completed` was split into `pairs_terminated_normally` (execution only) and
+  `pairs_with_trusted_evidence`.
+- `EXECUTION_CANCELED` was added, so every suppressed abnormal-termination code has an
+  explaining code for the same execution. Raw termination facts stay in the execution
+  records.
+
+**Obligations carried forward:**
+
+- PP-004 must implement the engine and reproduce all 26 scenarios.
+- PP-007 owes Pydantic/JSON Schema parity tests (ADR-008).
+- PP-008 owes safe encoding and bounding of target-derived event content (D6) and
+  code-level resource ceilings (ADR-009).
 
 ## Last completed gate and its evidence
 
@@ -48,31 +64,66 @@ reading is the conservative one:
 
 ## Next permitted issue
 
-After PP-002 review: **PP-003** (isolation probes; needs owner approval to run
-containers) or **PP-004** (pure verdict engine; needs a pinned Python and `pyproject.toml`,
-approval item 3). PP-004 has no Docker dependency, so it can proceed in parallel with
-the PP-003 approval.
+**None until PP-002 is accepted.** Only PP-001 is accepted, and §16 allows one issue at a
+time.
+
+After PP-002 is accepted, the next issue in backlog order is **PP-003**, the isolation
+probes. It needs owner approval to run containers and to pull one pinned base image.
+
+PP-004, the pure verdict engine, follows. It needs a pinned Python and a
+`pyproject.toml` (approval item 3). Taking PP-004 before PP-003 would need an explicit
+owner decision to reorder.
 
 ## Failed tests, risks, and blockers
 
-**Tests:** `tests/unit/test_schemas.py`: 78 passed, 0 failed, 0 skipped (2026-10-11).
-Command:
+**Tests:** `tests/unit/test_schemas.py`: 201 passed, 0 failed, 0 skipped (2026-10-11, after
+D6). Command:
 
 ```
 env -u PYTEST_ADDOPTS -u PYTEST_PLUGINS -u PYTHONPATH PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 \
   python3 -I -m pytest tests/unit -p no:cacheprovider -q
 ```
 
-The suite was also checked against deliberately weakened schemas, on a scratch copy
-outside the repository:
+Earlier in remediation, one run failed because the scenario-table regex in the test
+rejected uppercase directory names. I fixed the regex, not the data.
+
+**D6 weakening checks**, run on a scratch copy outside the repository:
 
 | Weakening | Result |
 |---|---|
-| Node-ID pattern loosened to `.*` | 2 tests failed |
-| `VERIFIED_FOR_CASES` flag guard removed | 1 test failed |
-| Profile opened to extra fields | 3 tests failed |
+| S25 expected verdict reverted to global `INCONCLUSIVE` | 2 tests failed |
+| S26 `RESULT_CAP_EXCEEDED` detail dropped | 1 test failed |
+| `result_cap_bytes` made optional | 1 test failed |
 
-All three weakenings were caught.
+**Independent invariant check** of all 26 scenarios against `PROJECT_SPEC.md`, using
+logic separate from the evaluator:
+
+- no false `VERIFIED_FOR_CASES`;
+- no `NOT_FIXED` without a clean candidate violation;
+- no trusted violation lost outside the deliberate global-failure case S21.
+
+**Earlier weakening checks** (remediation pass, on a scratch copy outside the repository). Each deliberate weakening
+must make at least one test fail:
+
+| Weakening | Result |
+|---|---|
+| S04 expected verdict relabeled `INCONCLUSIVE` | 1 test failed |
+| `INCONCLUSIVE` ⇒ no `candidate_violation` guard removed | 1 test failed |
+| `verdict-input` `uniqueItems` removed | 1 test failed |
+| `COMPLETE` ⇒ `session_end_received` guard removed | 1 test failed |
+| S12 row removed from the spec table | 1 test failed |
+| S12 expected verdict changed to `NOT_FIXED` | 2 tests failed |
+| `PRECONDITION_NOT_EVALUATED` guard removed | 1 test failed |
+
+All seven were caught.
+
+**Limit of these checks:** changing an expected verdict *and* its row in the spec table
+together is not detectable by tests. That is what owner review of the corpus is for.
+
+**How the expected verdicts were produced.** A scratch reference evaluator applied the
+specification literally. It was kept in the session scratchpad and is **not** committed;
+it is not the PP-004 engine. Each scenario's verdict, rule, and key flags were also
+specified by hand, and generation fails on any disagreement. All 26 agreed.
 
 **Validation tooling is not pinned.** The tests use `jsonschema` 4.25.0,
 `referencing` 0.36.2, and `pytest` 8.4.2. These were already installed in the host
@@ -121,7 +172,7 @@ In the order they block work:
 
 | # | Approval needed | Unblocks |
 |---|---|---|
-| 1 | Review PP-002, including decisions D1–D5 and proposed ADR-008/ADR-009 | PP-004 rule set |
+| 1 | Final acceptance review of PP-002, including the 26-scenario truth table | PP-004 rule set |
 | 2 | Run the PP-003 isolation probe suite (harmless probes only; no target code) | v0.0 exit gate |
 | 3 | Install current Python 3.13.x and pin it; approve pinning the validation/test dependencies | PP-004 packaging |
 | 4 | `brew upgrade git` (2.42.0 → 2.56.0) | PP-005 |
