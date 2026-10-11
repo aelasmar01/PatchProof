@@ -60,24 +60,97 @@ Trivy, ZAP, Playwright browsers.
 
 ## 4. Container runtime
 
-| Fact | Measured value | Command |
+Daemon facts were initially UNRESOLVED because the daemon was not running. The owner
+started Docker Desktop on 2026-10-11 and the daemon-side values below are now
+measured. **All inspection was read-only** (`docker info`, `docker images`,
+`docker ps -a`). No container was created, started, or removed; no image was pulled.
+
+### 4.1 Client and application
+
+| Fact | Measured value |
+|---|---|
+| Docker CLI | 28.2.2, build e6534b4, Go 1.24.3, API 1.50, `darwin/amd64` |
+| CLI build date | 2025-05-30 |
+| Docker Desktop application | **4.42.1**, placed 2025-06-17 at `/Applications/Docker.app` |
+| Built against | macOS 14.5 SDK (`DTPlatformVersion = 14.5`); `LSMinimumSystemVersion = 13.0` |
+| Active context | `desktop-linux` |
+| Other runtimes | None. No Colima, Podman, nerdctl, Lima, or Rancher Desktop. |
+
+The 4.42.1 version is the subject of blocker 6.5 and is unchanged by the daemon now
+being reachable.
+
+### 4.2 Daemon (measured)
+
+| Fact | Measured value | Relevance |
 |---|---|---|
-| Docker CLI | 28.2.2, build e6534b4 | `docker --version` |
-| Docker Desktop application | 4.42.1, present at `/Applications/Docker.app` | `defaults read .../Info.plist` |
-| Docker daemon | **NOT RUNNING** — `Cannot connect to the Docker daemon at unix:///Users/aliel-asmar/.docker/run/docker.sock` | `docker info` |
-| Active context | `desktop-linux` | `docker context ls` |
-| Server version / OS / arch | **UNRESOLVED** — daemon unreachable | `docker info` |
-| Colima | Not installed | `command -v colima` |
+| Server version | 28.2.2 | Matches the client. |
+| Operating system | Docker Desktop (Linux VM) | §4.1 — the daemon is in the TCB. |
+| Architecture | `x86_64` | Matches the host. |
+| Kernel | 6.10.14-linuxkit | VM kernel, not macOS. |
+| Storage driver | `overlayfs` | — |
+| cgroup driver / version | `cgroupfs`, **v2** | §5.2 resource limits depend on cgroup v2. |
+| Default runtime | `runc` | — |
+| VM CPUs | **16** | §5.2 needs 1 CPU for target + 1 for verifier. |
+| VM memory | **8218136576 bytes (7.65 GiB)** | See 4.4. |
+| Security options | `seccomp` (profile: **builtin**), `cgroupns` | Default seccomp is active; cgroup namespacing available. |
+| User namespace remapping | **Not listed** — `userns` absent from security options | Non-root execution must be enforced per-container (`--user`), not by daemon-wide remapping. Record this in PP-003. |
+| Network drivers available | `bridge`, `host`, `ipvlan`, `macvlan`, **`null`**, `overlay` | The `null` driver is present, so INV-03's `--network none` is available [R5]. |
+| Daemon warnings | None reported | Docker does not warn about missing CPU/memory limit support on this host. |
 
-The daemon was deliberately **not started**. PP-001 forbids changing machine state,
-and the Section 15.1 isolation probes are PP-003 work that requires separate owner
-approval. Every daemon-side fact — server version, enforced CPU/memory limits,
-`none` network behaviour, read-only mount support, non-root execution, namespace
-separation — is therefore unmeasured.
+### 4.3 Pre-existing Docker resources that must be preserved
 
-**Consequence for the Section 15.1 exit gate:** the gate requires "a recorded tested
-result" for each runtime restriction. None exist yet. v0.0 cannot pass on the
-strength of this report alone.
+The daemon holds unrelated work from other projects:
+
+- **9 images**, ~4.4 GiB total, including `qdrant/qdrant`, `redis:7`, `postgres:16`,
+  three `crypto-hybrid-scanner-*` images, `devsecops-pipeline-demo-web`,
+  `bkimminich/juice-shop`, and one dangling `<none>` layer.
+- **7 stopped containers**, last exited 7–14 months ago (`qdrant`,
+  `crypto_scanner_{frontend,backend,worker,postgres,redis}`,
+  `devsecops-pipeline-demo-web-1`).
+
+**This is a live constraint, not trivia.** §5.4 states PatchProof must "never run
+`docker system prune` or delete unrelated resources," and PP-014's completion
+evidence requires "unrelated resources preserved." These 9 images and 7 containers
+are the concrete baseline that the PP-014 reconciliation tests must leave untouched.
+
+Carried forward as requirements:
+
+- PP-008 labels every owned container with the installation ID and run ID.
+- PP-014 reconciliation cleans up **only** resources whose installation and run IDs
+  match its own registry, and a test must assert this baseline survives a full
+  cancel/crash/restart cycle.
+- No PatchProof code path may call `docker system prune`, `docker image prune`, or any
+  unfiltered bulk removal.
+
+Note also that `bkimminich/juice-shop` is a deliberately vulnerable application image.
+It is unrelated to PatchProof and must not be confused with an approved target or
+reference profile; §1.3 requires the reference application to be PatchProof's own
+synthetic `papertrail` fixture (PP-006).
+
+### 4.4 VM memory is the real ceiling, not host RAM
+
+The host has 32 GiB, but Docker Desktop's Linux VM is allocated **7.65 GiB**. That VM
+figure, not host RAM, is what bounds container execution.
+
+The §5.2 envelope needs 1 GiB for the target plus 512 MiB for the verifier — about
+1.5 GiB per revision, with one comparison at a time. That fits comfortably, and
+§5.2's note about running UI builds separately on low-memory hardware does not apply
+here.
+
+No change is requested. §5.1 forbids resizing the VM without explicit approval, and
+no resize is needed.
+
+### 4.5 Still not measured
+
+Every value above comes from daemon introspection. **No isolation property has been
+tested**, because testing requires running containers (PP-003) and, per 6.5, must not
+happen on 4.42.1. Specifically unverified: whether `--network none` actually blocks
+egress, whether CPU and memory limits are enforced in practice, whether read-only
+root filesystems and tmpfs mounts behave as specified, whether a non-root `--user`
+holds, and whether the target side can observe verifier files or the Docker socket.
+
+The presence of a capability in `docker info` is not evidence that a restriction is
+enforced. §5.2 is explicit that configured limits require enforcement probes.
 
 ## 5. Host Git configuration relevant to the trust model
 
@@ -257,7 +330,10 @@ Desktop sync is ever enabled in iCloud, would become a cloud-synced destination.
 - No container isolation property has been tested. §4.2 invariants INV-01 through
   INV-03 are **unverified** on this host.
 - No resource limit has been shown to be enforced. §5.2 is a design envelope only.
-- No image digest is pinned; `containers/` is unwritten.
+  `docker info` reports cgroup v2 and no limit warnings, but capability is not
+  enforcement — see 4.5.
+- No image digest is pinned; `containers/` is unwritten. The 9 images already on the
+  daemon are unrelated to PatchProof and are not approved profiles.
 - No dependency set is resolved; there is no `pyproject.toml` or `uv.lock` yet.
 - Docker Desktop 4.42.1's compatibility with macOS 26.3.1 is untested by Docker; it
   predates macOS 26. Resolved as a blocker in 6.5 rather than left open.

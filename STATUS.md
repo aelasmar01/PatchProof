@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-11 (Docker compatibility check completed)
+**Updated:** 2026-10-11 (Docker compatibility check completed; daemon facts measured)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -57,19 +57,26 @@ No test suite exists yet. Nothing was executed, so nothing failed. There is no
    previous macOS majors and still ships an Intel build for 4.94.0. The version is
    the sole problem. See `docs/environment.lock.md` §6.5.
 
-3. **Docker daemon not running; no isolation property measured.** Invariants
-   INV-01 through INV-03 are unverified on this host. The §15.1 exit gate requires a
-   recorded tested result for each runtime restriction; none exist. v0.0 cannot pass
-   on this report alone.
+3. **No isolation property measured.** The daemon is now running and its
+   configuration is recorded (`docker info`: server 28.2.2, cgroup v2, seccomp
+   builtin, `null` network driver available, 16 CPUs, 7.65 GiB VM). That is
+   capability, not enforcement. Invariants INV-01 through INV-03 remain
+   **unverified**, because verifying them requires running containers — which is
+   PP-003 and is blocked by item 2 above. The §15.1 exit gate requires a recorded
+   tested result per restriction; none exist. v0.0 cannot pass on this report alone.
 
-   The daemon must **not** be started on 4.42.1: isolation evidence gathered on a
-   runtime with a known-broken escape boundary would be invalid for §15.1.
+4. **Unrelated Docker resources are present and must survive.** The daemon holds 9
+   images (~4.4 GiB) and 7 stopped containers from other projects, last used 7–14
+   months ago. §5.4 forbids pruning or deleting unrelated resources and PP-014 must
+   prove they are preserved. This is now the concrete baseline for that test. No
+   PatchProof code path may call `docker system prune` or any unfiltered bulk
+   removal. See `docs/environment.lock.md` §4.3.
 
-4. **Git 2.42.0 is roughly three years old** (installed 2023-09-06; current stable
+5. **Git 2.42.0 is roughly three years old** (installed 2023-09-06; current stable
    2.56.0). §9.2 requires a supported patched release, and the snapshot path depends
    directly on Git object reading. Oldest-risk component measured.
 
-5. **Python 3.13.1 is behind on patches.** Pin an approved 3.13.x before generating
+6. **Python 3.13.1 is behind on patches.** Pin an approved 3.13.x before generating
    `uv.lock`, so the lockfile is produced once against an approved interpreter.
 
 ## Changes requiring owner approval

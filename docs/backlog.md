@@ -34,7 +34,7 @@ the current 4.94.0 Intel build. See `docs/environment.lock.md` §6.5 and §8 ite
 | PP-005 | Safe repository registration and source snapshots | No original-repo mutation; path/ref/size rejection tests | `NOT_STARTED` |
 | PP-006 | Reference authorization API and fixture profile | Stable vulnerable/correct/inadequate/deny-all revisions and documented ground truth | `NOT_STARTED` |
 | PP-007 | Pack validation, collection, and approval records | Exact test IDs and hashes; stale approval rejection | `NOT_STARTED` |
-| PP-008 | Target/verifier runner and typed event transport | Source/test separation; successful and deliberately interrupted runs | `NOT_STARTED` |
+| PP-008 | Target/verifier runner and typed event transport | Source/test separation; successful and deliberately interrupted runs; every owned container labelled with installation ID and run ID | `NOT_STARTED` |
 | PP-009 | CLI workflow and JSON/Markdown evidence | Reproducible documented comparison from input to verdict | `NOT_STARTED` |
 | PP-010 | Core acceptance demo and tag | Owner-reviewed v0.1 gate report | `NOT_STARTED` |
 
@@ -50,7 +50,7 @@ not safe to trust. See `docs/environment.lock.md` §5.
 | PP-011 | SQLite models, migrations, durable queue | Atomic claims, idempotency, bounded writes, crash tests | `NOT_STARTED` |
 | PP-012 | FastAPI session/origin/CSRF and resource APIs | Unauthorized local-browser request tests fail safely | `NOT_STARTED` |
 | PP-013 | React project/case/plan/result views | Accessible end-to-end UI tests and actual screenshots | `NOT_STARTED` |
-| PP-014 | Cancellation, interruption, and resource reconciliation | Crash/restart/cancel tests; unrelated resources preserved | `NOT_STARTED` |
+| PP-014 | Cancellation, interruption, and resource reconciliation | Crash/restart/cancel tests; unrelated resources preserved — the 9 images and 7 stopped containers recorded in `docs/environment.lock.md` §4.3 are the baseline that must survive | `NOT_STARTED` |
 | PP-015 | Second compatible application onboarding | No core code edits; documented compatibility and truthful case outcome | `NOT_STARTED` |
 | PP-016 | Offline workflow and usability review | Completed user journey and identified/fixed usability defects | `NOT_STARTED` |
 
