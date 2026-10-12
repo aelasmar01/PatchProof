@@ -1,16 +1,173 @@
 # STATUS
 
-**Updated:** 2026-10-12 (**v0.0 foundation release `ACCEPTED` by owner**; PP-001..PP-004 and v0.0-CLOSEOUT accepted; next planned work v0.1 / PP-005, **not started**)
+**Updated:** 2026-10-12 (**PP-005 `READY_FOR_REVIEW`**; v0.0 foundation release `ACCEPTED` by owner; PP-006 not started)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
 
 ## Current release and issue
 
-**Release:** v0.0 — Foundation and execution boundaries
-**Issue:** v0.0-CLOSEOUT — C1 packaging, C2 `patchproof doctor`, C3 `doctor --probe-isolation`,
-C4 demonstration and gate review
-**State:** `ACCEPTED` by owner, 2026-10-12, together with the v0.0 foundation release.
+**Release:** v0.1 — Useful CLI verification
+**Issue:** PP-005 — Safe repository registration and source snapshots
+**State:** `READY_FOR_REVIEW`. **Not accepted:** only the owner's recorded review sets
+`ACCEPTED`. Not committed, pushed or tagged.
+**Next permitted issue:** none until the owner reviews PP-005. PP-006 is not started.
+**Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 is a
+library with no CLI yet (PP-009); its behaviour is demonstrated only by the test suite on
+synthetic repositories.
+
+## PP-005 — `READY_FOR_REVIEW` (2026-10-12)
+
+**Owner authorization (2026-10-12):** start PP-005, beginning with Git remediation.
+
+**Owner decisions recorded in this issue:**
+- **Approval item 3, Git upgrade: done.**
+  - Homebrew Git 2.42.0 → **2.56.0** (`2.56.0_1`) at `/usr/local/bin/git` →
+    `/usr/local/Cellar/git/2.56.0_1/bin/git`. Built from source; exit 0.
+  - Dependency changes the upgrade required (owner: "if git fails then fix it, you have
+    permission"):
+    - new build tools: cmake 4.4.4 and json-c 0.19;
+    - upgraded shared libraries: pcre2 10.49, gettext 1.0, libunistring 1.4.2 and
+      pkgconf 3.0.8.
+  - Old kegs are retained for rollback; no `brew cleanup` was run.
+  - `brew linkage --test` is clean for Git and the seven formulae that share those
+    libraries.
+  - That check switched Homebrew's developer mode on automatically; it was switched back
+    off.
+  - Details, source tarball hash, and the 14 CVEs that 2.42.0 lacked fixes for:
+    `docs/environment.lock.md` §3.2.
+- **Approval item 4, `~/.git`: RETAINED by owner decision.** The item is resolved; **the
+  hazard is not.**
+  - `~/.git` was not deleted, moved, reinitialized, reset, cleaned, staged or modified.
+    Its `HEAD`, `config` and `index` have the same modification times and sizes before
+    and after.
+  - Git write commands must never run rooted at the home directory.
+  - PP-005 registration refuses the home directory and its ancestors and never searches
+    upward, so a parent repository cannot be registered by accident.
+  - `patchproof doctor` keeps reporting HOST-03 as an advisory warning, which is correct.
+
+**Implementation:**
+- **Code:** `src/patchproof/git/` (`command.py`, `repository.py`, `paths.py`,
+  `snapshot.py`, `errors.py`).
+- **Schema:** `schemas/source-manifest.schema.json`, with one valid and six invalid
+  examples.
+- **Design and residual risks:** `docs/architecture/source-snapshots.md`.
+- **Scope:** library services only. There is no CLI (PP-009) and no persistence (PP-011),
+  and no container is involved.
+
+**Acceptance criteria (§9.1, §9.2, §16 "No original-repo mutation; path/ref/size
+rejection tests", owner prompt §4–§6):**
+
+| Criterion | Evidence |
+|---|---|
+| Register only an explicitly selected canonical local repository; reject parent/ambiguous discovery | Canonical-path, subdirectory, parent-repo (`~/.git` analogue), home/ancestor, `/`, gitdir file, symlinked `.git`, bare, alternates/grafts/commondir, and `core.worktree`/`core.bare` redirection tests |
+| Full commit IDs; object format recorded, SHA-1 and SHA-256 | Registration and snapshot tests in both formats; 64-digit IDs; manifest `object_format` |
+| Reject option-like, abbreviated, ambiguous refs and revision expressions | 30 refused expressions; short `main` that is both branch and tag; abbreviated/missing/non-commit IDs; a branch named like an ID cannot redirect a full ID; seeded property test (10,000 inputs) |
+| Read objects without checkout or modification | Only `version`, `rev-parse`, `show-ref`, `cat-file`, `ls-tree`. Every snapshot/resolve call in the tests asserts the repository fingerprint is unchanged: every path under the root and `.git` with type, mode, size, mtime_ns and content hash |
+| NUL-delimited parsing; path and object-type validation | Strict `ls-tree -z -l` and `cat-file --batch` parsers; malformed-output table tests; per-object size and Git-hash verification; single-bit corruption property test |
+| Symlinks, gitlinks, LFS pointers, special files, traversal, absolute, unsafe names, case/normalization collisions | Crafted-tree tests with real Git, plus parser-level tests |
+| Limits: 100 MiB total, 20,000 entries, 10 MiB per file | Default-limit tests: 20,001 entries; 10 MiB + 1 byte; 11 × 10 MiB rejected before any blob is read. Limits cannot be loosened |
+| Inclusion/exclusion rules; secret paths conflicting with required inclusion | Exclusions recorded with reasons; `SECRET_PATH_REQUIRED`; `REQUIRED_PATH_MISSING` |
+| Complete manifests, hashes, identities; deterministic | Schema-validated manifest; byte-identical manifests across runs; order-independence property test; profile hash binds scope and limits |
+| Preserve original repository and uncommitted changes | Staged, modified and untracked edits survive byte-for-byte (fingerprint and `git status` equal) and are never included |
+| No partial successful snapshot on failure | Write failure, `KeyboardInterrupt`, and post-write tampering leave the destination empty |
+| Sanitized Git execution | Environment built from scratch. Injected `GIT_*` / `HOME` / `GIT_CONFIG_*` / `GIT_EXEC_PATH` / alternates / namespace / trace variables have no effect. A host-style global `filter.lfs` with `required=true` is not applied. Hostile repository config (fsmonitor, hooks, filters, textconv, aliases, pager, credential, ssh, include, gc) runs nothing. Replace refs ignored, each of three layers tested alone. Partial clone: no lazy fetch, with the protocol block tested alone. Deadlines and output caps enforced |
+| Caller input cannot invoke arbitrary Git commands | Typed operation allowlist, including duck-typed lookalikes that use an allowed subcommand; fixed argv prefix; seeded property test over random revisions checks every argv |
+
+**Final owner-requested review (2026-10-12), before commit:**
+- **F1, hardening, fixed.** `ShowRef`, `ObjectType`, `Peel` and `LsTree` only declared
+  their positional types, so a direct library caller could pass a lookalike or raw string.
+  - Every operation now checks at construction time that its argument is exactly
+    `ObjectId` or `RefName`.
+  - `ObjectId` requires a real `ObjectFormat`.
+  - Added 16 tests, including option-shaped lookalikes (`--output=...`,
+    `--batch-all-objects`).
+  - All `ObjectId` constructions go through its validation (`parse_revision`,
+    `output_oid`). The redundant hex-length check in `parse_revision` (M11) is kept as
+    defence in depth.
+- **F2, crash evidence, added.** A child process is SIGKILLed during materialization.
+  Only a `.staging-*` directory remains: never `snapshot-*`, and no manifest published.
+  The repository fingerprint, including an uncommitted edit, is unchanged.
+  - **PP-014 obligation:** reconcile such leftovers automatically.
+- **Confirmed without change:**
+  - staging lives inside the validated private (`0700`, canonical) destination;
+  - the manifest is written inside staging before the atomic rename;
+  - limits are checked before reading, per object during reading, and per file after
+    writing;
+  - the subprocess-allowlist exception matches only the exact project-relative path
+    `src/patchproof/git/command.py`; the PP-003 exceptions are unchanged.
+- **Test counts:** 7320 before this review; **7337** after it (+16 F1 tests, +1 F2 test).
+
+**Validation (2026-10-12, pinned CPython 3.13.16, `uv run --locked --offline`):**
+- `pytest tests/unit`: **7337 passed**, 0 failed, 0 skipped. This is 7008 accepted tests
+  plus 329 PP-005 tests: `test_git_snapshot.py` 119, `test_git_isolation.py` 200, and 10
+  added rows in `test_schemas.py`.
+- `mypy --strict`: clean, 26 source files. `ruff check src`: clean.
+- `ruff check tests`: 11 E501 findings, all pre-existing at HEAD and byte-identical (the
+  `test_schemas.py` ones are shifted 7 lines by the added rows). PP-005 test files are
+  clean. Nothing suppressed.
+- `uv lock --check --offline`: consistent. No dependency was added; Hypothesis is not
+  approved, so property tests use seeded `random.Random`.
+- `patchproof doctor` (offline, read-only): READY for v0.0 scope, exit 0. GIT-01 is now OK
+  (2.56.0). One advisory: HOST-03 (`~/.git`, retained by owner decision).
+
+**Mutation check** (scratchpad script, not committed). Each of 34 controls was removed
+individually and the PP-005 test files and `test_docker_cli.py` were re-run.
+- **First pass:** 27/34 caught. The 7 survivors were defence-in-depth layers masked by
+  another layer:
+  - `core.useReplaceRefs` and `--no-replace-objects` (masked by `GIT_NO_REPLACE_OBJECTS`);
+  - `protocol.allow=never` (masked by `GIT_NO_LAZY_FETCH`);
+  - `core.fsmonitor=false` (unreachable through the allowlisted commands);
+  - the operation-type allowlist (masked by the subcommand allowlist);
+  - the revision hex-length check (masked by `ObjectId`);
+  - the collision key (masked by APFS `O_EXCL` at write time).
+- **Tests added:** each layer is now tested alone, the reviewed override table is pinned,
+  and a lookalike-operation test and pure collision tests were added.
+- **Re-run of the 7:** 6 now caught. **Final: 33/34.** The survivor (revision hex-length
+  check) is an equivalent mutant: `ObjectId` enforces the identical rule with the same
+  reason code.
+- **Restoration:** all six sources were restored. SHA-256 matches the pre-mutation copies,
+  and no tracked `src/` file is modified.
+
+**Change to an accepted test (owner review requested):**
+`tests/unit/test_docker_cli.py::test_no_shell_true_and_single_subprocess_module` now also
+permits `subprocess` in exactly `src/patchproof/git/command.py`, matched by full relative
+path. Every other file is still refused. `shell=True` and `os.system`-style checks are
+unchanged.
+
+**Not changed:**
+- `docs/threat-model.md`: it carries the owner's uncommitted ADR-010 hunk. AC-2 evidence
+  for PP-005 is recorded here and in `docs/architecture/source-snapshots.md`; marking it in
+  the threat model is left to the owner.
+- The accepted verdict engine, runner, probes and doctor.
+- No container was run.
+
+**Residual risks** (details in `docs/architecture/source-snapshots.md`):
+- Git still parses untrusted repository config, refs and objects. A Git parser bug is
+  mitigated only by the patched release, deadlines and output caps.
+- No repository lock: refs may move between runs, but resolved commits are pinned by full
+  ID and objects are hash-verified.
+- A SIGKILL can leave a `.staging-*` directory, never a `snapshot-*` (tested). Automatic
+  reconciliation belongs to PP-014.
+- The secret policy is filename-based only. Gitleaks scanning is planned for PP-026.
+- Python `casefold` + NFC may differ from APFS for rare characters. Write-time `O_EXCL`
+  still refuses any clash.
+- Single-user ownership checks only (§4.1).
+
+**Proposed PP-005 implementation commit scope** (awaiting approval; nothing staged):
+- `src/patchproof/git/`: `__init__.py`, `command.py`, `errors.py`, `paths.py`,
+  `repository.py`, `snapshot.py`;
+- `schemas/source-manifest.schema.json`;
+- `schemas/examples/valid/source-manifest--synthetic-app.json`;
+- the six `schemas/examples/invalid/source-manifest--*.json`;
+- `tests/unit/_git_fixtures.py`, `tests/unit/test_git_snapshot.py`,
+  `tests/unit/test_git_isolation.py`;
+- `tests/unit/test_schemas.py` and `tests/unit/test_docker_cli.py` (additive);
+- `docs/architecture/source-snapshots.md`, `docs/environment.lock.md`, `STATUS.md`,
+  `docs/backlog.md`.
+
+**Excluded from the commit scope:** the owner's ADR-010 files (`CLAUDE.md`,
+`PROJECT_SPEC.md`, `docs/threat-model.md`, `docs/adr/ADR-010-agent-permission-mode.md`).
 
 ## v0.0 foundation release — `ACCEPTED` by owner (2026-10-12)
 

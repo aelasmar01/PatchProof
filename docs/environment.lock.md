@@ -46,7 +46,7 @@ snapshot), container images, and evidence retention with wide margin.
 
 | Tool | Measured version | Path / source | Specification target | Verdict |
 |---|---|---|---|---|
-| Git | 2.42.0 | `/usr/local/bin/git` (Homebrew, installed 2023-09-06) | "supported patched Git release" (§9.2) | **CONFLICT — see 6.2** |
+| Git | 2.42.0 at PP-001; **2.56.0** (Homebrew `2.56.0_1`) since 2026-10-12 | `/usr/local/bin/git` → `/usr/local/Cellar/git/2.56.0_1/bin/git` | "supported patched Git release" (§9.2) | Satisfied; see 3.2 and 6.2 (RESOLVED) |
 | Python (system) | 3.13.1 | `python3` | Python 3.13, "supported patched release" (§3.1) | Not used by the project; see 3.1 and 6.3 (RESOLVED) |
 | Python (other) | 3.12.13, 3.11.11 | `python3.12`, `python3.11` | n/a | Available |
 | `uv` | 0.10.7 at PP-001; **0.12.24** since 2026-10-12 | `/usr/local/bin/uv` → `~/Library/Python/3.13/bin/uv` (pip `--user`) | `uv` packaging (§3.1) | Satisfied; see 3.1 |
@@ -100,6 +100,68 @@ built-in `uv_build` backend; no build backend was downloaded.
 
 With the dev tools held at their accepted versions, the 6923-test baseline reproduced
 exactly under 3.13.16 (see `STATUS.md`).
+
+### 3.2 Git upgrade (PP-005 prerequisite, 2026-10-12)
+
+Owner-approved on 2026-10-12 (approval item 3). Performed with
+`HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew upgrade git`.
+There was no `brew cleanup`, no general upgrade, and no `sudo`; macOS was not changed.
+
+**Result:**
+- **Version:** `git version 2.56.0` (Homebrew formula `git` 2.56.0, revision 1). Exit 0.
+- **Effective executable:** `/usr/local/bin/git` →
+  `/usr/local/Cellar/git/2.56.0_1/bin/git`. `/usr/bin/git`, the Apple shim, still exists
+  later on `PATH` and is not used by PatchProof.
+- **Source:** `https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.56.0.tar.xz`,
+  sha256 `26c56c296b38c0695b26fa95f475f1d01704d2d38e73465ca30b0b2f5dc789d3`, from the
+  homebrew-core formula.
+- **Built from source.** Homebrew 7.0.9 no longer builds bottles for Intel macOS, which
+  it now classes as a Tier 3 configuration. Homebrew ran Git's `make test` during the
+  build. The build took 1 min 44 s.
+- **Linkage:** pcre2 10.49, gettext 1.0 (`libintl.8.dylib`), and the system zlib and
+  libiconv (`otool -L`).
+
+**Changes the upgrade required beyond Git.** The 2026-10-12 dry run showed these in
+advance; the owner had authorized fixing anything the upgrade needed.
+
+| Formula | Change | Why |
+|---|---|---|
+| cmake | new 4.4.4 (built from source, 12 min) | Git build dependency |
+| json-c | new 0.19 | Git build dependency |
+| libunistring | 1.1 → 1.4.2 | dependency of gettext |
+| gettext | 0.22.4 → 1.0 | Git runtime dependency |
+| pkgconf | 2.5.1 → 3.0.8 | build tool |
+| pcre2 | 10.47_1 → 10.49 | Git runtime dependency |
+
+**Rollback.** The old kegs are retained (no cleanup): `git 2.42.0`, `gettext 0.22.4`,
+`libunistring 1.1`, `pkgconf 2.5.1` and `pcre2 10.47_1`.
+
+**Shared libraries.** The upgraded libraries are shared with other installed formulae:
+cairo, ffmpeg, glib, harfbuzz, libass, pango and tesseract. Those formulae were not
+upgraded or rebuilt.
+- `brew linkage --test git cairo ffmpeg glib harfbuzz libass pango tesseract` reported
+  no broken links (exit 0).
+- That command automatically switched Homebrew's developer mode on. It was switched back
+  off with `brew developer off`, and `brew developer` confirms "Developer mode is
+  disabled".
+
+**Security fixes since 2.42.0.** These come from the release notes installed with 2.56.0
+(`share/doc/git-doc/RelNotes/`). 2.42.0 lacked the fixes for:
+- the 2.42.2 batch: CVE-2024-32002, CVE-2024-32004, CVE-2024-32020, CVE-2024-32021 and
+  CVE-2024-32465;
+- the 2.42.4 batch: CVE-2024-50349 and CVE-2024-52006;
+- the 2.43.7 / 2.50.1 batch: CVE-2025-27613, CVE-2025-27614, CVE-2025-46334,
+  CVE-2025-46835, CVE-2025-48384, CVE-2025-48385 and CVE-2025-48386.
+
+The local notes for 2.51 to 2.56 name no further CVE identifiers. No online advisory
+database was queried, so advisories published after this build are not covered here.
+
+**Verification after the upgrade:**
+- The PatchProof root, branch `main`, HEAD and `origin/main` (`84b0e18`) and the remotes
+  are unchanged.
+- The owner's ADR-010 diff hash and file hash are identical before and after.
+- `~/.git` (`HEAD`, `config`, `index`) has the same modification times and sizes.
+- The full unit suite passed (see `STATUS.md`, PP-005).
 
 ## 4. Container runtime
 
@@ -238,7 +300,15 @@ global configuration being benign.
 
 ## 6. Conflicts between this machine and the specification
 
-### 6.1 UNRESOLVED (blocker) — a second Git repository owns the home directory
+### 6.1 OWNER DECISION (2026-10-12): RETAINED — a second Git repository owns the home directory
+
+**Decision:** the owner retains `~/.git` for now (approval item 4 is resolved). It is not
+deleted, moved, reinitialized, reset, cleaned, staged or modified. **The hazard remains.**
+- Never run Git write commands rooted at the home directory.
+- Always confirm `git rev-parse --show-toplevel` before any Git write.
+- PP-005 registration refuses the home directory and its ancestors, never searches
+  upward, and bounds discovery with `GIT_CEILING_DIRECTORIES`, so a parent repository is
+  never registered by accident (`docs/architecture/source-snapshots.md`).
 
 `git rev-parse --show-toplevel` from inside this project, **before** this project was
 initialized, returned `/Users/aliel-asmar`. A `.git` directory exists at the home
@@ -259,7 +329,7 @@ work is contained. The home repository itself is **untouched and still present**
 `~/.git`. Nothing is tracked there, so no content is lost. Not done — removal is
 destructive and outside PP-001.
 
-### 6.2 UNRESOLVED (approval required) — Git 2.42.0 is approximately three years old
+### 6.2 RESOLVED (2026-10-12, PP-005 prerequisite) — Git 2.42.0 upgraded to 2.56.0 (see 3.2)
 
 Installed 2023-09-06; Homebrew's current stable is 2.56.0. §9.2 requires "a supported
 patched Git release", and PatchProof's snapshot path depends directly on Git object
@@ -414,14 +484,15 @@ Desktop sync is ever enabled in iCloud, would become a cloud-synced destination.
 - No dependency set is resolved; there is no `pyproject.toml` or `uv.lock` yet.
 - Docker Desktop 4.42.1's compatibility with macOS 26.3.1 is untested by Docker; it
   predates macOS 26. Resolved as a blocker in 6.5 rather than left open.
-- The applicability of specific Git advisories to 2.42.0 is unconfirmed.
+- The fixes missing from Git 2.42.0 are listed in 3.2, from Git's own release notes. No
+  online advisory database was queried.
 
 ## 8. Required next actions, in order
 
 | # | Action | Who | Blocking |
 |---|---|---|---|
-| 1 | Approve `brew upgrade git` 2.42.0 → 2.56.0 (6.2) | Owner | PP-005 |
-| 2 | Decide on removing `~/.git` (6.1) | Owner | Safe local Git hygiene |
+| 1 | ~~Approve `brew upgrade git` 2.42.0 → 2.56.0 (6.2)~~ — approved and done 2026-10-12 (3.2) | Owner | — |
+| 2 | ~~Decide on removing `~/.git` (6.1)~~ — decided 2026-10-12: retained; hazard remains (6.1) | Owner | — |
 | 3 | ~~Approve Python 3.13.x patch + pin (6.3)~~ — done 2026-10-12 (3.1) | Owner | — |
 | 4 | Approve running the PP-003 isolation probe suite — now unblocked on the runtime side | Owner | v0.0 exit gate |
 

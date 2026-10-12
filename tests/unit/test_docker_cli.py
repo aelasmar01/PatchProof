@@ -242,4 +242,6 @@ def test_no_shell_true_and_single_subprocess_module() -> None:
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 names = [a.name for a in node.names] + [getattr(node, "module", None) or ""]
                 if "subprocess" in names:
-                    assert path.name in ("docker_cli.py", "isolation_probe.py"), path
+                    # PP-005 adds exactly one reviewed wrapper: the allowlisted Git command module.
+                    assert (path.name in ("docker_cli.py", "isolation_probe.py")
+                            or path.relative_to(ROOT).as_posix() == "src/patchproof/git/command.py"), path

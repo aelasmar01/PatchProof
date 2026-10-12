@@ -70,7 +70,7 @@ PP-003 progress, 2026-10-11:
 
 | Issue | Work package | Completion evidence required | Status |
 |---|---|---|---|
-| PP-005 | Safe repository registration and source snapshots | No original-repo mutation; path/ref/size rejection tests | `NOT_STARTED` |
+| PP-005 | Safe repository registration and source snapshots | No original-repo mutation; path/ref/size rejection tests | `READY_FOR_REVIEW` (2026-10-12; not committed; 7320 tests; mutation check 33/34 with 1 equivalent mutant; evidence `STATUS.md` PP-005, `docs/architecture/source-snapshots.md`) |
 | PP-006 | Reference authorization API and fixture profile | Stable vulnerable/correct/inadequate/deny-all revisions and documented ground truth | `NOT_STARTED` |
 | PP-007 | Pack validation, collection, and approval records | Exact test IDs and hashes; stale approval rejection | `NOT_STARTED` |
 | PP-008 | Target/verifier runner and typed event transport | Source/test separation; successful and deliberately interrupted runs; every owned container labelled with installation ID and run ID | `NOT_STARTED` |
@@ -82,6 +82,12 @@ with a sanitized environment and explicit config overrides. The host has global
 `filter.lfs.*` hooks with `filter.lfs.required=true`, so inherited configuration is
 not safe to trust. See `docs/environment.lock.md` §5.
 
+PP-005 prerequisites, 2026-10-12:
+- Git was upgraded to 2.56.0 (approval item 3, `docs/environment.lock.md` §3.2).
+- `~/.git` is retained by owner decision (item 4). The hazard remains, and registration
+  refuses the home directory and parent-repository discovery.
+- The sanitized-environment requirement is implemented in `src/patchproof/git/command.py`.
+
 ## v0.2 — Usable local workbench
 
 | Issue | Work package | Completion evidence required | Status |
@@ -89,7 +95,7 @@ not safe to trust. See `docs/environment.lock.md` §5.
 | PP-011 | SQLite models, migrations, durable queue | Atomic claims, idempotency, bounded writes, crash tests | `NOT_STARTED` |
 | PP-012 | FastAPI session/origin/CSRF and resource APIs | Unauthorized local-browser request tests fail safely | `NOT_STARTED` |
 | PP-013 | React project/case/plan/result views | Accessible end-to-end UI tests and actual screenshots | `NOT_STARTED` |
-| PP-014 | Cancellation, interruption, and resource reconciliation | Crash/restart/cancel tests; unrelated resources preserved — the 9 images and 7 stopped containers recorded in `docs/environment.lock.md` §4.3 are the baseline that must survive | `NOT_STARTED` |
+| PP-014 | Cancellation, interruption, and resource reconciliation | Crash/restart/cancel tests; unrelated resources preserved — the 9 images and 7 stopped containers recorded in `docs/environment.lock.md` §4.3 are the baseline that must survive; reconcile force-killed PP-005 `.staging-*` snapshot leftovers | `NOT_STARTED` |
 | PP-015 | Second compatible application onboarding | No core code edits; documented compatibility and truthful case outcome | `NOT_STARTED` |
 | PP-016 | Offline workflow and usability review | Completed user journey and identified/fixed usability defects | `NOT_STARTED` |
 

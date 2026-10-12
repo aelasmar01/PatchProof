@@ -43,6 +43,7 @@ RECORD_SCHEMAS = (
     "verdict",
     "isolation-probe-run",
     "execution-profile.v1.1",
+    "source-manifest",
 )
 
 # filename -> (failing keyword, JSON pointer of the failing instance location).
@@ -115,6 +116,12 @@ INVALID_CASES: dict[str, tuple[str, str]] = {
     "isolation-probe-run--unknown-field.json": ("additionalProperties", ""),
     "isolation-probe-run--negative-without-control.json": ("anyOf", "/probes/8"),
     "isolation-probe-run--floating-image.json": ("pattern", "/image/image_id"),
+    "source-manifest--includes-uncommitted.json": ("const", "/uncommitted_changes_included"),
+    "source-manifest--abbreviated-commit.json": ("pattern", "/commit_id"),
+    "source-manifest--traversal-path.json": ("pattern", "/files/0/path"),
+    "source-manifest--symlink-mode.json": ("enum", "/files/0/mode"),
+    "source-manifest--loosened-file-limit.json": ("maximum", "/inclusion_profile/limits/max_file_bytes"),
+    "source-manifest--sha1-length-in-sha256-manifest.json": ("pattern", "/commit_id"),
 }
 
 

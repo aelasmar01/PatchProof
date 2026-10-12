@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "kind": "source-manifest",
+  "object_format": "sha1",
+  "requested_revision": "refs/heads/main",
+  "commit_id": "41de4f1008589e97c4d7cd0f3de788c6c0d07200",
+  "tree_id": "ff5b99b5aced7ebc533579620f3b44c5cce0ea4d",
+  "git_version": "2.56.0",
+  "inclusion_profile": {
+    "include": [
+      "app"
+    ],
+    "secret_policy": "secret-files-1",
+    "limits": {
+      "max_total_bytes": 104857600,
+      "max_entries": 20000,
+      "max_file_bytes": 10485760
+    },
+    "sha256": "sha256:999ae34f5258814232f704a5abe66588129d48e81bd6c291b070b38925caf87b"
+  },
+  "uncommitted_changes_included": false,
+  "complete_commit": false,
+  "totals": {
+    "file_count": 2,
+    "total_bytes": 19,
+    "excluded_count": 3
+  },
+  "source_tree_sha256": "sha256:2fc03213f965ca40044714eef313d9ec51398f37814ee062e95085865f936a90",
+  "files": [
+    {
+      "path": "app/__init__.py",
+      "mode": "120000",
+      "git_object_id": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size_bytes": 0,
+      "sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "app/main.py",
+      "mode": "100644",
+      "git_object_id": "0b449f03844f3beca1923326ccd2800b2027a107",
+      "size_bytes": 19,
+      "sha256": "sha256:cec3f4ff7a067e51b2cd3dc4cf82eae6503727e183cb18a3b9c29b01bc5fc759"
+    }
+  ],
+  "excluded": [
+    {
+      "path": "README.md",
+      "reason": "OUTSIDE_SOURCE_SCOPE",
+      "mode": "100644"
+    },
+    {
+      "path": "app/.env",
+      "reason": "SECRET_FILE_POLICY",
+      "mode": "100644"
+    },
+    {
+      "path": "tests/test_app.py",
+      "reason": "OUTSIDE_SOURCE_SCOPE",
+      "mode": "100644"
+    }
+  ]
+}
