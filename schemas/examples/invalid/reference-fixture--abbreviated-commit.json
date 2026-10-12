@@ -1,0 +1,413 @@
+{
+  "schema_version": "1.0",
+  "kind": "reference-fixture",
+  "fixture_id": "papertrail-authz",
+  "fixture_version": "1.0.0",
+  "synthetic": true,
+  "approval_status": "NOT_APPROVED",
+  "declared_expectations_only": true,
+  "family": "object-level-authorization",
+  "target": {
+    "adapter": "python-asgi-http-v1",
+    "asgi_app": "papertrail.app:app",
+    "python_version": "3.13",
+    "third_party_runtime_dependencies": [],
+    "server": {
+      "name": "uvicorn",
+      "version": "UNRESOLVED"
+    },
+    "bind_address": "127.0.0.1:8080",
+    "readiness_path": "/health",
+    "network_policy": "none-shared-loopback-v1",
+    "fixture_contract": "synthetic-documents-v1",
+    "fixture_file": "fixtures/synthetic/synthetic-documents-v1.json",
+    "fixture_sha256": "sha256:2cbcf118fddb2cd4e38a9af5e8786911e8f85e292e637102799fd60513129eda",
+    "data_reset": "immutable-fixture-fresh-process",
+    "source_scope": {
+      "include": [
+        "papertrail",
+        "fixtures/synthetic"
+      ]
+    },
+    "unresolved_bindings": [
+      "target_image_id",
+      "verifier_image_id",
+      "server_version",
+      "dependency_lock"
+    ]
+  },
+  "repository": {
+    "generator": "patchproof.reference.papertrail",
+    "generator_version": "1.0.0",
+    "object_format": "sha1",
+    "head": "refs/heads/main",
+    "tag_kind": "annotated",
+    "varying_file": "papertrail/authz.py"
+  },
+  "callers": [
+    {
+      "caller_id": "alice",
+      "user_id": "u-alice",
+      "authorization": "fixture-bearer",
+      "presented_token": null,
+      "description": "Owner of doc-alice-private; role member."
+    },
+    {
+      "caller_id": "bob",
+      "user_id": "u-bob",
+      "authorization": "fixture-bearer",
+      "presented_token": null,
+      "description": "Different authenticated member; owner of doc-bob-private only."
+    },
+    {
+      "caller_id": "carol",
+      "user_id": "u-carol",
+      "authorization": "fixture-bearer",
+      "presented_token": null,
+      "description": "Auditor; granted by reader_roles on doc-alice-private, not on doc-bob-private."
+    },
+    {
+      "caller_id": "anonymous",
+      "user_id": null,
+      "authorization": "none",
+      "presented_token": null,
+      "description": "No Authorization header."
+    },
+    {
+      "caller_id": "forged-token",
+      "user_id": null,
+      "authorization": "invalid-bearer",
+      "presented_token": "pt-synthetic-unknown-a86591090626",
+      "description": "Well-formed bearer token that matches no fixture user."
+    }
+  ],
+  "revisions": [
+    {
+      "key": "vulnerable",
+      "role": "vulnerable-baseline",
+      "tag": "refs/tags/authz-r1-vulnerable",
+      "tag_object_id": "aac9edf2d273d15e991fd7375fd3b2396a94151a",
+      "commit_id": "68b2bc0e41cb",
+      "tree_id": "f4a27893dc96e01b42e4b0da27cb2de5977c6063",
+      "parent": null,
+      "authz_sha256": "sha256:a4323e5825cc5abb7b3cdd5899ad002f9400a71644bb1c07c30ea7f2b5884e22",
+      "intent": "can_read_document returns True for every authenticated caller and never consults the document. Any signed-in user can read any user's private document (object-level authorization defect, OWASP API1:2023 BOLA)."
+    },
+    {
+      "key": "inadequate",
+      "role": "inadequate-fix",
+      "tag": "refs/tags/authz-r2-inadequate",
+      "tag_object_id": "905db74a4f8ef0dfece64dee6914fc4f237c80c6",
+      "commit_id": "38f178748f156d5f39e05ac3f19f1a9f47fea39d",
+      "tree_id": "a1bb7003a5b4b0644a230c5565b4387f55d4b758",
+      "parent": "vulnerable",
+      "authz_sha256": "sha256:a7b1510aef7c758771f4f922f1bf7669e9e0023d620b7d62217929f0905bf31b",
+      "intent": "Adds explicit checks that the caller is authenticated, has a user ID, and holds a role in READ_ROLES (member or auditor). Every fixture user passes all three, and the document's owner_id and reader_roles are still never consulted, so cross-owner disclosure is unchanged."
+    },
+    {
+      "key": "correct",
+      "role": "correct-fix",
+      "tag": "refs/tags/authz-r3-correct",
+      "tag_object_id": "80f59286c86b24bed65372fad277f2cb8bb90eb5",
+      "commit_id": "2fb6d09378906f1df69ac32b862df4a350e8a56d",
+      "tree_id": "eb22f1bf9e8680971fac0af28c0557b117314803",
+      "parent": "vulnerable",
+      "authz_sha256": "sha256:169a798fef1f24b5734c32112ac6af717e1d23a95bf77ad4a9034e96ddb1ba13",
+      "intent": "Grants a read only when the caller owns the document (user_id == owner_id) or the caller's role is listed in the document's reader_roles. Owner and explicitly granted auditor access are preserved; every other authenticated caller receives the same 404 as a missing document."
+    },
+    {
+      "key": "deny-all",
+      "role": "deny-all-regression",
+      "tag": "refs/tags/authz-r4-deny-all",
+      "tag_object_id": "471eacf5d291cd7908543d32fb9a63760519b95a",
+      "commit_id": "f31cb4b159d1859a3614d97a492389a0f823104e",
+      "tree_id": "589011d5eabf89bc128690e28ecad8dc83e375f6",
+      "parent": "vulnerable",
+      "authz_sha256": "sha256:7fe044f27048a487c10093c1be8bc01a5a3b436fec1593d3dd9e060cde309cbd",
+      "intent": "Returns False for every caller. The unauthorized read is blocked, but so are the owner's and the granted auditor's legitimate reads: a functional regression, not a fix."
+    }
+  ],
+  "checks": [
+    {
+      "id": "AUTH-001",
+      "kind": "security",
+      "caller": "bob",
+      "method": "GET",
+      "path": "/documents/doc-alice-private",
+      "protected_marker": "PT-PROTECTED-ALICE-dc29518fb491",
+      "description": "Authenticated non-owner cannot read another user's private document.",
+      "expected": {
+        "vulnerable": {
+          "semantic": "VIOLATION_CONFIRMED",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "inadequate": {
+          "semantic": "VIOLATION_CONFIRMED",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "correct": {
+          "semantic": "SECURE",
+          "status": 404,
+          "marker_disclosed": false
+        },
+        "deny-all": {
+          "semantic": "SECURE",
+          "status": 404,
+          "marker_disclosed": false
+        }
+      }
+    },
+    {
+      "id": "AUTH-002",
+      "kind": "security",
+      "caller": "anonymous",
+      "method": "GET",
+      "path": "/documents/doc-alice-private",
+      "protected_marker": "PT-PROTECTED-ALICE-dc29518fb491",
+      "description": "Unauthenticated caller is refused before any document lookup.",
+      "expected": {
+        "vulnerable": {
+          "semantic": "SECURE",
+          "status": 401,
+          "marker_disclosed": false
+        },
+        "inadequate": {
+          "semantic": "SECURE",
+          "status": 401,
+          "marker_disclosed": false
+        },
+        "correct": {
+          "semantic": "SECURE",
+          "status": 401,
+          "marker_disclosed": false
+        },
+        "deny-all": {
+          "semantic": "SECURE",
+          "status": 401,
+          "marker_disclosed": false
+        }
+      }
+    },
+    {
+      "id": "AUTH-003",
+      "kind": "security",
+      "caller": "carol",
+      "method": "GET",
+      "path": "/documents/doc-bob-private",
+      "protected_marker": "PT-PROTECTED-BOB-f674ae494575",
+      "description": "A role grant on one document does not extend to documents that do not list it.",
+      "expected": {
+        "vulnerable": {
+          "semantic": "VIOLATION_CONFIRMED",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "inadequate": {
+          "semantic": "VIOLATION_CONFIRMED",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "correct": {
+          "semantic": "SECURE",
+          "status": 404,
+          "marker_disclosed": false
+        },
+        "deny-all": {
+          "semantic": "SECURE",
+          "status": 404,
+          "marker_disclosed": false
+        }
+      }
+    },
+    {
+      "id": "AUTH-004",
+      "kind": "security",
+      "caller": "forged-token",
+      "method": "GET",
+      "path": "/documents/doc-alice-private",
+      "protected_marker": "PT-PROTECTED-ALICE-dc29518fb491",
+      "description": "A bearer token that matches no fixture user is refused.",
+      "expected": {
+        "vulnerable": {
+          "semantic": "SECURE",
+          "status": 401,
+          "marker_disclosed": false
+        },
+        "inadequate": {
+          "semantic": "SECURE",
+          "status": 401,
+          "marker_disclosed": false
+        },
+        "correct": {
+          "semantic": "SECURE",
+          "status": 401,
+          "marker_disclosed": false
+        },
+        "deny-all": {
+          "semantic": "SECURE",
+          "status": 401,
+          "marker_disclosed": false
+        }
+      }
+    },
+    {
+      "id": "FUNC-001",
+      "kind": "functional",
+      "caller": "alice",
+      "method": "GET",
+      "path": "/documents/doc-alice-private",
+      "protected_marker": "PT-PROTECTED-ALICE-dc29518fb491",
+      "description": "The owner can read their own private document, including its content.",
+      "expected": {
+        "vulnerable": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "inadequate": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "correct": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "deny-all": {
+          "semantic": "FAIL",
+          "status": 404,
+          "marker_disclosed": false
+        }
+      }
+    },
+    {
+      "id": "FUNC-002",
+      "kind": "functional",
+      "caller": "carol",
+      "method": "GET",
+      "path": "/documents/doc-alice-private",
+      "protected_marker": "PT-PROTECTED-ALICE-dc29518fb491",
+      "description": "The explicitly granted auditor role can read the document that lists it.",
+      "expected": {
+        "vulnerable": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "inadequate": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "correct": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "deny-all": {
+          "semantic": "FAIL",
+          "status": 404,
+          "marker_disclosed": false
+        }
+      }
+    },
+    {
+      "id": "FUNC-003",
+      "kind": "functional",
+      "caller": "bob",
+      "method": "GET",
+      "path": "/documents/doc-bob-private",
+      "protected_marker": "PT-PROTECTED-BOB-f674ae494575",
+      "description": "A second owner can read their own private document.",
+      "expected": {
+        "vulnerable": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "inadequate": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "correct": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": true
+        },
+        "deny-all": {
+          "semantic": "FAIL",
+          "status": 404,
+          "marker_disclosed": false
+        }
+      }
+    },
+    {
+      "id": "FUNC-004",
+      "kind": "functional",
+      "caller": "alice",
+      "method": "GET",
+      "path": "/me",
+      "protected_marker": null,
+      "description": "An authenticated caller can read their own identity.",
+      "expected": {
+        "vulnerable": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": false
+        },
+        "inadequate": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": false
+        },
+        "correct": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": false
+        },
+        "deny-all": {
+          "semantic": "PASS",
+          "status": 200,
+          "marker_disclosed": false
+        }
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "baseline": "vulnerable",
+      "candidate": "vulnerable",
+      "expected_verdict": "NOT_FIXED",
+      "basis": "Unchanged revision: AUTH-001 and AUTH-003 still disclose the protected markers on the candidate."
+    },
+    {
+      "baseline": "vulnerable",
+      "candidate": "inadequate",
+      "expected_verdict": "NOT_FIXED",
+      "basis": "The added authentication and role checks pass for every fixture user, so AUTH-001 and AUTH-003 still disclose the protected markers."
+    },
+    {
+      "baseline": "vulnerable",
+      "candidate": "correct",
+      "expected_verdict": "VERIFIED_FOR_CASES",
+      "basis": "Baseline reproduces AUTH-001 and AUTH-003; candidate is secure on every security check and passes every functional control. Eligible only after every runtime gate (approval, integrity, completeness, repetitions) also passes."
+    },
+    {
+      "baseline": "vulnerable",
+      "candidate": "deny-all",
+      "expected_verdict": "REGRESSION_DETECTED",
+      "basis": "No candidate violation remains, but FUNC-001, FUNC-002 and FUNC-003 pass on the baseline and fail on the candidate."
+    }
+  ],
+  "limitations": [
+    "Expectations are derived from source-level design and static analysis only. PaperTrail has not been executed; no HTTP response has been observed on any revision.",
+    "The fixture data is fixed. Per-pair seeded variation of identities and markers belongs to PP-019, so the target can know the markers.",
+    "The ASGI server version, its hash-locked wheels and the target and verifier image identities are unresolved and must be prepared and approved in PP-008.",
+    "This is one object-level authorization case over one read endpoint. It is not a measure of PatchProof's accuracy on other applications or families.",
+    "Bearer tokens are static synthetic strings with no expiry; session, CSRF and transport security are outside this fixture."
+  ]
+}

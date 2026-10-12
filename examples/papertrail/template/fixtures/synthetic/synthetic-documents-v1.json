@@ -1,0 +1,41 @@
+{
+  "fixture_contract": "synthetic-documents-v1",
+  "synthetic": true,
+  "notice": "Synthetic PatchProof reference data. These identities, bearer tokens and document contents are fabricated, grant access to nothing outside this fixture, and must never be replaced with real data.",
+  "users": [
+    {
+      "user_id": "u-alice",
+      "display_name": "Alice Example (synthetic)",
+      "role": "member",
+      "token": "pt-synthetic-alice-a9388a6e7158"
+    },
+    {
+      "user_id": "u-bob",
+      "display_name": "Bob Example (synthetic)",
+      "role": "member",
+      "token": "pt-synthetic-bob-bf6fff30084a"
+    },
+    {
+      "user_id": "u-carol",
+      "display_name": "Carol Example (synthetic)",
+      "role": "auditor",
+      "token": "pt-synthetic-carol-ecebf2fab7f0"
+    }
+  ],
+  "documents": [
+    {
+      "document_id": "doc-alice-private",
+      "owner_id": "u-alice",
+      "title": "Alice private planning note (synthetic)",
+      "reader_roles": ["auditor"],
+      "content": "Synthetic private note. Protected marker: PT-PROTECTED-ALICE-dc29518fb491"
+    },
+    {
+      "document_id": "doc-bob-private",
+      "owner_id": "u-bob",
+      "title": "Bob private draft (synthetic)",
+      "reader_roles": [],
+      "content": "Synthetic private draft. Protected marker: PT-PROTECTED-BOB-f674ae494575"
+    }
+  ]
+}

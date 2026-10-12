@@ -44,6 +44,7 @@ RECORD_SCHEMAS = (
     "isolation-probe-run",
     "execution-profile.v1.1",
     "source-manifest",
+    "reference-fixture",
 )
 
 # filename -> (failing keyword, JSON pointer of the failing instance location).
@@ -122,6 +123,15 @@ INVALID_CASES: dict[str, tuple[str, str]] = {
     "source-manifest--symlink-mode.json": ("enum", "/files/0/mode"),
     "source-manifest--loosened-file-limit.json": ("maximum", "/inclusion_profile/limits/max_file_bytes"),
     "source-manifest--sha1-length-in-sha256-manifest.json": ("pattern", "/commit_id"),
+    "reference-fixture--claims-approval.json": ("const", "/approval_status"),
+    "reference-fixture--abbreviated-commit.json": ("pattern", "/revisions/0/commit_id"),
+    "reference-fixture--asgi-shell-fragment.json": ("pattern", "/target/asgi_app"),
+    "reference-fixture--security-check-expects-pass.json": ("enum", "/checks/0/expected/vulnerable/semantic"),
+    "reference-fixture--runtime-observation-field.json": ("additionalProperties", ""),
+    "reference-fixture--no-deny-all-regression-control.json": ("contains", "/checks"),
+    "reference-fixture--server-version-asserted.json": ("const", "/target/server/version"),
+    "reference-fixture--security-check-without-marker.json": ("type", "/checks/1/protected_marker"),
+    "reference-fixture--document-read-without-marker.json": ("type", "/checks/4/protected_marker"),
 }
 
 

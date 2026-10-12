@@ -1,6 +1,7 @@
 # STATUS
 
-**Updated:** 2026-10-12 (**PP-005 `ACCEPTED` by owner**, implementation commit `c8128a7`; v0.0 foundation release `ACCEPTED`; next issue PP-006, **not started**)
+**Updated:** 2026-10-12 (**PP-006 `READY_FOR_REVIEW`**, uncommitted; PP-005 `ACCEPTED` and pushed,
+`origin/main` = `aa3a0a3`; v0.0 foundation release `ACCEPTED`)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -8,13 +9,133 @@
 ## Current release and issue
 
 **Release:** v0.1 — Useful CLI verification
-**Issue:** PP-005 — Safe repository registration and source snapshots
-**State:** `ACCEPTED` by owner, 2026-10-12. Committed locally; not pushed or tagged.
-**Next issue:** PP-006 (reference authorization API and fixture profile), `NOT_STARTED`. It
-requires separate owner authorization.
-**Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 is a
-library with no CLI yet (PP-009); its behaviour is demonstrated only by the test suite on
-synthetic repositories.
+**Issue:** PP-006 — Reference authorization API and fixture profile
+**State:** `READY_FOR_REVIEW`, 2026-10-12. Not committed, not pushed, not tagged. Awaiting
+the owner's review; it is **not** accepted.
+**Next issue:** PP-007 (pack validation, collection, and approval records), `NOT_STARTED`.
+It requires separate owner authorization.
+**Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 and PP-006
+are libraries and fixtures with no CLI workflow yet (PP-009). PaperTrail has **not been
+executed**; its expected behavior is declared and checked statically only.
+
+## PP-006 — `READY_FOR_REVIEW` (2026-10-12)
+
+**Owner authorization (2026-10-12):** publish the accepted PP-005 commits, then implement
+PP-006 only. Do not begin PP-007, run the target, build or run containers, install
+software, commit or push PP-006, tag, or touch the owner's ADR-010 work.
+
+**PP-005 publication:** `git push origin main` was an ordinary fast-forward,
+`84b0e18..aa3a0a3`. Before pushing: worktree root PatchProof, `HEAD` `aa3a0a3`, origin
+`https://github.com/aelasmar01/PatchProof.git`, remote `main` at `84b0e18` (an ancestor), and
+no ADR-010 path in either commit. Afterwards `git ls-remote` showed
+`aa3a0a326ced575470defe5356f85ffa7ce09e98 refs/heads/main`. There was no force, rebase, amend
+or tag.
+
+**What was built:**
+- **PaperTrail.** A dependency-free ASGI document API with synthetic bearer-token users
+  (`examples/papertrail/template/`). Four revisions differ only in `papertrail/authz.py`
+  (`examples/papertrail/revisions/`):
+  - `vulnerable`: any authenticated caller reads any document;
+  - `inadequate`: adds authentication, identity and role checks, but still never consults the
+    document;
+  - `correct`: owner, or a role listed in the document's `reader_roles`;
+  - `deny-all`: refuses every read.
+- **Generator.** `src/patchproof/reference/` (`gitobjects.py`, `papertrail.py`,
+  `__main__.py`). It writes Git objects directly: no Git process, no subprocess, no Git write
+  against any existing repository. It refuses any destination that is not new, absolute,
+  canonical and owned, or that is the home directory or an ancestor, inside PatchProof, or
+  inside another repository. All files are created with `O_EXCL|O_NOFOLLOW`, every object is
+  re-hashed after writing, and a failure removes the partial directory. Entry point:
+  `uv run python -m patchproof.reference <new-directory>`.
+- **Ground truth and profile material.**
+  - `examples/papertrail/reference-fixture.json`, with the new schema
+    `schemas/reference-fixture.schema.json` (1 valid and 7 invalid examples).
+  - The schema makes approval, runtime observations and an asserted server version
+    unrepresentable.
+- **Documentation:** `docs/architecture/papertrail-reference.md`.
+
+**Actual generated identities** (object format sha1; annotated tags; candidates are children
+of r1). These were produced by running the generator, not written by hand:
+
+| Tag | Commit |
+|---|---|
+| `refs/tags/authz-r1-vulnerable` | `68b2bc0e41cb7e9a074b09f2d97db3e2d2ca288a` |
+| `refs/tags/authz-r2-inadequate` | `38f178748f156d5f39e05ac3f19f1a9f47fea39d` |
+| `refs/tags/authz-r3-correct` | `2fb6d09378906f1df69ac32b862df4a350e8a56d` |
+| `refs/tags/authz-r4-deny-all` | `f31cb4b159d1859a3614d97a492389a0f823104e` |
+
+**Validation (pinned environment, 2026-10-12):**
+- **Full unit suite:** **7439 passed**, 0 failed, 0 skipped. That is 7337 + 89 PP-006 tests
+  + 13 new schema-table cases. It was 7436 at READY_FOR_REVIEW; the final review added 3
+  (F1, F2 below).
+- **mypy `--strict`:** clean (30 files). **Ruff:** clean on `src`, `examples` and the
+  changed tests. `ruff check .` still reports the 11 pre-existing E501 lines in `tests/`.
+- **`uv lock --check --offline`:** consistent. No dependency was added.
+- **Determinism:** two generations are byte-identical, including every file under `.git`.
+- **Git cross-checks:** Git 2.56.0 `fsck --strict` is clean. An independent rebuild with
+  ordinary `git commit`/`git tag -a` gives the same commit and tag-object IDs.
+- **PP-005:**
+  - registers the generated repository and snapshots every tag and full commit ID;
+  - each snapshot holds 5 files with `README.md` excluded as `OUTSIDE_SOURCE_SCOPE`;
+  - manifests are byte-identical across independent generations;
+  - the repository fingerprint is unchanged.
+- **Static expectation check:** an AST interpreter limited to `authz.py`'s small language,
+  plus structural checks of `app.py`, derives all 32 declared outcomes (8 checks × 4
+  revisions). The test process never imports `papertrail`.
+- **Verdict engine:** feeding the declared outcomes to the accepted PP-004 engine gives
+  `NOT_FIXED`, `NOT_FIXED`, `VERIFIED_FOR_CASES` and `REGRESSION_DETECTED`.
+- **Mutation check (scratch, not committed):** final run on the final sources **19/19**
+  weakenings caught, covering
+  destination rules, symlink refusal, cleanup, `O_EXCL`, object verification, tree ordering,
+  ref grammar, each authz revision, the 401-before-lookup order, token matching, fixture
+  grants and the declared verdicts. The baseline passes with the identical command, and the
+  sources were hash-verified after restoration.
+  - Template mutants are also caught by the pinned commit IDs, so for those the ID check is
+    not the only guard; the semantic tests catch M12–M16 independently.
+
+**Final review (2026-10-12), after the owner's conditional acceptance:**
+- **F1 (fixed, schema).** `reference-fixture.schema.json` allowed `protected_marker: null` on a
+  security check or a document read. The data was correct, but the contract would have let a
+  status code alone stand as a witness (§7.3). The schema now requires a marker on every
+  security check and every `/documents/` read. Two new invalid examples are rejected for
+  exactly that reason. The data and commit IDs are unchanged.
+- **F2 (fixed, test gap; earlier figure corrected).** The READY_FOR_REVIEW report said 19/19.
+  On re-running, mutant M08 (the stored-bytes comparison in `LooseObjectRepository.verify`)
+  **survived** in three isolated reruns, so that earlier 19/19 overstated the result by one. Why
+  that earlier run marked M08 as caught was not determined.
+  - M08 is not an equivalent mutant: only the byte comparison rejects an object stored with a
+    non-canonical header (for example `blob 010`) whose payload still hashes correctly.
+  - A test now covers it, and the final run caught 19/19 (log
+    `scratchpad/pp006/mut-final2.log`).
+
+**Edits to existing accepted files:** `tests/unit/test_schemas.py` only, with 10 additive
+lines: `reference-fixture` added to `RECORD_SCHEMAS`, plus 9 invalid-case rows. No assertion
+was changed or removed.
+
+**Not executed:**
+- PaperTrail, on any revision;
+- any container, image build or pull;
+- any installation;
+- `patchproof doctor`, because its code is unchanged.
+
+**Limitations and obligations:**
+- **Nothing dynamic yet.** No dynamic reproduction exists. The §15.2 witness requirement
+  remains for PP-008.
+- **PP-007:** a pack implementing AUTH-001–004 and FUNC-001–004 with semantic witnesses,
+  bound to `fixture_sha256`.
+- **PP-008:**
+  - the target image (Python 3.13, uvicorn version and wheel hashes still UNRESOLVED) and the
+    verifier image;
+  - the read-only snapshot mount and `/health` readiness;
+  - the first runtime observations, compared with the declared table.
+- **Fixed fixture data:** identities and markers are fixed; seeded variation is PP-019.
+- **Packaging:** the generator reads templates from the source checkout; packaging is
+  PP-023.
+- **Generated repository shape:** it has no index or worktree, so `git status` shows staged
+  deletions. A SIGKILL during generation can leave a partial directory, which is never
+  reported as generated.
+- **Threat model:** AC-1 lists PP-006 for deny-all evidence. `docs/threat-model.md` is not
+  updated because it holds the owner's uncommitted ADR-010 hunk.
 
 ## PP-005 — `ACCEPTED` by owner (2026-10-12)
 
@@ -973,9 +1094,9 @@ gate checklist `docs/evidence/v0.0-release-gate.md`; C4 run
 
 ## Next permitted issue
 
-**PP-005 (v0.1) is the next planned work. It is not started** and needs explicit owner
-authorization. Before PP-005, the owner must decide on and approve the Git upgrade
-(approval item 3) and decide on `~/.git` (approval item 4).
+**PP-006 is `READY_FOR_REVIEW`** (see above). PP-007 is the next planned issue. It is not
+started and needs explicit owner authorization after the PP-006 review. Committing PP-006
+and any further push also need owner approval.
 
 ## Failed tests, risks, and blockers
 
@@ -1143,8 +1264,8 @@ In the order they block work:
 |---|---|---|
 | 1 | ~~Owner review of PP-003~~: **ACCEPTED 2026-10-12** (commit `e38d0d1`) | — |
 | 2 | ~~Install current Python 3.13.x and pin it~~: **done 2026-10-12** (3.13.16 via uv 0.12.24; v0.0 closeout C1) | — |
-| 3 | `brew upgrade git` (2.42.0 → 2.56.0) | PP-005 |
-| 4 | Decide whether to remove `/Users/aliel-asmar/.git` (nothing is tracked; recommend backing up its config first) | Safe local Git hygiene |
+| 3 | ~~`brew upgrade git` (2.42.0 → 2.56.0)~~: **done 2026-10-12** (`environment.lock.md` §3.2) | — |
+| 4 | ~~Decide whether to remove `/Users/aliel-asmar/.git`~~: **RETAINED** by owner decision 2026-10-12; the hazard remains | — |
 | 5 | ~~Claude Code permissions~~ — closed by the owner's ADR-010 decision (2026-10-11). The ADR-010 file and its `CLAUDE.md`/`PROJECT_SPEC.md`/threat-model edits are uncommitted in the working tree. | — |
 
 ### PP-003 operations

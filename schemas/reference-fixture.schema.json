@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:reference-fixture:1.0",
+  "title": "Reference fixture ground truth",
+  "description": "PROJECT_SPEC.md 17.1 and 17.2 (PP-006). Declares, for one PatchProof reference case family, the generated revisions with their actual Git identities, the synthetic callers, the target startup material that later becomes an execution profile, and the expected security and functional behavior of every revision. Everything here is a reviewed DECLARATION: runtime observations are never stored in this record, and it can neither carry an approval nor a measured result. It is not an execution profile: image identities and the server version are listed as unresolved bindings that PP-007/PP-008 must supply under separate approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "kind", "fixture_id", "fixture_version", "synthetic", "approval_status",
+    "declared_expectations_only", "family", "target", "repository", "callers", "revisions",
+    "checks", "comparisons", "limitations"
+  ],
+  "properties": {
+    "schema_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion" },
+    "kind": { "const": "reference-fixture" },
+    "fixture_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier" },
+    "fixture_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver" },
+    "synthetic": {
+      "description": "5.3 and 17.1: reference data is synthetic. Real identities or content are not representable as a reference fixture.",
+      "const": true
+    },
+    "approval_status": {
+      "description": "7.5: approvals are separate records made by the owner. This record can only state that it is not an approval.",
+      "const": "NOT_APPROVED"
+    },
+    "declared_expectations_only": {
+      "description": "Expected behavior is derived from source-level design. Dynamic reproduction belongs to the isolated runner (PP-008) and its evidence, never to this record.",
+      "const": true
+    },
+    "family": { "enum": ["object-level-authorization"] },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adapter", "asgi_app", "python_version", "third_party_runtime_dependencies", "server",
+        "bind_address", "readiness_path", "network_policy", "fixture_contract", "fixture_file",
+        "fixture_sha256", "data_reset", "source_scope", "unresolved_bindings"
+      ],
+      "properties": {
+        "adapter": { "const": "python-asgi-http-v1" },
+        "asgi_app": {
+          "description": "Same module:callable grammar as the execution profile (10.3).",
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}(\\.[A-Za-z_][A-Za-z0-9_]{0,63}){0,7}:[A-Za-z_][A-Za-z0-9_]{0,63}$"
+        },
+        "python_version": { "enum": ["3.13"] },
+        "third_party_runtime_dependencies": {
+          "description": "Packages the application itself imports. PaperTrail uses only the standard library; the ASGI server is listed separately.",
+          "type": "array",
+          "maxItems": 0
+        },
+        "server": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "const": "uvicorn" },
+            "version": {
+              "description": "Selected and hash-locked during PP-008 image preparation, with owner approval (10.4).",
+              "const": "UNRESOLVED"
+            }
+          }
+        },
+        "bind_address": { "const": "127.0.0.1:8080" },
+        "readiness_path": { "const": "/health" },
+        "network_policy": { "const": "none-shared-loopback-v1" },
+        "fixture_contract": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier" },
+        "fixture_file": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/relativePath" },
+        "fixture_sha256": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256" },
+        "data_reset": {
+          "description": "The fixture is read once at import and never modified; a fresh target process (a fresh container per side and repetition, 10.5) is the reset.",
+          "const": "immutable-fixture-fresh-process"
+        },
+        "source_scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["include"],
+          "properties": {
+            "include": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/relativePath" }
+            }
+          }
+        },
+        "unresolved_bindings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["target_image_id", "verifier_image_id", "server_version", "dependency_lock"] }
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["generator", "generator_version", "object_format", "head", "tag_kind", "varying_file"],
+      "properties": {
+        "generator": { "const": "patchproof.reference.papertrail" },
+        "generator_version": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver" },
+        "object_format": { "const": "sha1" },
+        "head": { "const": "refs/heads/main" },
+        "tag_kind": { "const": "annotated" },
+        "varying_file": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/relativePath" }
+      }
+    },
+    "callers": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["caller_id", "user_id", "authorization", "presented_token", "description"],
+        "properties": {
+          "caller_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier" },
+          "user_id": {
+            "oneOf": [
+              { "type": "string", "pattern": "^u-[a-z]{1,32}$" },
+              { "type": "null" }
+            ]
+          },
+          "authorization": { "enum": ["fixture-bearer", "none", "invalid-bearer"] },
+          "presented_token": {
+            "description": "Only for invalid-bearer callers: a synthetic token that matches no fixture user.",
+            "oneOf": [
+              { "type": "string", "pattern": "^pt-synthetic-[a-z]{1,16}-[0-9a-f]{12}$" },
+              { "type": "null" }
+            ]
+          },
+          "description": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText" }
+        }
+      }
+    },
+    "revisions": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "role", "tag", "tag_object_id", "commit_id", "tree_id", "parent", "authz_sha256", "intent"],
+        "properties": {
+          "key": { "$ref": "#/$defs/revisionKey" },
+          "role": { "enum": ["vulnerable-baseline", "inadequate-fix", "correct-fix", "deny-all-regression"] },
+          "tag": { "type": "string", "pattern": "^refs/tags/authz-r[1-4]-[a-z-]{1,32}$" },
+          "tag_object_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/commitId" },
+          "commit_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/commitId" },
+          "tree_id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/commitId" },
+          "parent": { "oneOf": [{ "$ref": "#/$defs/revisionKey" }, { "type": "null" }] },
+          "authz_sha256": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256" },
+          "intent": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText" }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/check" },
+      "allOf": [
+        {
+          "description": "INV-06: at least one security check must expect the baseline violation.",
+          "contains": {
+            "properties": {
+              "kind": { "const": "security" },
+              "expected": { "properties": { "vulnerable": { "properties": { "semantic": { "const": "VIOLATION_CONFIRMED" } } } } }
+            }
+          }
+        },
+        {
+          "description": "INV-08: at least one functional control must expose the deny-all regression.",
+          "contains": {
+            "properties": {
+              "kind": { "const": "functional" },
+              "expected": { "properties": { "deny-all": { "properties": { "semantic": { "const": "FAIL" } } } } }
+            }
+          }
+        }
+      ]
+    },
+    "comparisons": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["baseline", "candidate", "expected_verdict", "basis"],
+        "properties": {
+          "baseline": { "const": "vulnerable" },
+          "candidate": { "$ref": "#/$defs/revisionKey" },
+          "expected_verdict": { "enum": ["NOT_FIXED", "VERIFIED_FOR_CASES", "REGRESSION_DETECTED"] },
+          "basis": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText" }
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText" }
+    }
+  },
+  "$defs": {
+    "revisionKey": { "enum": ["vulnerable", "inadequate", "correct", "deny-all"] },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["semantic", "status", "marker_disclosed"],
+      "properties": {
+        "semantic": { "enum": ["VIOLATION_CONFIRMED", "SECURE", "PASS", "FAIL"] },
+        "status": { "enum": [200, 401, 404] },
+        "marker_disclosed": { "type": "boolean" }
+      }
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "caller", "method", "path", "protected_marker", "description", "expected"],
+      "properties": {
+        "id": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/testId" },
+        "kind": { "enum": ["security", "functional"] },
+        "caller": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier" },
+        "method": { "const": "GET" },
+        "path": { "type": "string", "maxLength": 100, "pattern": "^/(me|documents/doc-[a-z]{1,16}-[a-z]{1,16})$" },
+        "protected_marker": {
+          "oneOf": [
+            { "type": "string", "pattern": "^PT-PROTECTED-[A-Z]{1,16}-[0-9a-f]{12}$" },
+            { "type": "null" }
+          ]
+        },
+        "description": { "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText" },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["vulnerable", "inadequate", "correct", "deny-all"],
+          "properties": {
+            "vulnerable": { "$ref": "#/$defs/outcome" },
+            "inadequate": { "$ref": "#/$defs/outcome" },
+            "correct": { "$ref": "#/$defs/outcome" },
+            "deny-all": { "$ref": "#/$defs/outcome" }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "description": "7.3: a security check's witness is its synthetic protected marker in the response body, never a status code alone.",
+          "if": { "properties": { "kind": { "const": "security" } } },
+          "then": { "properties": { "protected_marker": { "type": "string" } } }
+        },
+        {
+          "description": "7.3: a 200 without the expected content does not establish legitimate behavior, so every document read names the marker it must (or must not) return.",
+          "if": { "properties": { "path": { "pattern": "^/documents/" } } },
+          "then": { "properties": { "protected_marker": { "type": "string" } } }
+        },
+        {
+          "if": { "properties": { "kind": { "const": "security" } } },
+          "then": {
+            "properties": {
+              "expected": {
+                "additionalProperties": {
+                  "properties": { "semantic": { "enum": ["VIOLATION_CONFIRMED", "SECURE"] } }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "expected": {
+                "additionalProperties": {
+                  "properties": { "semantic": { "enum": ["PASS", "FAIL"] } }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
