@@ -1,7 +1,7 @@
 # STATUS
 
-**Updated:** 2026-10-12 (**PP-007 `READY_FOR_REVIEW`**, uncommitted; Pydantic 2.13.5 added under
-owner approval; PP-006 `ACCEPTED` and pushed, `origin/main` = `22c43dd`)
+**Updated:** 2026-10-12 (**PP-007 implementation `ACCEPTED` by owner**, commit `698e78d`, local
+only; PP-006 `ACCEPTED` and pushed, `origin/main` = `22c43dd`; next issue PP-008, **not started**)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -10,15 +10,37 @@ owner approval; PP-006 `ACCEPTED` and pushed, `origin/main` = `22c43dd`)
 
 **Release:** v0.1 — Useful CLI verification
 **Issue:** PP-007 — Pack validation, collection, and approval records
-**State:** `READY_FOR_REVIEW`, 2026-10-12. Not committed, pushed or tagged. **No pack is
-approved.** Real verifier collection and the verifier image are pending PP-008.
+**State:** implementation `ACCEPTED` by owner, 2026-10-12. Committed locally (`698e78d`); not
+pushed or tagged. This acceptance covers the implementation only. It does **not** approve the
+PaperTrail pack, certify its tests, or authorize container execution. **No pack is
+approved, and no real verifier collection has been performed.**
+**Next issue:** PP-008, `NOT_STARTED`. It needs separate owner authorization.
 **Previous issue:** PP-006, `ACCEPTED` and pushed (`aa3a0a3..22c43dd`, ordinary
 fast-forward, 2026-10-12).
 **Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 and PP-006
 are libraries and fixtures with no CLI workflow yet (PP-009). PaperTrail has **not been
 executed**; its expected behavior is declared and checked statically only.
 
-## PP-007 — `READY_FOR_REVIEW` (2026-10-12)
+## PP-007 — implementation `ACCEPTED` by owner (2026-10-12)
+
+**Owner decision (2026-10-12):** conditionally ACCEPT the PP-007 implementation, subject to
+the final security review and validation. All checks passed, so the condition is met. The
+acceptance is of the implementation only. It does not approve the PaperTrail verification
+pack, certify its tests, or authorize container execution.
+
+**Acceptance record:**
+
+| Item | Value |
+|---|---|
+| Implementation commit | `698e78d32e3c3111be335813b59af57180822cfe` ("PP-007: implement strict verification packs and approval records"), 35 files, tree `410094e` |
+| Committed-tree verification | The staged tree `410094e` was exported with `git archive` and tested in isolation, with its environment built offline from the lockfile: 7964 passed; mypy strict clean; Ruff clean; lockfile consistent. The commit's tree is identical to it |
+| Unit tests | **7964** passed, 0 failed, 0 skipped |
+| Schema/model parity | 160 corpus records (all valid and invalid examples, the JSONL stream, all 26 scenarios): 0 disagreements. 223,815 differential mutations: no model more permissive than its schema; only the two documented model-stricter classes |
+| Mutation check | 34/35 on the final sources (the 33 original mutants plus 2 for the new store-root controls). M26 is equivalent, shown exhaustively over 3,320 valid blocks, and its reachability invariant is pinned by a test |
+| Approvals | Write-once (`O_EXCL`, `0400`), with root-descriptor identity checks, explicit typed confirmation, supersession that preserves history, and staleness on every binding, each tested |
+| Dependencies | pydantic 2.13.5, pydantic-core 2.46.5, annotated-types 0.8.0 and typing-inspection 0.4.4 only. No other package changed |
+| Not done | **No pack approval exists. No verifier image, real collection, container or PaperTrail execution.** No application-security result is verified |
+
 
 **Owner authorization (2026-10-12):**
 - push PP-006, then implement PP-007 only;
@@ -1255,11 +1277,13 @@ gate checklist `docs/evidence/v0.0-release-gate.md`; C4 run
 | **v0.0 release** | **2026-10-12** | `docs/evidence/v0.0-release-gate.md` |
 | PP-005 | 2026-10-12 | commit `c8128a7`; acceptance `aa3a0a3` (pushed); 7337 unit tests |
 | PP-006 | 2026-10-12 | commit `4b8f288`; acceptance `22c43dd` (pushed); 7439 unit tests; `docs/architecture/papertrail-reference.md` |
+| PP-007 (implementation) | 2026-10-12 | commit `698e78d` (local); 7964 unit tests; parity 160/160 and 223,815 mutations; mutation check 34/35 (M26 equivalent); no pack approved; `docs/architecture/packs-and-approvals.md` |
 
 ## Next permitted issue
 
-**PP-007 is `READY_FOR_REVIEW`** (see above). PP-008 is next. It needs separate owner
-authorization, and its verifier image and HTTP client need dependency approval.
+**PP-007 implementation is `ACCEPTED`** (`698e78d`, local). **PP-008 is next and `NOT_STARTED`.**
+It needs separate owner authorization, and its verifier image and HTTP client need
+dependency approval. Pushing the PP-007 commits also needs owner approval.
 
 ## Failed tests, risks, and blockers
 
