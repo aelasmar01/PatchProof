@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-12 (**v0.0 release gate `READY_FOR_REVIEW`**, not accepted. PP-001..PP-004 accepted; closeout C1–C3 committed `62887bf`; C4 demonstration passed 82/82; owner gate review pending)
+**Updated:** 2026-10-12 (**v0.0 foundation release `ACCEPTED` by owner**; PP-001..PP-004 and v0.0-CLOSEOUT accepted; next planned work v0.1 / PP-005, **not started**)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -10,10 +10,67 @@
 **Release:** v0.0 — Foundation and execution boundaries
 **Issue:** v0.0-CLOSEOUT — C1 packaging, C2 `patchproof doctor`, C3 `doctor --probe-isolation`,
 C4 demonstration and gate review
-**State:** v0.0 release gate `READY_FOR_REVIEW` (2026-10-12). **Not accepted**; only the
-owner's recorded review sets `ACCEPTED`.
+**State:** `ACCEPTED` by owner, 2026-10-12, together with the v0.0 foundation release.
 
-## v0.0 release gate — `READY_FOR_REVIEW` (2026-10-12)
+## v0.0 foundation release — `ACCEPTED` by owner (2026-10-12)
+
+**Owner decision (2026-10-12):** ACCEPT v0.0.
+- This covers the v0.0 foundation only.
+- It does not claim v0.1 functionality, vulnerability comparison against real Git
+  revisions, or broader target execution.
+
+**E1, environment accepted by the owner:**
+- macOS 26.3.1 on the tested Intel Mac;
+- managed CPython 3.13.16 and uv 0.12.24;
+- the committed, hash-locked dependency environment (`uv.lock`);
+- Docker Desktop 4.94.0 with Engine 29.8.2;
+- the approved probe image `sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f`;
+- the recorded isolation policy and resource limits.
+
+**Accepted limitations:**
+- the user namespace is shared with the Docker VM;
+- CPU measurements are statistical;
+- four claims rest on configuration evidence (`no-new-privileges`,
+  `no-host-namespaces`, `no-host-environment`, `no-published-ports`);
+- physical Docker log-storage consumption was not measured (retention is measured via
+  `docker logs`);
+- results apply to one installation on one date, with no guarantee against
+  container-runtime vulnerabilities;
+- hashes support local consistency checks only (ADR-007).
+
+**E5:** this entry records v0.0 as passed, now that the evidence exists.
+
+**Gate checklist:** `docs/evidence/v0.0-release-gate.md`.
+- All build, capability, and demonstration requirements, and E2–E4: PASS.
+- E1 and E5, which were INCOMPLETE pending the owner's action, are now satisfied by this
+  decision.
+- No mandatory requirement remains incomplete. None failed.
+
+**Release record:**
+
+| Item | Value |
+|---|---|
+| Accepted issues | PP-001, PP-002, PP-003, PP-004, v0.0-CLOSEOUT |
+| C1–C3 implementation commit | `62887bf26122a0df96a18f8f82ec3e1f148071ba` |
+| v0.0 evidence commit | `d1bcbfce7a8fef91a5af3d91d2542aecafddea97` ("v0.0: document successful foundation gate demonstration") |
+| C4 run | `run-883e1a62b93ced171a8cd9275ceb9a66`: ALL_PLANNED_PROBES_PASSED. 82/82 probes and 17/17 positive controls passed. 43.764 s active. Cleanup COMPLETE; all 10 owned containers removed; unrelated Docker resources preserved |
+| C4 evidence-consistency review | 52/52 checks, by a read-only script that imports no PatchProof code. Not a human audit |
+| C4 shell exit code | **Not captured.** The run evidence reports success |
+| Validation | 7008 Docker-free unit tests passed under pinned CPython 3.13.16 (`uv run --locked --offline`); mypy strict and Ruff clean; `uv.lock` consistent offline |
+| Evidence | `docs/evidence/v0.0-release-gate.md`, `docs/evidence/v0.0-c4-isolation-demonstration.md` and `.json`, `docs/evidence/pp-003-isolation-probes.md` and `.json` (runs 1–3, including the two failed runs) |
+
+**Future obligations:**
+- **Before PP-005:** an owner decision on and approval of upgrading Git 2.42.0 to the
+  reviewed 2.56.0 (approval item 3), and a decision on the unrelated home-directory
+  repository `~/.git` (approval item 4). Neither has been changed.
+- **PP-007:** strict loader, full schema validation, Pydantic parity, and pack ID
+  uniqueness.
+- **PP-008:** event-derived engine inputs, D6 encoding and bounding, and code-level
+  resource ceilings.
+- **At each release gate:** re-verify Docker Desktop advisories and re-run the isolation
+  probes after runtime upgrades.
+
+## v0.0 release gate — review record (2026-10-12)
 
 **Gate assessment:** `docs/evidence/v0.0-release-gate.md`, requirement by requirement
 against §15.1 and §13.1.
@@ -717,9 +774,9 @@ Against `PROJECT_SPEC.md` §15.1 and §13.1:
 
 ## Last completed gate and its evidence
 
-**No release gate has passed.** v0.0 is `READY_FOR_REVIEW`: PP-001..PP-004 are accepted,
-closeout C1–C3 is committed (`62887bf`), and the C4 demonstration passed. The owner's
-§15.1 review remains (`docs/evidence/v0.0-release-gate.md`).
+**v0.0 foundation release: `ACCEPTED` by owner, 2026-10-12.** Evidence commit `d1bcbfc`;
+gate checklist `docs/evidence/v0.0-release-gate.md`; C4 run
+`run-883e1a62b93ced171a8cd9275ceb9a66`. No later release gate has passed.
 
 | Issue | Accepted | Evidence |
 |---|---|---|
@@ -727,12 +784,14 @@ closeout C1–C3 is committed (`62887bf`), and the C4 demonstration passed. The 
 | PP-002 | 2026-10-11 | commit `682ef63`; see "Accepted issues" above |
 | PP-003 | 2026-10-12 | commit `e38d0d1`; run `run-5c176591e0f793ebdb6c2f07667c4ead`; `docs/evidence/pp-003-isolation-probes.md` |
 | PP-004 | 2026-10-12 | commit `37ec588`; 6923 unit tests; 26/26 verdict scenarios |
+| v0.0-CLOSEOUT | 2026-10-12 | C1–C3 commit `62887bf`; C4 run `run-883e1a62b93ced171a8cd9275ceb9a66` (82/82); evidence commit `d1bcbfc`; 7008 unit tests |
+| **v0.0 release** | **2026-10-12** | `docs/evidence/v0.0-release-gate.md` |
 
 ## Next permitted issue
 
-**None until the owner decides on v0.0.** The gate is `READY_FOR_REVIEW`. PP-005 (v0.1)
-must not start until v0.0 is accepted or the owner explicitly reorders. PP-005 also
-needs the Git upgrade (approval item 3).
+**PP-005 (v0.1) is the next planned work. It is not started** and needs explicit owner
+authorization. Before PP-005, the owner must decide on and approve the Git upgrade
+(approval item 3) and decide on `~/.git` (approval item 4).
 
 ## Failed tests, risks, and blockers
 
