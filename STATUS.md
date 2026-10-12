@@ -1,7 +1,7 @@
 # STATUS
 
-**Updated:** 2026-10-12 (**PP-006 `READY_FOR_REVIEW`**, uncommitted; PP-005 `ACCEPTED` and pushed,
-`origin/main` = `aa3a0a3`; v0.0 foundation release `ACCEPTED`)
+**Updated:** 2026-10-12 (**PP-006 `ACCEPTED` by owner**, implementation commit `4b8f288`, local
+only; PP-005 `ACCEPTED` and pushed, `origin/main` = `aa3a0a3`; v0.0 foundation release `ACCEPTED`)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -10,15 +10,40 @@
 
 **Release:** v0.1 — Useful CLI verification
 **Issue:** PP-006 — Reference authorization API and fixture profile
-**State:** `READY_FOR_REVIEW`, 2026-10-12. Not committed, not pushed, not tagged. Awaiting
-the owner's review; it is **not** accepted.
+**State:** `ACCEPTED` by owner, 2026-10-12. Committed locally (`4b8f288`); not pushed or
+tagged.
 **Next issue:** PP-007 (pack validation, collection, and approval records), `NOT_STARTED`.
 It requires separate owner authorization.
 **Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 and PP-006
 are libraries and fixtures with no CLI workflow yet (PP-009). PaperTrail has **not been
 executed**; its expected behavior is declared and checked statically only.
 
-## PP-006 — `READY_FOR_REVIEW` (2026-10-12)
+## PP-006 — `ACCEPTED` by owner (2026-10-12)
+
+**Owner decision (2026-10-12):** conditionally ACCEPT the PaperTrail reference design,
+subject to the final source and staged-commit checks. All checks passed, so the condition is
+met. The owner approved:
+- the four authorization revisions;
+- the existing inadequate-fix design for the v0.1 reference corpus;
+- the topology with r2–r4 based directly on r1;
+- one annotated tag per revision;
+- runtime verification deferred to PP-007 and PP-008.
+
+**Acceptance record:**
+
+| Item | Value |
+|---|---|
+| Implementation commit | `4b8f2888909cea0eab8bdf65e56fb5fa894fe981` ("PP-006: add deterministic PaperTrail authorization reference"), 30 files, tree `40bfc71` |
+| Committed-tree verification | The staged tree `40bfc71` was exported with `git archive` and tested in isolation: 7439 passed; mypy strict clean; Ruff clean. The commit's tree is identical to it |
+| Revisions (sha1, annotated tags) | `authz-r1-vulnerable` → `68b2bc0e41cb7e9a074b09f2d97db3e2d2ca288a`; `authz-r2-inadequate` → `38f178748f156d5f39e05ac3f19f1a9f47fea39d`; `authz-r3-correct` → `2fb6d09378906f1df69ac32b862df4a350e8a56d`; `authz-r4-deny-all` → `f31cb4b159d1859a3614d97a492389a0f823104e` |
+| Unit tests | **7439** passed, 0 failed, 0 skipped |
+| Determinism | Two independent generations are identical in every object, ref and file. The independent porcelain rebuild gives the same commit and tag-object IDs |
+| Git validity | Git 2.56.0 `fsck --strict --full` is clean. Tag objects are distinct from their peeled commits. r2–r4 have the single parent r1 |
+| PP-005 compatibility | Every tag and full commit ID is registered and snapshotted (5 files; `README.md` excluded as `OUTSIDE_SOURCE_SCOPE`). Manifests are deterministic and the repository is unchanged. `src/patchproof/git` is unchanged since `c8128a7` and its 319 tests pass |
+| Mutation check | Final run on the final sources: **19/19** caught. The earlier 19/19 report overstated M08, which is now covered (F2) |
+| Not executed | **PaperTrail has not been dynamically executed** on any revision. Every behavior in the ground truth is declared and checked statically only |
+| Pending obligations | PP-007: a pack for AUTH-001–004 and FUNC-001–004 with marker witnesses, bound to `fixture_sha256`. PP-008: the target and verifier images, the uvicorn version and wheel hashes, and the first dynamic reproduction compared against the declared table |
+
 
 **Owner authorization (2026-10-12):** publish the accepted PP-005 commits, then implement
 PP-006 only. Do not begin PP-007, run the target, build or run containers, install
@@ -1091,12 +1116,14 @@ gate checklist `docs/evidence/v0.0-release-gate.md`; C4 run
 | PP-004 | 2026-10-12 | commit `37ec588`; 6923 unit tests; 26/26 verdict scenarios |
 | v0.0-CLOSEOUT | 2026-10-12 | C1–C3 commit `62887bf`; C4 run `run-883e1a62b93ced171a8cd9275ceb9a66` (82/82); evidence commit `d1bcbfc`; 7008 unit tests |
 | **v0.0 release** | **2026-10-12** | `docs/evidence/v0.0-release-gate.md` |
+| PP-005 | 2026-10-12 | commit `c8128a7`; acceptance `aa3a0a3` (pushed); 7337 unit tests |
+| PP-006 | 2026-10-12 | commit `4b8f288` (local); 7439 unit tests; `docs/architecture/papertrail-reference.md` |
 
 ## Next permitted issue
 
-**PP-006 is `READY_FOR_REVIEW`** (see above). PP-007 is the next planned issue. It is not
-started and needs explicit owner authorization after the PP-006 review. Committing PP-006
-and any further push also need owner approval.
+**PP-006 is `ACCEPTED`** (commits `4b8f288` and the acceptance commit; both local only).
+PP-007 is the next planned issue. It is **not started** and needs separate owner
+authorization. Pushing these commits also needs owner approval.
 
 ## Failed tests, risks, and blockers
 
