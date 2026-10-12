@@ -6,13 +6,18 @@ Compare a vulnerable application revision with a proposed fix, run the same
 human-reviewed security checks against each in separate disposable environments, and
 preserve evidence of what was — and was not — demonstrated.
 
-> **Project status: pre-implementation.** This repository currently contains the
-> specification, the working agreement, a measured host environment report, the threat
-> model, the verdict specification, versioned record schemas, and a
-> container isolation probe suite whose third run on Docker Desktop 4.94.0 recorded all
-> 82 planned checks as passing (`docs/evidence/pp-003-isolation-probes.md`; awaiting owner
-> review). That is evidence for one runtime and date, not an escape-proof guarantee. Everything in the Roadmap below is planned,
-> not achieved.
+> **Project status: v0.0 foundation, release gate awaiting owner review.** This repository
+> contains:
+> - the specification, threat model, and verdict specification;
+> - versioned record schemas;
+> - a pure verdict engine that reproduces 26 reviewed scenarios;
+> - a container isolation probe suite;
+> - the `patchproof doctor` command.
+>
+> The suite has recorded all 82 planned checks as passing twice on Docker Desktop 4.94.0
+> (`docs/evidence/`). That is evidence for one runtime and date, not an escape-proof
+> guarantee. PatchProof cannot yet compare revisions; everything in the Roadmap below is
+> planned, not achieved.
 
 ---
 
@@ -58,9 +63,11 @@ Two guarantees shape the design:
 | Issue tracking | Done — `STATUS.md`, `docs/backlog.md` |
 | Threat model and verdict specification | Accepted (PP-002) — `docs/threat-model.md`, `docs/architecture/verdict-specification.md` |
 | Record schemas with validated examples | Accepted (PP-002) — `schemas/`, `tests/unit/test_schemas.py` |
-| Container isolation probe suite (PP-003) | Ready for owner review. Run 3 on Docker Desktop 4.94.0 / Engine 29.8.2: 82 of 82 probes passed (runs 1 and 2 failed and are documented) — `src/patchproof/`, `containers/probes/`, `docs/architecture/isolation-probes.md`, `docs/evidence/pp-003-isolation-probes.md` |
+| Container isolation probe suite (PP-003) | Accepted. On Docker Desktop 4.94.0 / Engine 29.8.2, 82 of 82 probes passed in run 3 and again in the v0.0 C4 demonstration. Runs 1 and 2 failed and are documented — `src/patchproof/`, `containers/probes/`, `docs/architecture/isolation-probes.md`, `docs/evidence/pp-003-isolation-probes.md`, `docs/evidence/v0.0-c4-isolation-demonstration.md` |
+| Pure verdict engine (PP-004) | Accepted. Reproduces all 26 reviewed scenarios — `src/patchproof/core/`, `docs/architecture/verdict-specification.md` |
+| `patchproof doctor` / `doctor --probe-isolation` | v0.0 closeout. A read-only environment report, and an interactive, separately authorized run of the isolation probe suite — `src/patchproof/doctor/`, `src/patchproof/cli/` |
 
-Nothing else. No product CLI, no API, no verdict engine, and no verification runner.
+Nothing else. No API, no verification runner, and no comparison of revisions yet.
 
 ## Roadmap
 
@@ -122,9 +129,19 @@ with mocks.
 
 ## Setup
 
-Not yet available. There is no installable package. Setup instructions, the
-one-command reference demo, and the command that validates its evidence arrive with
-v1.0 (PP-023).
+Development setup only. The pinned interpreter is CPython 3.13.16, managed by uv 0.12.24;
+dependencies are locked in `uv.lock`.
+
+```
+uv sync --locked                      # create .venv from the lockfile
+uv run --locked patchproof doctor     # read-only environment report
+uv run --locked pytest tests/unit     # Docker-free unit tests
+```
+
+`patchproof doctor --probe-isolation` creates and removes probe containers. It needs the
+approved probe image, a private evidence directory, and interactive confirmation; see
+`STATUS.md` before running it. Release setup, the one-command reference demo, and the
+command that validates its evidence arrive with v1.0 (PP-023).
 
 ## License
 

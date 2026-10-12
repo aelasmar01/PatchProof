@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-12 (v0.0 closeout C1–C3 **`READY_FOR_REVIEW`**, uncommitted; PP-001..PP-004 accepted; **v0.0 release gate NOT complete**: C4 demonstration and the §15.1 review remain)
+**Updated:** 2026-10-12 (**v0.0 release gate `READY_FOR_REVIEW`**, not accepted. PP-001..PP-004 accepted; closeout C1–C3 committed `62887bf`; C4 demonstration passed 82/82; owner gate review pending)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -8,11 +8,54 @@
 ## Current release and issue
 
 **Release:** v0.0 — Foundation and execution boundaries
-**Issue:** v0.0-CLOSEOUT — C1 packaging, C2 `patchproof doctor`, C3 `doctor --probe-isolation`
-**State:** C1–C3 `READY_FOR_REVIEW` (2026-10-12). Not accepted and not committed; the
-owner authorized C1–C3 only. C4 (demonstration and gate review) needs separate approval.
+**Issue:** v0.0-CLOSEOUT — C1 packaging, C2 `patchproof doctor`, C3 `doctor --probe-isolation`,
+C4 demonstration and gate review
+**State:** v0.0 release gate `READY_FOR_REVIEW` (2026-10-12). **Not accepted**; only the
+owner's recorded review sets `ACCEPTED`.
 
-## v0.0 closeout C1–C3 — `READY_FOR_REVIEW` (2026-10-12)
+## v0.0 release gate — `READY_FOR_REVIEW` (2026-10-12)
+
+**Gate assessment:** `docs/evidence/v0.0-release-gate.md`, requirement by requirement
+against §15.1 and §13.1.
+- Every implementation and evidence requirement is PASS.
+- None is FAIL.
+- E1 (owner reviews the environment and installations) and E5 (STATUS records v0.0 as
+  passed) are INCOMPLETE because they are the owner's action.
+
+**C1–C3:** committed locally as `62887bf26122a0df96a18f8f82ec3e1f148071ba` ("v0.0:
+package PatchProof and integrate doctor CLI"). Not pushed or tagged.
+
+**C4 demonstration:**
+- The owner ran `uv run --locked --offline patchproof doctor --probe-isolation`
+  interactively.
+- Run `run-883e1a62b93ced171a8cd9275ceb9a66`: ALL_PLANNED_PROBES_PASSED, 82/82 PASS,
+  17/17 positive controls.
+  - Timing: 2026-10-12T13:00:56Z to 13:01:40Z, 43.764 s active of 1200 s; no deadline
+    expiry.
+  - Cleanup COMPLETE; inventory before and after identical.
+- **Evidence-consistency review:** 52/52 checks passed. It is a read-only script, not a human audit, and imports no PatchProof code,
+  run against the raw evidence. All checks pass:
+  - all create argv match run 3 after normalizing per-run tokens;
+  - all 10 containers passed the inspect gate before start;
+  - only allowlisted operations ran, with no force-removal;
+  - all 10 owned containers were removed;
+  - NET-01 and FS-05 meet the approved requirements.
+- **Not captured:** the shell exit code.
+- **Sanitized evidence:** `docs/evidence/v0.0-c4-isolation-demonstration.md` and `.json`.
+  Private evidence checksums are recorded there.
+- **Historical runs:** runs 1–3 are preserved and their saved manifests still validate.
+
+**Final validation (2026-10-12, pinned 3.13.16, offline):**
+- `pytest tests/unit`: 7008 passed, 0 failed, 0 skipped. This includes the verdict
+  corpus, 106/106.
+- `mypy --strict`: clean, 20 files. `ruff`: clean.
+- `uv lock --check --offline`: consistent; `uv.lock` unchanged.
+- Offline `patchproof doctor`: READY (v0.0 scope), with 2 advisory warnings (Git 2.42.0,
+  `~/.git`).
+- `README.md` was corrected: its status still said "pre-implementation, no CLI or
+  verdict engine".
+
+## v0.0 closeout C1–C3 — committed `62887bf` (2026-10-12)
 
 **C1 Packaging.**
 
@@ -674,8 +717,9 @@ Against `PROJECT_SPEC.md` §15.1 and §13.1:
 
 ## Last completed gate and its evidence
 
-**No release gate has passed.** v0.0 is open. PP-001..PP-004 are accepted. The closeout
-work and the §15.1 review and demonstration remain; see "v0.0 closeout assessment".
+**No release gate has passed.** v0.0 is `READY_FOR_REVIEW`: PP-001..PP-004 are accepted,
+closeout C1–C3 is committed (`62887bf`), and the C4 demonstration passed. The owner's
+§15.1 review remains (`docs/evidence/v0.0-release-gate.md`).
 
 | Issue | Accepted | Evidence |
 |---|---|---|
@@ -686,10 +730,9 @@ work and the §15.1 review and demonstration remain; see "v0.0 closeout assessme
 
 ## Next permitted issue
 
-**None until the owner reviews v0.0 closeout C1–C3.** C4 then needs separate approval: one
-live `patchproof doctor --probe-isolation` run, the Docker-free invalid-policy
-demonstration, and the owner's §15.1 gate review. PP-005 (v0.1) must not start until the
-v0.0 gate is accepted or the owner explicitly reorders.
+**None until the owner decides on v0.0.** The gate is `READY_FOR_REVIEW`. PP-005 (v0.1)
+must not start until v0.0 is accepted or the owner explicitly reorders. PP-005 also
+needs the Git upgrade (approval item 3).
 
 ## Failed tests, risks, and blockers
 
