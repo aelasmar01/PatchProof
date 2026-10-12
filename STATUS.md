@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-12 (PP-003 **`ACCEPTED`** by owner; implementation commit `e38d0d1`. v0.0 release gate NOT complete; next permitted issue PP-004, awaiting explicit owner authorization)
+**Updated:** 2026-10-12 (PP-004 **`READY_FOR_REVIEW`**: pure verdict engine, 26/26 corpus scenarios reproduced exactly; PP-001..PP-003 `ACCEPTED`; v0.0 release gate NOT complete)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -8,7 +8,81 @@
 ## Current release and issue
 
 **Release:** v0.0 — Foundation and execution boundaries
-**Issue:** PP-003 — Harmless container isolation probe suite
+**Issue:** PP-004 — Pure verdict engine and initial negative tests
+**State:** `READY_FOR_REVIEW` (2026-10-12). Not accepted. The owner authorized one local
+implementation commit after the final source review; acceptance is pending.
+
+## PP-004 — `READY_FOR_REVIEW` (2026-10-12)
+
+**Implementation:**
+
+- `src/patchproof/core/verdict_input.py`: strict typed frozen records for the
+  `verdict-input` 1.0 contract. Shape errors raise `VerdictInputError` before any
+  evaluation. Duplicates and other semantic problems are preserved for the engine,
+  never normalized.
+- `src/patchproof/core/verdicts.py`: `evaluate(VerdictInput, evaluated_at) -> verdict`.
+  It is pure: no I/O, no clock (the caller supplies `evaluated_at`), no mutation, and
+  no input field for target output.
+- It implements the verdict specification literally: validation M1–M7 and G1–G5;
+  execution trust E1–E4 (with D6 enforced from the host byte count); cell trust T1–T5;
+  the seven independent flags; reason codes, details, and counts in canonical order; and
+  V-01..V-10 with D1–D6. `pairs_terminated_normally` and `pairs_with_trusted_evidence`
+  are kept separate.
+- Six verdicts only; `ENGINE_VERSION` is `0.0.0`, as in the reviewed corpus.
+
+**Results:**
+
+- The 26-scenario corpus is reproduced **exactly** (every field), schema-valid,
+  order-independent, and the evaluation never mutates its input.
+- `tests/unit`: **6923 passed, 0 failed, 0 skipped**:
+  - 757 pre-existing tests;
+  - corpus: 106;
+  - spec-derived rule tests: 168;
+  - parser: 33;
+  - properties P-1..P-9: 5859 over 799 generated schema-valid inputs. Generation is
+    seeded stdlib randomization, because Hypothesis is not installed and no dependency
+    was added. Independent oracles cover P-4, P-5/P-8, and P-6.
+
+  Every rule V-01..V-10 is tested; V-10 by forcing the guard.
+- `mypy --strict` and `ruff` are clean.
+- 23 weakenings were tried on a scratch copy. 22 made tests fail. The other one,
+  dropping V-09's explicit exact-agreement check, is equivalent: the reachability note
+  in spec §6 shows that exact agreement is already implied, so the check is defense in
+  depth.
+
+**Fail-closed additions, approved by the owner 2026-10-12 (no corpus effect):**
+
+1. Duplicate pack test IDs give `OBSERVATION_MATRIX_INVALID` (V-02) and are never
+   deduplicated. Duplicate node IDs are held to the same rule.
+2. A precondition `FAILED` with `detected_phase: post_execution` in a run that never
+   started gives `EXECUTION_EVIDENCE_INCONSISTENT` (V-02).
+
+**Final source review (2026-10-12) found and fixed two edge cases.** Neither changes the
+specification or the corpus:
+
+- **Defect.** A schema-valid input whose FAILED precondition listed
+  `ALL_CONDITIONS_SATISFIED` produced a schema-invalid `BLOCKED` record carrying that
+  positive code. The parser now refuses such input (`VerdictInputError`), because §8
+  reserves the code for V-09. A sweep test now covers every reason code on a failed
+  precondition, before and after start: each is refused or yields a schema-valid record.
+- **Information loss.** An input `NOT_EVALUATED` precondition whose effective state
+  became FAILED, through failed validation, lost `PRECONDITION_NOT_EVALUATED`. The code
+  is now emitted when either the input or the effective state is not evaluated,
+  satisfying §5.4 ("always") and §8 together. The verdict is unchanged (V-02). **Owner
+  confirmation requested.**
+- Tests were added for the review situations that lacked a dedicated case: functional
+  controls failing on both revisions (V-07, not a regression), and a secure-looking
+  candidate with an untested baseline (V-05).
+
+**Not done (outside PP-004 or needing approval):**
+
+- No `pyproject.toml` or `uv.lock`; Python is not pinned (approval item 2).
+- No Pydantic models (PP-007) and no CLI (PP-009).
+- Real event streams come with PP-008; the engine has only been fed corpus and
+  synthetic inputs.
+
+## PP-003 — `ACCEPTED` by owner, 2026-10-12
+
 **State:** `ACCEPTED` by owner, 2026-10-12. This acceptance covers PP-003 only. The v0.0
 release gate is **not** complete: PP-004 and the §15.1 exit-gate review and demonstration
 remain.
@@ -434,9 +508,10 @@ demonstration.
 
 ## Next permitted issue
 
-**PP-004** (pure verdict engine and initial negative tests) is next in backlog order. It
-**must not start until the owner explicitly authorizes it.** It needs a pinned Python and
-`pyproject.toml` (approval item 2).
+**None until the owner reviews PP-004.** PP-005 is next in backlog order (v0.1) and needs
+explicit authorization. v0.0 still needs the §15.1 gate review and demonstration, and the
+integration of the probe runner into `patchproof doctor --probe-isolation` (which needs
+packaging, approval item 2).
 
 PP-004, the pure verdict engine, follows. It needs a pinned Python and a
 `pyproject.toml` (approval item 3). Taking PP-004 before PP-003 would need an explicit

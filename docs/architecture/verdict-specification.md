@@ -2,7 +2,7 @@
 
 **Issue:** PP-002 (revised in review remediation, 2026-10-11) · **Status:** `READY_FOR_REVIEW`
 **Spec basis:** `PROJECT_SPEC.md` §5.2, §7.3–§7.5, §8, §10.3, §13.2, §17.3
-**Implemented in:** PP-004, the pure engine and its truth-table tests. Nothing here is implemented yet.
+**Implemented in:** PP-004 (`src/patchproof/core/verdicts.py`, `READY_FOR_REVIEW` 2026-10-12), which reproduces all 26 corpus scenarios exactly. This document is unchanged as the source of truth.
 
 This document fixes the verdict engine's inputs, its validation, its trust rules, its
 evaluation order, and its outputs. It is a review-controlled input. PP-004 must

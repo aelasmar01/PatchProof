@@ -18,7 +18,7 @@ entry. A release gate is not complete because its files exist.
 | PP-001 | Read-only host preflight and project tracking | Actual environment report, approved/unapproved actions, initialized status/backlog | `ACCEPTED` (2026-10-11) |
 | PP-002 | Threat model, ADRs, schemas, and verdict specification | Reviewed trust boundaries and machine-validated example records | `ACCEPTED` (2026-10-11, commit `682ef63`) |
 | PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `ACCEPTED` (2026-10-12, commit `e38d0d1`; run `run-5c176591…`: 82/82 passed; 757 unit tests; evidence `docs/evidence/pp-003-isolation-probes.md`) |
-| PP-004 | Pure verdict engine and initial negative tests | Truth-table tests; no Docker dependency for unit tests | `NOT_STARTED` |
+| PP-004 | Pure verdict engine and initial negative tests | Truth-table tests; no Docker dependency for unit tests | `READY_FOR_REVIEW` (2026-10-12; 26/26 scenarios exact; 6838 Docker-free tests) |
 
 PP-002 accepted by owner on 2026-10-11, including decisions D1–D6, ADR-008, ADR-009 and the
 reviewed scenarios. Accepted at commit `682ef63039df72ecdb3de13d2861c4dea8cda9fd`, where
