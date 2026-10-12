@@ -1,0 +1,1643 @@
+{
+  "schema_version": "1.0",
+  "record_type": "isolation-probe-run",
+  "suite_version": "pp-003-probes-1.0",
+  "run_id": "run-00000000000000000000000000000000",
+  "installation_id": "inst-00000000000000000000000000000000",
+  "started_at": "2026-10-11T00:00:00Z",
+  "finished_at": "2026-10-11T00:00:00Z",
+  "docker": {
+    "context": "desktop-linux",
+    "server_version": null
+  },
+  "image": null,
+  "probe_script_sha256": "sha256:b3cc0475bb78a5026098858e9889acf666d31062d513d303314eca31d36e72f2",
+  "authorization": {
+    "a2_image_approved": false,
+    "a3_evidence_root_verified": false,
+    "a4_operator_confirmed": false
+  },
+  "containers": [],
+  "probes": [
+    {
+      "probe_id": "PRE-01",
+      "title": "Docker context is desktop-linux on the expected socket",
+      "category": "preflight",
+      "kind": "configuration",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "context endpoint is unix://$HOME/.docker/run/docker.sock",
+      "outcome": "PASSED_BY_TARGET",
+      "observed": "not executed",
+      "roles": []
+    },
+    {
+      "probe_id": "PRE-02",
+      "title": "Approved image identity present locally",
+      "category": "preflight",
+      "kind": "configuration",
+      "evidence_type": "inspect",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "image inspect Id equals the approved ID; linux/amd64; Config.Volumes empty",
+      "outcome": "NOT_RUN",
+      "observed": "not executed",
+      "roles": []
+    },
+    {
+      "probe_id": "PRE-03",
+      "title": "No implicit pull",
+      "category": "preflight",
+      "kind": "configuration",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "every create argv carries --pull never and the image ID, never a tag",
+      "outcome": "NOT_RUN",
+      "observed": "not executed",
+      "roles": []
+    },
+    {
+      "probe_id": "NET-P1",
+      "title": "Verifier reaches target over the shared loopback",
+      "category": "network",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "HTTP 200 from 127.0.0.1:8080 with the run nonce",
+      "outcome": "NOT_RUN",
+      "observed": "verifier: container not run",
+      "roles": [
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "NET-P2",
+      "title": "UDP loopback round trip works",
+      "category": "network",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "datagram echoed on 127.0.0.1",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run",
+      "roles": [
+        "target"
+      ]
+    },
+    {
+      "probe_id": "NET-P3",
+      "title": "Resolver answers for localhost",
+      "category": "network",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "localhost resolves to loopback",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run",
+      "roles": [
+        "target"
+      ]
+    },
+    {
+      "probe_id": "NET-01",
+      "title": "Only the loopback interface exists",
+      "category": "network",
+      "kind": "negative",
+      "evidence_type": "kernel_state",
+      "critical": true,
+      "controls": [
+        "NET-P1"
+      ],
+      "internal_control": null,
+      "expected": "interfaces == ['lo'] in both containers",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "NET-09",
+      "title": "No routes beyond loopback",
+      "category": "network",
+      "kind": "negative",
+      "evidence_type": "kernel_state",
+      "critical": true,
+      "controls": [
+        "NET-P1"
+      ],
+      "internal_control": null,
+      "expected": "0 IPv4 routes; 0 non-lo IPv6 routes",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "NET-02",
+      "title": "No IPv4 TCP egress",
+      "category": "network",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "NET-P1"
+      ],
+      "internal_control": null,
+      "expected": "every connect fails with ENETUNREACH/EHOSTUNREACH/EADDRNOTAVAIL",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run",
+      "roles": [
+        "target"
+      ]
+    },
+    {
+      "probe_id": "NET-03",
+      "title": "No IPv6 TCP egress",
+      "category": "network",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "NET-P1"
+      ],
+      "internal_control": null,
+      "expected": "every connect fails with an unreachable errno",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run",
+      "roles": [
+        "target"
+      ]
+    },
+    {
+      "probe_id": "NET-04",
+      "title": "No DNS resolution of external names",
+      "category": "network",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "NET-P3"
+      ],
+      "internal_control": null,
+      "expected": "getaddrinfo fails for every external name",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run",
+      "roles": [
+        "target"
+      ]
+    },
+    {
+      "probe_id": "NET-05",
+      "title": "No UDP egress",
+      "category": "network",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "NET-P2"
+      ],
+      "internal_control": null,
+      "expected": "sendto fails with an unreachable errno",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run",
+      "roles": [
+        "target"
+      ]
+    },
+    {
+      "probe_id": "NET-06",
+      "title": "Docker Engine API and host gateway unreachable",
+      "category": "network",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "NET-P1"
+      ],
+      "internal_control": null,
+      "expected": "no TCP connection to gateway/engine addresses; gateway names do not resolve",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run",
+      "roles": [
+        "target"
+      ]
+    },
+    {
+      "probe_id": "NET-07",
+      "title": "Joining the target namespace adds no egress",
+      "category": "network",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "NET-P1"
+      ],
+      "internal_control": null,
+      "expected": "NET-02..06 attempts from the verifier all fail",
+      "outcome": "NOT_RUN",
+      "observed": "verifier: container not run",
+      "roles": [
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "NET-08",
+      "title": "No published or exposed ports",
+      "category": "network",
+      "kind": "configuration",
+      "evidence_type": "inspect",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "PortBindings/Ports/ExposedPorts empty and PublishAllPorts false for target and verifier",
+      "outcome": "NOT_RUN",
+      "observed": "target not inspected",
+      "roles": []
+    },
+    {
+      "probe_id": "FS-P1",
+      "title": "Approved scratch locations are writable",
+      "category": "filesystem",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "1 MiB write and read-back succeed in /scratch and /tmp",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run | storage: container not run",
+      "roles": [
+        "target",
+        "verifier",
+        "storage"
+      ]
+    },
+    {
+      "probe_id": "FS-P2",
+      "title": "Marker search finds the container's own marker",
+      "category": "filesystem",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "own marker found by the same walk used for the cross-container check",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-P3",
+      "title": "Socket scan detects a known socket",
+      "category": "filesystem",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "the probe's own AF_UNIX socket in /scratch is detected",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-01",
+      "title": "Root filesystem is read-only",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "FS-P1"
+      ],
+      "internal_control": null,
+      "expected": "creating files on the image filesystem fails with EROFS, including world-writable /var/tmp",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-02",
+      "title": "Docker socket inaccessible",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "FS-P3"
+      ],
+      "internal_control": null,
+      "expected": "no socket paths exist, none found by scan, connects fail, mountinfo has no docker.sock",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-03",
+      "title": "Host home, repository, and credential paths absent",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [],
+      "internal_control": "the same existence check reports /etc/passwd as present",
+      "expected": "none of the host path names exist",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-04",
+      "title": "Mount table contains only expected mounts",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "kernel_state",
+      "critical": true,
+      "controls": [],
+      "internal_control": "the parser finds the root mount and the /scratch tmpfs",
+      "expected": "every mount matches the classified allowlist; no host-path source; / is read-only overlay",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-05",
+      "title": "No host environment inherited",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "kernel_state",
+      "critical": false,
+      "controls": [],
+      "internal_control": "PATH from the image Env is visible",
+      "expected": "environment keys are a subset of the image Env keys plus HOSTNAME and HOME",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-06",
+      "title": "Target cannot see verifier files",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "FS-P2"
+      ],
+      "internal_control": null,
+      "expected": "verifier marker not found by walk or via /proc/*/root",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run",
+      "roles": [
+        "target"
+      ]
+    },
+    {
+      "probe_id": "FS-07",
+      "title": "Verifier cannot see target files",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "FS-P2"
+      ],
+      "internal_control": null,
+      "expected": "target marker not found by walk or via /proc/*/root",
+      "outcome": "NOT_RUN",
+      "observed": "verifier: container not run",
+      "roles": [
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-10",
+      "title": "Writable locations are only the approved tmpfs mounts",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [],
+      "internal_control": "the census finds /scratch and /tmp writable",
+      "expected": "a file can be created only under /scratch, /tmp, /dev/shm or /dev/mqueue",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-08",
+      "title": "Kernel tunables and cgroup files not writable",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "FS-P1"
+      ],
+      "internal_control": null,
+      "expected": "open for write fails with EROFS/EACCES/EPERM on every existing path, including the /etc/hosts, /etc/hostname and /etc/resolv.conf bind mounts",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "FS-09",
+      "title": "No credential or repository files on the container filesystem",
+      "category": "filesystem",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "FS-P2"
+      ],
+      "internal_control": null,
+      "expected": "no sensitive names found and the walk was not truncated",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-01",
+      "title": "Fixed non-root identity",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "kernel_state",
+      "critical": true,
+      "controls": [],
+      "internal_control": "all four IDs are reported as integers",
+      "expected": "uid/euid/gid/egid 10001; no supplementary group 0",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-P1",
+      "title": "setuid to own uid works",
+      "category": "privilege",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "setuid(own uid) succeeds",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-02",
+      "title": "Cannot become root",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "PRV-P1"
+      ],
+      "internal_control": null,
+      "expected": "setuid(0), setgid(0), setgroups([0]) fail with EPERM",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-03",
+      "title": "All capability sets empty",
+      "category": "privilege",
+      "kind": "configuration",
+      "evidence_type": "kernel_state",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "CapInh/CapPrm/CapEff/CapBnd/CapAmb all zero",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-P2",
+      "title": "chown to own uid works",
+      "category": "privilege",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "chown(own uid, own gid) succeeds",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-04",
+      "title": "CAP_CHOWN not usable",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "PRV-P2"
+      ],
+      "internal_control": null,
+      "expected": "chown to 0:0 fails with EPERM",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-05",
+      "title": "CAP_MKNOD not usable",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "PRV-P2"
+      ],
+      "internal_control": null,
+      "expected": "mknod char device fails with EPERM",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-P3",
+      "title": "Ordinary TCP socket creation works",
+      "category": "privilege",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "AF_INET stream socket created",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-06",
+      "title": "CAP_NET_RAW not usable",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "PRV-P3"
+      ],
+      "internal_control": null,
+      "expected": "raw ICMP and AF_PACKET sockets fail with EPERM/EACCES",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-07",
+      "title": "no-new-privileges set",
+      "category": "privilege",
+      "kind": "configuration",
+      "evidence_type": "kernel_state",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "NoNewPrivs: 1",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-08",
+      "title": "seccomp filter active",
+      "category": "privilege",
+      "kind": "configuration",
+      "evidence_type": "kernel_state",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "Seccomp: 2 and Seccomp_filters >= 1",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-P4",
+      "title": "ctypes syscall path works",
+      "category": "privilege",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "libc getpid via ctypes equals os.getpid",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-09",
+      "title": "seccomp blocks keyctl (needs no capability)",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "PRV-P4"
+      ],
+      "internal_control": null,
+      "expected": "keyctl fails with EPERM",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-P5",
+      "title": "Forked-child result channel works",
+      "category": "privilege",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "a forked child reports its result through the pipe",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-10",
+      "title": "Namespace operations needing CAP_SYS_ADMIN refused",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "PRV-P4",
+        "PRV-P5"
+      ],
+      "internal_control": null,
+      "expected": "unshare(NEWNS), unshare(NEWNET), unshare(NEWPID), unshare(NEWUSER|NEWNS) and setns(mnt) each fail with EPERM, each in its own forked child",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-11",
+      "title": "Cannot mount",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "PRV-P4",
+        "PRV-P5"
+      ],
+      "internal_control": null,
+      "expected": "mount tmpfs fails with EPERM (forked child)",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-12",
+      "title": "Only default devices",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "kernel_state",
+      "critical": false,
+      "controls": [],
+      "internal_control": "/dev/null is listed",
+      "expected": "/dev entries are a subset of the default set",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "PRV-13",
+      "title": "A user namespace, if the default profile permits one, grants no container privilege",
+      "category": "privilege",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "PRV-P4",
+        "PRV-P5"
+      ],
+      "internal_control": null,
+      "expected": "unshare(CLONE_NEWUSER) outcome recorded (permitted or EPERM both accepted); if permitted, sethostname, mount tmpfs and unshare(NEWNS) from inside it all fail with EPERM",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "NS-01",
+      "title": "Private PID namespace",
+      "category": "namespace",
+      "kind": "negative",
+      "evidence_type": "kernel_state",
+      "critical": true,
+      "controls": [],
+      "internal_control": "the probe's own PID appears in the /proc listing",
+      "expected": "the probe is PID 1 and the only process visible",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "NS-02",
+      "title": "Namespace topology matches 10.1",
+      "category": "namespace",
+      "kind": "negative",
+      "evidence_type": "kernel_state",
+      "critical": true,
+      "controls": [],
+      "internal_control": "the shared net namespace is the positive half of the same comparison",
+      "expected": "net shared between target and verifier; pid, mnt, ipc differ",
+      "outcome": "NOT_RUN",
+      "observed": "target and verifier did not both run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "NS-03",
+      "title": "No host namespaces configured",
+      "category": "namespace",
+      "kind": "configuration",
+      "evidence_type": "inspect",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "PidMode/UTSMode/UsernsMode empty, IpcMode private, CgroupnsMode private, NetworkMode as planned",
+      "outcome": "NOT_RUN",
+      "observed": "target not inspected",
+      "roles": []
+    },
+    {
+      "probe_id": "RES-01",
+      "title": "Memory limit configured, no swap",
+      "category": "resource",
+      "kind": "configuration",
+      "evidence_type": "kernel_state",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "memory.max equals the limit; memory.swap.max is 0",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "RES-P1",
+      "title": "Allocation below the limit works",
+      "category": "resource",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "256 MiB allocated and touched",
+      "outcome": "NOT_RUN",
+      "observed": "memory: container not run",
+      "roles": [
+        "memory"
+      ]
+    },
+    {
+      "probe_id": "RES-02",
+      "title": "Memory limit enforced",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "RES-P1"
+      ],
+      "internal_control": null,
+      "expected": "OOM-killed (exit 137, OOMKilled true) before progress reaches the limit",
+      "outcome": "NOT_RUN",
+      "observed": "memory container not run",
+      "roles": []
+    },
+    {
+      "probe_id": "RES-03",
+      "title": "PID limit configured",
+      "category": "resource",
+      "kind": "configuration",
+      "evidence_type": "kernel_state",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "pids.max equals 128",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "RES-P2",
+      "title": "Thread creation below the limit works",
+      "category": "resource",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "16 threads started",
+      "outcome": "NOT_RUN",
+      "observed": "pids: container not run",
+      "roles": [
+        "pids"
+      ]
+    },
+    {
+      "probe_id": "RES-04",
+      "title": "PID limit enforced",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "RES-P2"
+      ],
+      "internal_control": null,
+      "expected": "thread creation fails with at most 128 tasks",
+      "outcome": "NOT_RUN",
+      "observed": "pids: container not run",
+      "roles": [
+        "pids"
+      ]
+    },
+    {
+      "probe_id": "RES-05",
+      "title": "CPU limit configured",
+      "category": "resource",
+      "kind": "configuration",
+      "evidence_type": "kernel_state",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "cpu.max equals '100000 100000'",
+      "outcome": "NOT_RUN",
+      "observed": "target: container not run | verifier: container not run",
+      "roles": [
+        "target",
+        "verifier"
+      ]
+    },
+    {
+      "probe_id": "RES-P3",
+      "title": "CPU measurement works",
+      "category": "resource",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "one busy process reaches ratio >= 0.5",
+      "outcome": "NOT_RUN",
+      "observed": "cpu: container not run",
+      "roles": [
+        "cpu"
+      ]
+    },
+    {
+      "probe_id": "RES-06",
+      "title": "CPU limit enforced",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "RES-P3"
+      ],
+      "internal_control": null,
+      "expected": "four busy processes reach CPU/wall <= 1.25",
+      "outcome": "NOT_RUN",
+      "observed": "cpu: container not run",
+      "roles": [
+        "cpu"
+      ]
+    },
+    {
+      "probe_id": "RES-P4",
+      "title": "Exec from the image filesystem works",
+      "category": "resource",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "interpreter subprocess exits 0",
+      "outcome": "NOT_RUN",
+      "observed": "storage: container not run",
+      "roles": [
+        "storage"
+      ]
+    },
+    {
+      "probe_id": "RES-07",
+      "title": "Scratch tmpfs bounded",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "FS-P1"
+      ],
+      "internal_control": null,
+      "expected": "ENOSPC after at least half and at most the scratch limit",
+      "outcome": "NOT_RUN",
+      "observed": "storage: container not run",
+      "roles": [
+        "storage"
+      ]
+    },
+    {
+      "probe_id": "RES-08",
+      "title": "/tmp tmpfs bounded",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "FS-P1"
+      ],
+      "internal_control": null,
+      "expected": "ENOSPC after at least half and at most the /tmp limit",
+      "outcome": "NOT_RUN",
+      "observed": "storage: container not run",
+      "roles": [
+        "storage"
+      ]
+    },
+    {
+      "probe_id": "RES-14",
+      "title": "/dev/shm bounded separately from the scratch budget",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "FS-P1"
+      ],
+      "internal_control": null,
+      "expected": "if /dev/shm is mounted, ENOSPC at or below 16 MiB; if absent, recorded as absent",
+      "outcome": "NOT_RUN",
+      "observed": "storage: container not run",
+      "roles": [
+        "storage"
+      ]
+    },
+    {
+      "probe_id": "RES-09",
+      "title": "/tmp is noexec",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [
+        "RES-P4"
+      ],
+      "internal_control": null,
+      "expected": "executing a script in /tmp fails with EACCES",
+      "outcome": "NOT_RUN",
+      "observed": "storage: container not run",
+      "roles": [
+        "storage"
+      ]
+    },
+    {
+      "probe_id": "RES-10",
+      "title": "Daemon log rotation configured",
+      "category": "resource",
+      "kind": "configuration",
+      "evidence_type": "inspect",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "LogConfig local, max-size 5m, max-file 2, compress false",
+      "outcome": "NOT_RUN",
+      "observed": "no container inspected",
+      "roles": []
+    },
+    {
+      "probe_id": "RES-P5",
+      "title": "Log flood ran to completion",
+      "category": "resource",
+      "kind": "positive_control",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "flood-end marker retained; at least 30 MiB written",
+      "outcome": "NOT_RUN",
+      "observed": "log flood not run",
+      "roles": []
+    },
+    {
+      "probe_id": "RES-11",
+      "title": "Daemon-side log volume bounded",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": true,
+      "controls": [
+        "RES-P5"
+      ],
+      "internal_control": null,
+      "expected": "retained log bytes <= 2 x 5 MiB + slack; flood-start marker rotated away",
+      "outcome": "NOT_RUN",
+      "observed": "log flood not run",
+      "roles": []
+    },
+    {
+      "probe_id": "RES-12",
+      "title": "Deadline and forced termination",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "behavioral",
+      "critical": false,
+      "controls": [],
+      "internal_control": "the sleeping marker shows the container was running when the deadline hit",
+      "expected": "runner deadline expires, stop escalates within grace, container stopped and removed",
+      "outcome": "NOT_RUN",
+      "observed": "deadline probe not run",
+      "roles": []
+    },
+    {
+      "probe_id": "RES-15",
+      "title": "Suite finished within the 20-minute global execution deadline",
+      "category": "resource",
+      "kind": "configuration",
+      "evidence_type": "host_check",
+      "critical": true,
+      "controls": [],
+      "internal_control": null,
+      "expected": "active probing completed before the monotonic deadline; on expiry or interruption the result is INCONCLUSIVE, so the suite can never be reported as passed",
+      "outcome": "NOT_RUN",
+      "observed": "not executed",
+      "roles": []
+    },
+    {
+      "probe_id": "RES-13",
+      "title": "Collector output cap holds",
+      "category": "resource",
+      "kind": "negative",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [],
+      "internal_control": "the uncapped read of the same log returned more than 1 MiB",
+      "expected": "a 1 MiB-capped read of the flood log returns <= 1 MiB and is marked truncated",
+      "outcome": "NOT_RUN",
+      "observed": "log flood not run",
+      "roles": []
+    },
+    {
+      "probe_id": "POL-P1",
+      "title": "Valid fixed-policy request accepted",
+      "category": "policy",
+      "kind": "positive_control",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "default target and verifier specs build and the profile example is accepted",
+      "outcome": "NOT_RUN",
+      "observed": "policy refusal not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "POL-01",
+      "title": "Privileged profile refused",
+      "category": "policy",
+      "kind": "policy_refusal",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [
+        "POL-P1"
+      ],
+      "internal_control": null,
+      "expected": "refused before any Docker invocation",
+      "outcome": "NOT_RUN",
+      "observed": "policy refusal not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "POL-02",
+      "title": "Forbidden mount, network, and Docker-argument fields refused",
+      "category": "policy",
+      "kind": "policy_refusal",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [
+        "POL-P1"
+      ],
+      "internal_control": null,
+      "expected": "refused before any Docker invocation",
+      "outcome": "NOT_RUN",
+      "observed": "policy refusal not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "POL-03",
+      "title": "Floating image references refused",
+      "category": "policy",
+      "kind": "policy_refusal",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [
+        "POL-P1"
+      ],
+      "internal_control": null,
+      "expected": "tags, name@digest, and short IDs refused before any Docker invocation",
+      "outcome": "NOT_RUN",
+      "observed": "policy refusal not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "POL-04",
+      "title": "Limits above code ceilings refused",
+      "category": "policy",
+      "kind": "policy_refusal",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [
+        "POL-P1"
+      ],
+      "internal_control": null,
+      "expected": "refused before any Docker invocation",
+      "outcome": "NOT_RUN",
+      "observed": "policy refusal not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "POL-05",
+      "title": "Inspect gate rejects drifted configuration",
+      "category": "policy",
+      "kind": "policy_refusal",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "real target inspect passes; every mutated copy (privileged, cap-add, socket bind, bridge, unconfined seccomp, unlimited memory) is rejected",
+      "outcome": "NOT_RUN",
+      "observed": "no real inspect available to mutate",
+      "roles": []
+    },
+    {
+      "probe_id": "POL-06",
+      "title": "Every created container passed the inspect gate before start",
+      "category": "policy",
+      "kind": "configuration",
+      "evidence_type": "inspect",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "gate passed for every started container; none started after a mismatch",
+      "outcome": "NOT_RUN",
+      "observed": "no container created",
+      "roles": []
+    },
+    {
+      "probe_id": "CLN-01",
+      "title": "Owned containers removed by exact ID",
+      "category": "cleanup",
+      "kind": "cleanup",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "every owned container removed and confirmed absent",
+      "outcome": "NOT_RUN",
+      "observed": "cleanup not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "CLN-02",
+      "title": "Container from another run refused",
+      "category": "cleanup",
+      "kind": "cleanup",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [
+        "CLN-01"
+      ],
+      "internal_control": null,
+      "expected": "cleanup refuses the other-run decoy; it still exists afterwards",
+      "outcome": "NOT_RUN",
+      "observed": "cleanup not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "CLN-03",
+      "title": "Container without PatchProof ownership refused",
+      "category": "cleanup",
+      "kind": "cleanup",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [
+        "CLN-01"
+      ],
+      "internal_control": null,
+      "expected": "cleanup refuses the foreign decoy; it still exists afterwards",
+      "outcome": "NOT_RUN",
+      "observed": "cleanup not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "CLN-04",
+      "title": "Decoys torn down by their separate path",
+      "category": "cleanup",
+      "kind": "cleanup",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "both decoys removed by exact ID and confirmed absent",
+      "outcome": "NOT_RUN",
+      "observed": "cleanup not exercised",
+      "roles": []
+    },
+    {
+      "probe_id": "CLN-05",
+      "title": "Only allowlisted Docker operations executed",
+      "category": "cleanup",
+      "kind": "cleanup",
+      "evidence_type": "host_check",
+      "critical": false,
+      "controls": [],
+      "internal_control": null,
+      "expected": "command log contains only allowlisted operations; no prune, filter, force, or bulk removal",
+      "outcome": "NOT_RUN",
+      "observed": "not executed",
+      "roles": []
+    },
+    {
+      "probe_id": "CLN-06",
+      "title": "Unrelated resources preserved",
+      "category": "cleanup",
+      "kind": "cleanup",
+      "evidence_type": "host_check",
+      "critical": true,
+      "controls": [],
+      "internal_control": null,
+      "expected": "image, container, volume, network, and build-cache snapshots identical before and after",
+      "outcome": "NOT_RUN",
+      "observed": "not executed",
+      "roles": []
+    }
+  ],
+  "control_claims": [
+    {
+      "control": "explicit-docker-context",
+      "status": "UNVERIFIED",
+      "probes": [
+        "PRE-01"
+      ]
+    },
+    {
+      "control": "fixed-non-root-identity",
+      "status": "UNVERIFIED",
+      "probes": [
+        "PRV-01",
+        "PRV-02"
+      ]
+    },
+    {
+      "control": "read-only-root-filesystem",
+      "status": "UNVERIFIED",
+      "probes": [
+        "FS-01"
+      ]
+    },
+    {
+      "control": "all-capabilities-dropped",
+      "status": "UNVERIFIED",
+      "probes": [
+        "PRV-03",
+        "PRV-04",
+        "PRV-05",
+        "PRV-06"
+      ]
+    },
+    {
+      "control": "no-new-privileges",
+      "status": "UNVERIFIED",
+      "probes": [
+        "PRV-07"
+      ]
+    },
+    {
+      "control": "default-seccomp",
+      "status": "UNVERIFIED",
+      "probes": [
+        "PRV-08",
+        "PRV-09",
+        "PRV-10"
+      ]
+    },
+    {
+      "control": "not-privileged",
+      "status": "UNVERIFIED",
+      "probes": [
+        "PRV-10",
+        "PRV-11",
+        "PRV-12",
+        "PRV-13",
+        "POL-06"
+      ]
+    },
+    {
+      "control": "no-host-namespaces",
+      "status": "UNVERIFIED",
+      "probes": [
+        "NS-01",
+        "NS-02",
+        "NS-03",
+        "NET-01"
+      ]
+    },
+    {
+      "control": "no-docker-socket-or-engine-api",
+      "status": "UNVERIFIED",
+      "probes": [
+        "FS-02",
+        "NET-06"
+      ]
+    },
+    {
+      "control": "no-host-credential-home-or-repo-mounts",
+      "status": "UNVERIFIED",
+      "probes": [
+        "FS-03",
+        "FS-04",
+        "FS-09"
+      ]
+    },
+    {
+      "control": "no-host-environment",
+      "status": "UNVERIFIED",
+      "probes": [
+        "FS-05"
+      ]
+    },
+    {
+      "control": "no-published-ports",
+      "status": "UNVERIFIED",
+      "probes": [
+        "NET-08"
+      ]
+    },
+    {
+      "control": "no-external-connectivity",
+      "status": "UNVERIFIED",
+      "probes": [
+        "NET-02",
+        "NET-03",
+        "NET-04",
+        "NET-05",
+        "NET-07",
+        "NET-09"
+      ]
+    },
+    {
+      "control": "approved-loopback-topology",
+      "status": "UNVERIFIED",
+      "probes": [
+        "NET-P1",
+        "NS-02"
+      ]
+    },
+    {
+      "control": "target-verifier-file-separation",
+      "status": "UNVERIFIED",
+      "probes": [
+        "FS-06",
+        "FS-07"
+      ]
+    },
+    {
+      "control": "cpu-limit",
+      "status": "UNVERIFIED",
+      "probes": [
+        "RES-05",
+        "RES-06"
+      ]
+    },
+    {
+      "control": "memory-limit",
+      "status": "UNVERIFIED",
+      "probes": [
+        "RES-01",
+        "RES-02"
+      ]
+    },
+    {
+      "control": "process-limit",
+      "status": "UNVERIFIED",
+      "probes": [
+        "RES-03",
+        "RES-04"
+      ]
+    },
+    {
+      "control": "bounded-scratch-storage",
+      "status": "UNVERIFIED",
+      "probes": [
+        "FS-08",
+        "FS-10",
+        "RES-07",
+        "RES-08",
+        "RES-09",
+        "RES-14"
+      ]
+    },
+    {
+      "control": "bounded-logs-and-output",
+      "status": "UNVERIFIED",
+      "probes": [
+        "RES-10",
+        "RES-11",
+        "RES-13"
+      ]
+    },
+    {
+      "control": "deadline-and-forced-termination",
+      "status": "UNVERIFIED",
+      "probes": [
+        "RES-12",
+        "RES-15"
+      ]
+    },
+    {
+      "control": "immutable-image-no-implicit-pull",
+      "status": "UNVERIFIED",
+      "probes": [
+        "PRE-02",
+        "PRE-03"
+      ]
+    },
+    {
+      "control": "policy-refusal-before-start",
+      "status": "UNVERIFIED",
+      "probes": [
+        "POL-01",
+        "POL-02",
+        "POL-03",
+        "POL-04",
+        "POL-05"
+      ]
+    },
+    {
+      "control": "exact-id-ownership-cleanup",
+      "status": "UNVERIFIED",
+      "probes": [
+        "CLN-01",
+        "CLN-02",
+        "CLN-03",
+        "CLN-04",
+        "CLN-05"
+      ]
+    },
+    {
+      "control": "unrelated-resources-preserved",
+      "status": "UNVERIFIED",
+      "probes": [
+        "CLN-06"
+      ]
+    }
+  ],
+  "preservation": {
+    "outcome": "NOT_RUN",
+    "differences": []
+  },
+  "execution": {
+    "global_deadline_seconds": 1200,
+    "cleanup_window_seconds": 120,
+    "active_elapsed_seconds": 0.0,
+    "deadline_expired": false,
+    "expired_during_phase": null,
+    "interrupted": false,
+    "cleanup_window_expired": false,
+    "cleanup_status": "NOT_NEEDED"
+  },
+  "suite_status": "NOT_EXECUTED",
+  "limitations": [
+    "Results describe this Docker Desktop installation on the recorded date only; they are not a guarantee against container-runtime vulnerabilities (PROJECT_SPEC.md 4.1).",
+    "Configuration evidence (inspect, kernel-reported state) is not enforcement evidence; see control_claims.",
+    "Network negatives sample representative destinations; the structural evidence is NET-01 and NET-09.",
+    "CPU enforcement (RES-06) is statistical and sensitive to host load.",
+    "Daemon log retention (RES-11) is measured through docker logs, not on-disk size inside the VM.",
+    "no-new-privileges is kernel-reported (NoNewPrivs); no setuid binary is executed to exercise it.",
+    "Root-only writable mounts (/dev tmpfs, /dev/mqueue) are classified, not write-exercised beyond /etc bind files.",
+    "Interrupted-run recovery is covered by unit tests; the probe run does not deliberately crash itself.",
+    "SYNTHETIC EXAMPLE: no probe was executed; every outcome is NOT_RUN."
+  ]
+}

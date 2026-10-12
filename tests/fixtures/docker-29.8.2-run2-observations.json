@@ -1,0 +1,275 @@
+{
+ "provenance": "Raw probe observations from PP-003 A4 run run-cc1e6383d6893c2afe8ab839cc68a08d (Docker Desktop 4.94.0, Engine 29.8.2, kernel 7.0.14-linuxkit), copied verbatim. They contain interface names, errno names, capability masks, and environment variable NAMES only; no values.",
+ "observations": {
+  "target": {
+   "NET-01": {
+    "if_nameindex": [
+     "erspan0",
+     "gre0",
+     "gretap0",
+     "ip6_vti0",
+     "ip6gre0",
+     "ip6tnl0",
+     "ip_vti0",
+     "lo",
+     "sit0",
+     "tunl0"
+    ],
+    "proc_net_dev": [
+     "erspan0",
+     "gre0",
+     "gretap0",
+     "ip6_vti0",
+     "ip6gre0",
+     "ip6tnl0",
+     "ip_vti0",
+     "lo",
+     "sit0",
+     "tunl0"
+    ]
+   },
+   "NET-09": {
+    "ipv4_routes": 0,
+    "ipv6_routes_non_lo": 0
+   },
+   "NET-02": {
+    "attempts": [
+     {
+      "dest": "1.1.1.1:443",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "8.8.8.8:53",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "9.9.9.9:443",
+      "errno": "ENETUNREACH",
+      "ok": false
+     }
+    ]
+   },
+   "NET-03": {
+    "attempts": [
+     {
+      "dest": "[2606:4700:4700::1111]:443",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "[2001:4860:4860::8888]:53",
+      "errno": "ENETUNREACH",
+      "ok": false
+     }
+    ]
+   },
+   "NET-05": {
+    "attempts": [
+     {
+      "dest": "8.8.8.8:53",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "1.1.1.1:53",
+      "errno": "ENETUNREACH",
+      "ok": false
+     }
+    ]
+   },
+   "FS-05": {
+    "keys": [
+     "GPG_KEY",
+     "HOME",
+     "HOSTNAME",
+     "LC_CTYPE",
+     "PATH",
+     "PYTHON_SHA256",
+     "PYTHON_VERSION"
+    ]
+   },
+   "PRV-03": {
+    "CapAmb": "0000000000000000",
+    "CapBnd": "0000000000000000",
+    "CapEff": "0000000000000000",
+    "CapInh": "0000000000000000",
+    "CapPrm": "0000000000000000"
+   },
+   "PRV-06": {
+    "af_packet": {
+     "errno": "EPERM",
+     "ok": false
+    },
+    "raw_icmp": {
+     "errno": "EPERM",
+     "ok": false
+    }
+   }
+  },
+  "verifier": {
+   "NET-01": {
+    "if_nameindex": [
+     "erspan0",
+     "gre0",
+     "gretap0",
+     "ip6_vti0",
+     "ip6gre0",
+     "ip6tnl0",
+     "ip_vti0",
+     "lo",
+     "sit0",
+     "tunl0"
+    ],
+    "proc_net_dev": [
+     "erspan0",
+     "gre0",
+     "gretap0",
+     "ip6_vti0",
+     "ip6gre0",
+     "ip6tnl0",
+     "ip_vti0",
+     "lo",
+     "sit0",
+     "tunl0"
+    ]
+   },
+   "NET-09": {
+    "ipv4_routes": 0,
+    "ipv6_routes_non_lo": 0
+   },
+   "NET-07": {
+    "dns": [
+     {
+      "gai": "-3",
+      "name": "example.com",
+      "ok": false
+     },
+     {
+      "gai": "-3",
+      "name": "docker.com",
+      "ok": false
+     }
+    ],
+    "engine": [
+     {
+      "dest": "192.168.65.1:2375",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "192.168.65.7:2375",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "192.168.65.254:2375",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "172.17.0.1:2375",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "172.17.0.1:2376",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "127.0.0.1:2375",
+      "errno": "ECONNREFUSED",
+      "loopback": true,
+      "ok": false
+     },
+     {
+      "gai": "-3",
+      "name": "host.docker.internal",
+      "ok": false
+     },
+     {
+      "gai": "-3",
+      "name": "gateway.docker.internal",
+      "ok": false
+     },
+     {
+      "gai": "-3",
+      "name": "kubernetes.docker.internal",
+      "ok": false
+     }
+    ],
+    "tcp4": [
+     {
+      "dest": "1.1.1.1:443",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "8.8.8.8:53",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "9.9.9.9:443",
+      "errno": "ENETUNREACH",
+      "ok": false
+     }
+    ],
+    "tcp6": [
+     {
+      "dest": "[2606:4700:4700::1111]:443",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "[2001:4860:4860::8888]:53",
+      "errno": "ENETUNREACH",
+      "ok": false
+     }
+    ],
+    "udp": [
+     {
+      "dest": "8.8.8.8:53",
+      "errno": "ENETUNREACH",
+      "ok": false
+     },
+     {
+      "dest": "1.1.1.1:53",
+      "errno": "ENETUNREACH",
+      "ok": false
+     }
+    ]
+   },
+   "FS-05": {
+    "keys": [
+     "GPG_KEY",
+     "HOME",
+     "HOSTNAME",
+     "LC_CTYPE",
+     "PATH",
+     "PYTHON_SHA256",
+     "PYTHON_VERSION"
+    ]
+   },
+   "PRV-03": {
+    "CapAmb": "0000000000000000",
+    "CapBnd": "0000000000000000",
+    "CapEff": "0000000000000000",
+    "CapInh": "0000000000000000",
+    "CapPrm": "0000000000000000"
+   },
+   "PRV-06": {
+    "af_packet": {
+     "errno": "EPERM",
+     "ok": false
+    },
+    "raw_icmp": {
+     "errno": "EPERM",
+     "ok": false
+    }
+   }
+  }
+ }
+}

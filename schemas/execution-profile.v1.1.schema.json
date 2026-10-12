@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:execution-profile:1.1",
+  "title": "Execution profile (contract 1.1)",
+  "description": "PROJECT_SPEC.md 5.2, 7.1, 10, 12.1. A profile defines how the target starts and which bounded resources it receives. It deliberately has no field for container user, capabilities, privilege, seccomp, mounts, network mode, environment variables, entry-point commands, or Docker arguments: those are fixed PatchProof policy (ADR-009) and cannot be relaxed by data. additionalProperties:false makes any attempt to add them a validation failure. Contract 1.1 (owner-approved 2026-10-11) is a separate version beside the immutable 1.0 contract (urn:patchproof:schema:execution-profile:1.0, execution-profile.schema.json). It replaces the shared common:1.0 containerLimits with explicit /scratch and /tmp sizes. 1.0 records remain valid against 1.0 and are never migrated or reinterpreted; the PP-003 runner accepts only 1.1 profiles.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "profile_id",
+    "profile_version",
+    "adapter",
+    "target_image_id",
+    "verifier_image_id",
+    "asgi_app",
+    "fixture_contract",
+    "network_policy",
+    "source_scope",
+    "resources",
+    "timeouts",
+    "logging",
+    "result_cap_bytes"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Execution-profile contract version. 1.1 is the only accepted value; 1.0 profiles (single scratch field) are rejected.",
+      "const": "1.1"
+    },
+    "profile_id": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier"
+    },
+    "profile_version": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver"
+    },
+    "adapter": {
+      "const": "python-asgi-http-v1"
+    },
+    "target_image_id": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/imageId"
+    },
+    "verifier_image_id": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/imageId"
+    },
+    "asgi_app": {
+      "description": "10.3: module:callable grammar only. Not a shell fragment, not a path, no factory call syntax.",
+      "type": "string",
+      "maxLength": 200,
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,63}(\\.[A-Za-z_][A-Za-z0-9_]{0,63}){0,7}:[A-Za-z_][A-Za-z0-9_]{0,63}$"
+    },
+    "fixture_contract": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier"
+    },
+    "network_policy": {
+      "description": "10.1: target on --network=none; verifier joins only that namespace. The only representable value.",
+      "const": "none-shared-loopback-v1"
+    },
+    "source_scope": {
+      "description": "9.2: reviewed application/fixture paths exported into the snapshot. Secret-file exclusions are built-in policy, not profile data.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "include"
+      ],
+      "properties": {
+        "include": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "urn:patchproof:schema:common:1.0#/$defs/relativePath"
+          }
+        }
+      }
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target",
+        "verifier"
+      ],
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/containerLimits"
+        },
+        "verifier": {
+          "$ref": "#/$defs/containerLimits"
+        }
+      }
+    },
+    "timeouts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "readiness_seconds",
+        "request_connect_seconds",
+        "request_read_seconds",
+        "revision_deadline_seconds",
+        "cancellation_grace_seconds"
+      ],
+      "properties": {
+        "readiness_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 120
+        },
+        "request_connect_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 30
+        },
+        "request_read_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 30
+        },
+        "revision_deadline_seconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 900
+        },
+        "cancellation_grace_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        }
+      }
+    },
+    "logging": {
+      "description": "10.3: daemon-side rotating log bound per container. A runtime that cannot enforce it blocks the profile.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_file_bytes",
+        "max_files"
+      ],
+      "properties": {
+        "max_file_bytes": {
+          "type": "integer",
+          "minimum": 65536,
+          "maximum": 52428800
+        },
+        "max_files": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      }
+    },
+    "result_cap_bytes": {
+      "description": "5.2: structured result cap per revision. Exceeding it invalidates that revision's evidence.",
+      "type": "integer",
+      "minimum": 65536,
+      "maximum": 52428800
+    }
+  },
+  "$defs": {
+    "containerLimits": {
+      "description": "Per-container resource limits; every field required. scratch_tmpfs_bytes sizes /scratch only; tmp_tmpfs_bytes sizes /tmp only. Their sum is the container's application scratch budget, enforced by code-level ceilings (verifier 128 MiB = 112 + 16; target 256 MiB scratch + separate 64 MiB /tmp). The budget does not cover /dev/shm (fixed policy, separately bounded), /dev/mqueue (kernel RLIMIT_MSGQUEUE), or total memory. Bounds here are sanity limits, not approval.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cpus",
+        "memory_bytes",
+        "pids",
+        "scratch_tmpfs_bytes",
+        "tmp_tmpfs_bytes"
+      ],
+      "properties": {
+        "cpus": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 4
+        },
+        "memory_bytes": {
+          "type": "integer",
+          "minimum": 67108864,
+          "maximum": 4294967296
+        },
+        "pids": {
+          "type": "integer",
+          "minimum": 16,
+          "maximum": 1024
+        },
+        "scratch_tmpfs_bytes": {
+          "type": "integer",
+          "minimum": 1048576,
+          "maximum": 1073741824
+        },
+        "tmp_tmpfs_bytes": {
+          "type": "integer",
+          "minimum": 1048576,
+          "maximum": 268435456
+        }
+      }
+    }
+  }
+}

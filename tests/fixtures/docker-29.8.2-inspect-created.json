@@ -1,0 +1,2135 @@
+{
+ "provenance": "Real `docker container inspect` output captured from Docker Desktop 4.94.0 / Engine 29.8.2 (containerd image store) during PP-003 A4 run run-d109d3606276fd75137241a6a1bc6b92, state 'created' (never started). Key presence/absence, nesting, and value types are unchanged.",
+ "sanitization": "Ids, Created, Name, Config.Hostname, the probe script in Args/Config.Cmd, the nonce, and the run/installation/script-digest label values were replaced with placeholders; tests rebind them to a test spec. No host paths were present in the captured data.",
+ "containers": {
+  "cpu": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000001",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "cpu",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "cpu",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.installation": "inst-00000000000000000000000000000000",
+     "io.patchproof.owner": "patchproof",
+     "io.patchproof.purpose": "isolation-probe",
+     "io.patchproof.role": "cpu",
+     "io.patchproof.run": "run-00000000000000000000000000000000",
+     "io.patchproof.script-sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  },
+  "decoy-foreign": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000002",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "sleeper",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "sleeper",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.decoy-of": "run-00000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  },
+  "decoy-other-run": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000003",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "sleeper",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "sleeper",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.decoy-of": "run-00000000000000000000000000000000",
+     "io.patchproof.installation": "inst-00000000000000000000000000000000",
+     "io.patchproof.owner": "patchproof",
+     "io.patchproof.purpose": "isolation-probe",
+     "io.patchproof.role": "decoy-other-run",
+     "io.patchproof.run": "run-11111111111111111111111111111111",
+     "io.patchproof.script-sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  },
+  "logflood": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000004",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "logflood",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "logflood",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.installation": "inst-00000000000000000000000000000000",
+     "io.patchproof.owner": "patchproof",
+     "io.patchproof.purpose": "isolation-probe",
+     "io.patchproof.role": "logflood",
+     "io.patchproof.run": "run-00000000000000000000000000000000",
+     "io.patchproof.script-sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  },
+  "memory": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000005",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "memory",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "memory",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.installation": "inst-00000000000000000000000000000000",
+     "io.patchproof.owner": "patchproof",
+     "io.patchproof.purpose": "isolation-probe",
+     "io.patchproof.role": "memory",
+     "io.patchproof.run": "run-00000000000000000000000000000000",
+     "io.patchproof.script-sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  },
+  "pids": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000006",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "pids",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "pids",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.installation": "inst-00000000000000000000000000000000",
+     "io.patchproof.owner": "patchproof",
+     "io.patchproof.purpose": "isolation-probe",
+     "io.patchproof.role": "pids",
+     "io.patchproof.run": "run-00000000000000000000000000000000",
+     "io.patchproof.script-sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  },
+  "sleeper": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000007",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "sleeper",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "sleeper",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.installation": "inst-00000000000000000000000000000000",
+     "io.patchproof.owner": "patchproof",
+     "io.patchproof.purpose": "isolation-probe",
+     "io.patchproof.role": "sleeper",
+     "io.patchproof.run": "run-00000000000000000000000000000000",
+     "io.patchproof.script-sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  },
+  "storage": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000008",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "storage",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "storage",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.installation": "inst-00000000000000000000000000000000",
+     "io.patchproof.owner": "patchproof",
+     "io.patchproof.purpose": "isolation-probe",
+     "io.patchproof.role": "storage",
+     "io.patchproof.run": "run-00000000000000000000000000000000",
+     "io.patchproof.script-sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  },
+  "target": {
+   "Id": "0000000000000000000000000000000000000000000000000000000000000009",
+   "Created": "2026-10-11T00:00:00.000000000Z",
+   "Path": "/usr/local/bin/python3",
+   "Args": [
+    "-I",
+    "-S",
+    "-B",
+    "-c",
+    "<probe-script>",
+    "target",
+    "00000000000000000000000000000000"
+   ],
+   "State": {
+    "Status": "created",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 0,
+    "Error": "",
+    "StartedAt": "0001-01-01T00:00:00Z",
+    "FinishedAt": "0001-01-01T00:00:00Z"
+   },
+   "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+   "ResolvConfPath": "",
+   "HostnamePath": "",
+   "HostsPath": "",
+   "LogPath": "",
+   "Name": "/<rebound-by-test>",
+   "RestartCount": 0,
+   "Driver": "overlayfs",
+   "Platform": "linux",
+   "MountLabel": "",
+   "ProcessLabel": "",
+   "AppArmorProfile": "",
+   "ExecIDs": null,
+   "HostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+     "Type": "local",
+     "Config": {
+      "compress": "false",
+      "max-file": "2",
+      "max-size": "5m"
+     }
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+     "Name": "no",
+     "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+     0,
+     0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+     "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+     "no-new-privileges=true"
+    ],
+    "Tmpfs": {
+     "/scratch": "rw,noexec,nosuid,nodev,size=268435456,mode=1777",
+     "/tmp": "rw,noexec,nosuid,nodev,size=67108864,mode=1777"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 16777216,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 1073741824,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 1073741824,
+    "MemorySwappiness": null,
+    "OomKillDisable": false,
+    "PidsLimit": 128,
+    "Ulimits": null,
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "MaskedPaths": [
+     "/proc/acpi",
+     "/proc/asound",
+     "/proc/interrupts",
+     "/proc/kcore",
+     "/proc/keys",
+     "/proc/latency_stats",
+     "/proc/sched_debug",
+     "/proc/scsi",
+     "/proc/timer_list",
+     "/proc/timer_stats",
+     "/sys/devices/virtual/powercap",
+     "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+     "/proc/bus",
+     "/proc/fs",
+     "/proc/irq",
+     "/proc/sys",
+     "/proc/sysrq-trigger"
+    ]
+   },
+   "Storage": {
+    "RootFS": {
+     "Snapshot": {
+      "Name": "overlayfs"
+     }
+    }
+   },
+   "Mounts": [],
+   "Config": {
+    "Hostname": "000000000000",
+    "Domainname": "",
+    "User": "10001:10001",
+    "AttachStdin": false,
+    "AttachStdout": true,
+    "AttachStderr": true,
+    "Tty": false,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Env": [
+     "PATH=/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+     "GPG_KEY=7169605F62C751356D054A26A821E680E5FA6305",
+     "PYTHON_VERSION=3.13.16",
+     "PYTHON_SHA256=f4b1bfb3c79b5bb11b8d228a12504163b4c0dab4d679828d8f5f26b6cb6ab35d"
+    ],
+    "Cmd": [
+     "-I",
+     "-S",
+     "-B",
+     "-c",
+     "<probe-script>",
+     "target",
+     "00000000000000000000000000000000"
+    ],
+    "Image": "sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f",
+    "Volumes": null,
+    "WorkingDir": "/scratch",
+    "Entrypoint": [
+     "/usr/local/bin/python3"
+    ],
+    "Labels": {
+     "io.patchproof.installation": "inst-00000000000000000000000000000000",
+     "io.patchproof.owner": "patchproof",
+     "io.patchproof.purpose": "isolation-probe",
+     "io.patchproof.role": "target",
+     "io.patchproof.run": "run-00000000000000000000000000000000",
+     "io.patchproof.script-sha256": "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "StopTimeout": 5
+   },
+   "NetworkSettings": {
+    "SandboxID": "",
+    "SandboxKey": "",
+    "Ports": {},
+    "Networks": {
+     "none": {
+      "IPAMConfig": null,
+      "Links": null,
+      "Aliases": null,
+      "DriverOpts": null,
+      "GwPriority": 0,
+      "NetworkID": "",
+      "EndpointID": "",
+      "Gateway": "",
+      "IPAddress": "",
+      "MacAddress": "",
+      "IPPrefixLen": 0,
+      "IPv6Gateway": "",
+      "GlobalIPv6Address": "",
+      "GlobalIPv6PrefixLen": 0,
+      "DNSNames": null
+     }
+    }
+   },
+   "ImageManifestDescriptor": {
+    "mediaType": "application/vnd.oci.image.manifest.v1+json",
+    "digest": "sha256:8fb4cfa1a2616d7b8e0c2175cc6ad68f5729c34ea8488c0b360d2934b7be9024",
+    "size": 1746,
+    "annotations": {
+     "com.docker.official-images.bashbrew.arch": "amd64",
+     "org.opencontainers.image.base.digest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+     "org.opencontainers.image.base.name": "debian:trixie-slim",
+     "org.opencontainers.image.created": "2026-10-06T01:55:23Z",
+     "org.opencontainers.image.revision": "d2a898cb88e46203577eabc62cdcf6e92aaee176",
+     "org.opencontainers.image.source": "https://github.com/docker-library/python.git#d2a898cb88e46203577eabc62cdcf6e92aaee176:3.13/slim-trixie",
+     "org.opencontainers.image.url": "https://hub.docker.com/_/python",
+     "org.opencontainers.image.version": "3.13.16-slim-trixie"
+    },
+    "platform": {
+     "architecture": "amd64",
+     "os": "linux"
+    }
+   }
+  }
+ }
+}

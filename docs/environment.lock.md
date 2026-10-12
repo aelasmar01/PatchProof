@@ -157,6 +157,27 @@ holds, and whether the target side can observe verifier files or the Docker sock
 The presence of a capability in `docker info` is not evidence that a restriction is
 enforced. §5.2 is explicit that configured limits require enforcement probes.
 
+### 4.6 Approved probe image (PP-003 A1 pull, A2 approval, 2026-10-11)
+
+Pulled by the owner-approved command
+`docker --context desktop-linux pull --platform linux/amd64 python:3.13-slim`. Revalidated
+read-only by full ID before approval. Values come from `docker image inspect`:
+
+| Fact | Value |
+|---|---|
+| Local image ID (approved) | `sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f` |
+| RepoDigest | `python@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f` |
+| Meaning | The daemon uses the containerd image store (`io.containerd.snapshotter.v1`). The local ID is the digest of the multi-platform OCI image index (`application/vnd.oci.image.index.v1+json`, 10373 bytes), so it equals the registry digest. Only `linux/amd64` content is stored locally. |
+| Platform | linux/amd64 |
+| Size / created | 176147023 bytes / 2026-10-06T02:05:24Z |
+| Python | 3.13.16 |
+| Config | No User, Entrypoint, WorkingDir, Volumes, ExposedPorts, or Labels; `Cmd ["python3"]` |
+
+Code: `APPROVED_PROBE_IMAGE_ID` and `APPROVED_PROBE_PLATFORM` in
+`src/patchproof/runner/policy.py`. Image signatures and provenance were not verified.
+Docker resource inventory after the pull: 10 images (the earlier 9 plus this one),
+7 containers, 10 volumes, 5 networks, and 77 build-cache entries.
+
 ## 5. Host Git configuration relevant to the trust model
 
 Measured via `git config --global --list`:

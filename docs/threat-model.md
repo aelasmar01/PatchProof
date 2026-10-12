@@ -250,8 +250,8 @@ Code's bypass-permissions mode active, which §23.1 advises against on the perso
 | Invariant | Abuse cases | First evidence |
 |---|---|---|
 | INV-01 no target on host | AC-2 | PP-003, PP-008 |
-| INV-02 no socket, credentials, repo, or home mount | AC-2, §6 | PP-003 |
-| INV-03 no internet, no published port | TB-9 | PP-003 |
+| INV-02 no socket, credentials, repo, or home mount | AC-2, §6 | PP-003 (FS-05 checks the startup environment, `/proc/self/environ`, against the image Env contract; only CPython's PEP 538 `LC_CTYPE=C.UTF-8`/`C.utf8` may appear after start; owner decision 2026-10-11) |
+| INV-03 no internet, no published port | TB-9 | PP-003 (NET-01 is state-based, owner decision 2026-10-11: kernel fallback tunnel devices may exist but must be down, unaddressed, idle, unroutable, and unconfigurable; egress probes remain mandatory) |
 | INV-04 identical pack bytes on both sides | AC-1, AC-6, AC-8 | PP-007 |
 | INV-05 semantic witness required | AC-1 | PP-002 schema, PP-007 |
 | INV-06 baseline reproduction required | AC-1 | PP-002 schema (`contains`), PP-004 (V-08) |

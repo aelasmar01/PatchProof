@@ -17,7 +17,7 @@ entry. A release gate is not complete because its files exist.
 |---|---|---|---|
 | PP-001 | Read-only host preflight and project tracking | Actual environment report, approved/unapproved actions, initialized status/backlog | `ACCEPTED` (2026-10-11) |
 | PP-002 | Threat model, ADRs, schemas, and verdict specification | Reviewed trust boundaries and machine-validated example records | `ACCEPTED` (2026-10-11, commit `682ef63`) |
-| PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `NOT_STARTED` |
+| PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `READY_FOR_REVIEW` (2026-10-12; A4 run 3: 82 of 82 passed; evidence `docs/evidence/pp-003-isolation-probes.md`) |
 | PP-004 | Pure verdict engine and initial negative tests | Truth-table tests; no Docker dependency for unit tests | `NOT_STARTED` |
 
 PP-002 accepted by owner on 2026-10-11, including decisions D1–D6, ADR-008, ADR-009 and the
@@ -33,9 +33,25 @@ owes safe encoding of target-derived event content (D6) and code-level resource 
 
 PP-003's runtime blocker is cleared. Docker Desktop was upgraded 4.42.1 → 4.94.0
 (server 29.8.2) on 2026-10-11, so the CVE-2025-9074 exposure that bypassed INV-02 at
-the runtime layer is patched and §5.1's supported-release requirement is met. PP-003
-is `NOT_STARTED` and needs only owner approval to run. See
+the runtime layer is patched and §5.1's supported-release requirement is met. See
 `docs/environment.lock.md` §6.5.
+
+PP-003 progress, 2026-10-11:
+
+- **A0** (runner, 77-probe catalogue, in-container script, interpretation, evidence
+  schema, Docker-free tests) is `READY_FOR_REVIEW`. 559 unit tests pass, and 23
+  deliberate weakenings were all caught. Evidence: `STATUS.md` "PP-003 phase A0" and
+  `docs/architecture/isolation-probes.md`.
+- **A1** (image pulled), **A2** (identity `sha256:70729b46…c2f` approved in code), and
+  **A3** (evidence directory created) are done. **A4**: run 1 BLOCKED (inspect
+  representation), run 2 ISOLATION_FAILED (NET-01, FS-05), run 3
+  ALL_PLANNED_PROBES_PASSED (82 of 82, independently verified). All three are preserved.
+- Execution-profile contract 1.1 (`execution-profile.v1.1.schema.json`, explicit `/scratch`
+  and `/tmp` sizes) sits beside the unchanged 1.0 contract. PP-007 and PP-008 consume 1.1;
+  the runner refuses 1.0 profiles as unsupported.
+- A 20-minute global execution deadline and a 2-minute cleanup window bound A4.
+- Completion evidence: `docs/evidence/pp-003-isolation-probes.md` and `.json`
+  (sanitized). Owner review is pending; this is not acceptance, and the v0.0 gate is not passed.
 
 ## v0.1 — Verification core (useful CLI)
 

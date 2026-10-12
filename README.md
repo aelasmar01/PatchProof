@@ -8,9 +8,11 @@ preserve evidence of what was — and was not — demonstrated.
 
 > **Project status: pre-implementation.** This repository currently contains the
 > specification, the working agreement, a measured host environment report, the threat
-> model, the verdict specification, and versioned record schemas. There is no runnable
-> application code yet. Everything in the Roadmap below is planned, not
-> achieved.
+> model, the verdict specification, versioned record schemas, and a
+> container isolation probe suite whose third run on Docker Desktop 4.94.0 recorded all
+> 82 planned checks as passing (`docs/evidence/pp-003-isolation-probes.md`; awaiting owner
+> review). That is evidence for one runtime and date, not an escape-proof guarantee. Everything in the Roadmap below is planned,
+> not achieved.
 
 ---
 
@@ -54,10 +56,11 @@ Two guarantees shape the design:
 | Project specification | Done — `PROJECT_SPEC.md` |
 | Agent working agreement | Done — `CLAUDE.md` |
 | Issue tracking | Done — `STATUS.md`, `docs/backlog.md` |
-| Threat model and verdict specification | Drafted, awaiting review — `docs/threat-model.md`, `docs/architecture/` |
-| Record schemas with validated examples | Drafted, awaiting review — `schemas/`, `tests/unit/test_schemas.py` |
+| Threat model and verdict specification | Accepted (PP-002) — `docs/threat-model.md`, `docs/architecture/verdict-specification.md` |
+| Record schemas with validated examples | Accepted (PP-002) — `schemas/`, `tests/unit/test_schemas.py` |
+| Container isolation probe suite (PP-003) | Ready for owner review. Run 3 on Docker Desktop 4.94.0 / Engine 29.8.2: 82 of 82 probes passed (runs 1 and 2 failed and are documented) — `src/patchproof/`, `containers/probes/`, `docs/architecture/isolation-probes.md`, `docs/evidence/pp-003-isolation-probes.md` |
 
-Nothing else. No CLI, no API, no container runner, no verdict engine.
+Nothing else. No product CLI, no API, no verdict engine, and no verification runner.
 
 ## Roadmap
 

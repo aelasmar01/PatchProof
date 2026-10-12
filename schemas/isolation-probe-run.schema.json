@@ -1,0 +1,705 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:isolation-probe-run:1.0",
+  "title": "Isolation probe run",
+  "description": "PP-003. One run of the fixed harmless container isolation probe suite. Records the requested policy (as a digest of the exact create argv), what Docker reported at the inspect gate, what each probe observed, and which controls were actually exercised. Probe observations are host interpretations of raw container facts; no container-reported PASS is representable. A run claiming ALL_PLANNED_PROBES_PASSED must show every probe PASS, an exact preservation check, and all execution gates satisfied.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "record_type",
+    "suite_version",
+    "run_id",
+    "installation_id",
+    "started_at",
+    "finished_at",
+    "docker",
+    "image",
+    "probe_script_sha256",
+    "authorization",
+    "containers",
+    "probes",
+    "control_claims",
+    "preservation",
+    "execution",
+    "suite_status",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion"
+    },
+    "record_type": {
+      "const": "isolation-probe-run"
+    },
+    "suite_version": {
+      "const": "pp-003-probes-1.0"
+    },
+    "run_id": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/runId"
+    },
+    "installation_id": {
+      "type": "string",
+      "pattern": "^inst-[0-9a-f]{32}$"
+    },
+    "started_at": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/timestamp"
+    },
+    "finished_at": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/timestamp"
+    },
+    "docker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "context",
+        "server_version"
+      ],
+      "properties": {
+        "context": {
+          "const": "desktop-linux"
+        },
+        "server_version": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9A-Za-z.+-]+$"
+            }
+          ]
+        }
+      }
+    },
+    "image": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "image_id",
+            "repo_digests",
+            "os",
+            "architecture"
+          ],
+          "properties": {
+            "image_id": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/imageId"
+            },
+            "repo_digests": {
+              "type": "array",
+              "maxItems": 8,
+              "items": {
+                "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText"
+              }
+            },
+            "os": {
+              "const": "linux"
+            },
+            "architecture": {
+              "const": "amd64"
+            }
+          }
+        }
+      ]
+    },
+    "probe_script_sha256": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+    },
+    "authorization": {
+      "description": "Procedural execution gates (A2 image identity approved in code, A3 evidence directory verified, A4 operator confirmation). They are not a sandbox.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "a2_image_approved",
+        "a3_evidence_root_verified",
+        "a4_operator_confirmed"
+      ],
+      "properties": {
+        "a2_image_approved": {
+          "type": "boolean"
+        },
+        "a3_evidence_root_verified": {
+          "type": "boolean"
+        },
+        "a4_operator_confirmed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "containers": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "$ref": "#/$defs/container"
+      }
+    },
+    "probes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "items": {
+        "$ref": "#/$defs/probe"
+      }
+    },
+    "control_claims": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "control",
+          "status",
+          "probes"
+        ],
+        "properties": {
+          "control": {
+            "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier"
+          },
+          "status": {
+            "enum": [
+              "ENFORCEMENT_EXERCISED",
+              "CONFIGURED_ONLY",
+              "FAILED",
+              "UNVERIFIED"
+            ]
+          },
+          "probes": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/$defs/probeId"
+            }
+          }
+        }
+      }
+    },
+    "preservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "differences"
+      ],
+      "properties": {
+        "outcome": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "NOT_RUN"
+          ]
+        },
+        "differences": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+          }
+        }
+      }
+    },
+    "suite_status": {
+      "enum": [
+        "ALL_PLANNED_PROBES_PASSED",
+        "ISOLATION_FAILED",
+        "HARNESS_INVALID",
+        "BLOCKED",
+        "INCOMPLETE",
+        "NOT_EXECUTED"
+      ]
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+      }
+    },
+    "execution": {
+      "description": "Execution boundaries: 20-minute monotonic active deadline and a separate 2-minute cleanup window (owner-approved 2026-10-11).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "global_deadline_seconds",
+        "cleanup_window_seconds",
+        "active_elapsed_seconds",
+        "deadline_expired",
+        "expired_during_phase",
+        "interrupted",
+        "cleanup_window_expired",
+        "cleanup_status"
+      ],
+      "properties": {
+        "global_deadline_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1200
+        },
+        "cleanup_window_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 120
+        },
+        "active_elapsed_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000000
+        },
+        "deadline_expired": {
+          "type": "boolean"
+        },
+        "expired_during_phase": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[a-z-]{1,32}$"
+            }
+          ]
+        },
+        "interrupted": {
+          "type": "boolean"
+        },
+        "cleanup_window_expired": {
+          "type": "boolean"
+        },
+        "cleanup_status": {
+          "enum": [
+            "COMPLETE",
+            "CLEANUP_FAILED",
+            "NOT_NEEDED"
+          ]
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "suite_status"
+        ],
+        "properties": {
+          "suite_status": {
+            "const": "ALL_PLANNED_PROBES_PASSED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "probes": {
+            "items": {
+              "properties": {
+                "outcome": {
+                  "const": "PASS"
+                }
+              }
+            }
+          },
+          "preservation": {
+            "properties": {
+              "outcome": {
+                "const": "PASS"
+              }
+            }
+          },
+          "authorization": {
+            "properties": {
+              "a2_image_approved": {
+                "const": true
+              },
+              "a3_evidence_root_verified": {
+                "const": true
+              },
+              "a4_operator_confirmed": {
+                "const": true
+              }
+            }
+          },
+          "image": {
+            "type": "object"
+          },
+          "control_claims": {
+            "items": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "ENFORCEMENT_EXERCISED",
+                    "CONFIGURED_ONLY"
+                  ]
+                }
+              }
+            }
+          },
+          "execution": {
+            "properties": {
+              "deadline_expired": {
+                "const": false
+              },
+              "interrupted": {
+                "const": false
+              },
+              "cleanup_status": {
+                "const": "COMPLETE"
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "probeId": {
+      "type": "string",
+      "pattern": "^(PRE|NET|FS|PRV|NS|RES|POL|CLN)-(P?[0-9]{1,2})$"
+    },
+    "role": {
+      "enum": [
+        "target",
+        "verifier",
+        "memory",
+        "pids",
+        "cpu",
+        "storage",
+        "logflood",
+        "sleeper",
+        "decoy-other-run",
+        "decoy-foreign"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE",
+        "ERROR",
+        "BLOCKED",
+        "NOT_RUN"
+      ]
+    },
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "probe_id",
+        "title",
+        "category",
+        "kind",
+        "evidence_type",
+        "critical",
+        "controls",
+        "internal_control",
+        "expected",
+        "outcome",
+        "observed",
+        "roles"
+      ],
+      "properties": {
+        "probe_id": {
+          "$ref": "#/$defs/probeId"
+        },
+        "title": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText"
+        },
+        "category": {
+          "enum": [
+            "preflight",
+            "network",
+            "filesystem",
+            "privilege",
+            "namespace",
+            "resource",
+            "policy",
+            "cleanup"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "negative",
+            "positive_control",
+            "configuration",
+            "policy_refusal",
+            "cleanup"
+          ]
+        },
+        "evidence_type": {
+          "enum": [
+            "behavioral",
+            "kernel_state",
+            "inspect",
+            "host_check"
+          ]
+        },
+        "critical": {
+          "type": "boolean"
+        },
+        "controls": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/probeId"
+          }
+        },
+        "internal_control": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText"
+            }
+          ]
+        },
+        "expected": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+        },
+        "outcome": {
+          "$ref": "#/$defs/outcome"
+        },
+        "observed": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+        },
+        "roles": {
+          "type": "array",
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/role"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "const": "negative"
+              }
+            }
+          },
+          "then": {
+            "anyOf": [
+              {
+                "required": [
+                  "controls"
+                ],
+                "properties": {
+                  "controls": {
+                    "minItems": 1
+                  }
+                }
+              },
+              {
+                "required": [
+                  "internal_control"
+                ],
+                "properties": {
+                  "internal_control": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "container": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "name",
+        "container_id",
+        "requested_policy_sha256",
+        "gate",
+        "started",
+        "exit_code",
+        "oom_killed",
+        "wait_timed_out",
+        "stream",
+        "error",
+        "cleanup"
+      ],
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/role"
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^pp-(probe|decoy)-[0-9a-f]{12}-[a-z][a-z0-9-]{0,23}$"
+        },
+        "container_id": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        },
+        "requested_policy_sha256": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+        },
+        "gate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "passed",
+            "mismatches"
+          ],
+          "properties": {
+            "passed": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "mismatches": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "field",
+                  "expected",
+                  "observed"
+                ],
+                "properties": {
+                  "field": {
+                    "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText"
+                  },
+                  "expected": {
+                    "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+                  },
+                  "observed": {
+                    "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "started": {
+          "type": "boolean"
+        },
+        "exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": -1,
+          "maximum": 255
+        },
+        "oom_killed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "wait_timed_out": {
+          "type": "boolean"
+        },
+        "stream": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "observations",
+                "ended",
+                "truncated",
+                "malformed_lines",
+                "foreign_records",
+                "duplicates"
+              ],
+              "properties": {
+                "observations": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 400
+                },
+                "ended": {
+                  "type": "boolean"
+                },
+                "truncated": {
+                  "type": "boolean"
+                },
+                "malformed_lines": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "foreign_records": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "duplicates": {
+                  "type": "array",
+                  "maxItems": 32,
+                  "items": {
+                    "$ref": "#/$defs/probeId"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "error": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+            }
+          ]
+        },
+        "cleanup": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "detail"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "REMOVED",
+                "FORCE_REMOVED",
+                "ALREADY_ABSENT",
+                "REFUSED",
+                "FAILED",
+                "NOT_CREATED"
+              ]
+            },
+            "detail": {
+              "type": "string",
+              "maxLength": 400,
+              "pattern": "^[^\\u0000-\\u001F\\u007F]*$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

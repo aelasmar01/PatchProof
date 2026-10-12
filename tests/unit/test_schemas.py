@@ -41,6 +41,8 @@ RECORD_SCHEMAS = (
     "execution",
     "verdict-input",
     "verdict",
+    "isolation-probe-run",
+    "execution-profile.v1.1",
 )
 
 # filename -> (failing keyword, JSON pointer of the failing instance location).
@@ -65,6 +67,15 @@ INVALID_CASES: dict[str, tuple[str, str]] = {
     "execution-profile--source-traversal.json": ("pattern", "/source_scope/include/0"),
     "execution-profile--missing-memory-limit.json": ("required", "/resources/target"),
     "execution-profile--floating-image-tag.json": ("pattern", "/target_image_id"),
+    "execution-profile.v1.1--privileged-flag.json": ("additionalProperties", ""),
+    "execution-profile.v1.1--docker-args.json": ("additionalProperties", ""),
+    "execution-profile.v1.1--asgi-shell-fragment.json": ("pattern", "/asgi_app"),
+    "execution-profile.v1.1--bridge-network.json": ("const", "/network_policy"),
+    "execution-profile.v1.1--source-traversal.json": ("pattern", "/source_scope/include/0"),
+    "execution-profile.v1.1--missing-memory-limit.json": ("required", "/resources/target"),
+    "execution-profile.v1.1--floating-image-tag.json": ("pattern", "/target_image_id"),
+    "execution-profile.v1.1--missing-tmp-size.json": ("required", "/resources/verifier"),
+    "execution-profile.v1.1--v1-0-record.json": ("const", "/schema_version"),
     "approval-record--claims-verified-reviewer.json": ("const", "/reviewer/basis"),
     "approval-record--abbreviated-hash.json": ("pattern", "/bindings/pack_tree_sha256"),
     "approval-record--auto-approved-field.json": ("additionalProperties", ""),
@@ -98,6 +109,12 @@ INVALID_CASES: dict[str, tuple[str, str]] = {
     "verdict--blocked-all-preconditions-passed.json": ("anyOf", "/preconditions"),
     "verdict--blocked-after-execution-started.json": ("const", "/execution_started"),
     "verdict--not-evaluated-without-reason.json": ("contains", "/reason_codes"),
+    "isolation-probe-run--passed-with-failed-probe.json": ("const", "/probes/8/outcome"),
+    "isolation-probe-run--passed-without-preservation.json": ("const", "/preservation/outcome"),
+    "isolation-probe-run--container-reported-pass.json": ("enum", "/probes/0/outcome"),
+    "isolation-probe-run--unknown-field.json": ("additionalProperties", ""),
+    "isolation-probe-run--negative-without-control.json": ("anyOf", "/probes/8"),
+    "isolation-probe-run--floating-image.json": ("pattern", "/image/image_id"),
 }
 
 
@@ -176,7 +193,9 @@ def test_schema_is_valid_draft_2020_12(name: str) -> None:
 
 @pytest.mark.parametrize("name", sorted(SCHEMAS))
 def test_schema_id_matches_filename_and_version(name: str) -> None:
-    assert SCHEMAS[name]["$id"] == f"urn:patchproof:schema:{name}:1.0"
+    # A later contract version is a separate file named <record>.v<version>.schema.json (ADR-008).
+    record, _, version = name.partition(".v")
+    assert SCHEMAS[name]["$id"] == f"urn:patchproof:schema:{record}:{version or '1.0'}"
 
 
 @pytest.mark.parametrize("name", RECORD_SCHEMAS)
