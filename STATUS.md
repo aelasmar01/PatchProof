@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-12 (PP-004 **`READY_FOR_REVIEW`**: pure verdict engine, 26/26 corpus scenarios reproduced exactly; PP-001..PP-003 `ACCEPTED`; v0.0 release gate NOT complete)
+**Updated:** 2026-10-12 (PP-004 **`ACCEPTED`** by owner, implementation commit `37ec588`; PP-001..PP-004 accepted; **v0.0 release gate NOT complete**: closeout work and the §15.1 review remain)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -9,10 +9,41 @@
 
 **Release:** v0.0 — Foundation and execution boundaries
 **Issue:** PP-004 — Pure verdict engine and initial negative tests
-**State:** `READY_FOR_REVIEW` (2026-10-12). Not accepted. The owner authorized one local
-implementation commit after the final source review; acceptance is pending.
+**State:** `ACCEPTED` by owner, 2026-10-12. This acceptance covers PP-004 only; the v0.0
+release gate is not complete.
 
-## PP-004 — `READY_FOR_REVIEW` (2026-10-12)
+**Acceptance record:**
+
+- **Implementation commit:** `37ec5889fd83795ad771bfa455958647afc22fd8` ("PP-004:
+  implement pure verdict engine and negative tests").
+- **Tests:** `tests/unit` **6923 passed**, 0 failed, 0 skipped. Re-run at acceptance;
+  `mypy --strict` and `ruff` clean.
+- **Corpus:** **26/26** approved verdict scenarios reproduced exactly and schema-valid.
+  The verdict specification and the corpus are unchanged.
+- **Final source-level review (2026-10-12):** no unsafe path to `VERIFIED_FOR_CASES`.
+  One defect was fixed before commit: a failed precondition carrying
+  `ALL_CONDITIONS_SATISFIED` produced a schema-invalid record. One information loss was
+  fixed: `PRECONDITION_NOT_EVALUATED` dropped under a validation failure.
+- **Owner-accepted fail-closed clarifications (2026-10-12)**, which leave V-01..V-10 and
+  D1–D6 unchanged:
+  1. `PRECONDITION_NOT_EVALUATED` is kept whenever a precondition was actually
+     unevaluated, even alongside an independent validation failure. Both reasons are kept;
+     the verdict stays V-02 `INCONCLUSIVE` with no trusted observations.
+  2. Duplicate pack test IDs and duplicate pytest node IDs are invalid input (V-02),
+     never deduplicated.
+  3. Contradictory precondition reason codes, such as `ALL_CONDITIONS_SATISFIED` on a
+     failed precondition, are rejected.
+  4. A precondition failed `post_execution` in a run that never started is inconsistent
+     evidence (V-02).
+- **Integration obligations carried forward:**
+  - PP-007: strict duplicate-key loader, full JSON Schema validation before
+    `parse_verdict_input`, Pydantic/JSON Schema parity tests (ADR-008), and pack test-ID
+    and node-ID uniqueness at pack validation.
+  - PP-008: the event collector derives `stream.*` facts and observations from real
+    verifier events, with safe encoding and bounding (D6). The engine has so far seen only
+    corpus and synthetic input.
+
+## PP-004 — implementation summary (accepted 2026-10-12)
 
 **Implementation:**
 
@@ -495,27 +526,72 @@ PP-002 acceptance is acceptance of that issue only. **It is not the v0.0 release
 - PP-008 owes safe encoding and bounding of target-derived event content (D6) and
   code-level resource ceilings (ADR-009).
 
+## v0.0 closeout assessment (2026-10-12; assessment only, nothing implemented)
+
+Against `PROJECT_SPEC.md` §15.1 and §13.1:
+
+| §15.1 requirement | State |
+|---|---|
+| Build: environment report, threat model, ADRs, strict schemas, pure verdict prototype, harmless probe suite | Done (PP-001..PP-004 accepted) |
+| Build: repository skeleton | **Partial.** No `pyproject.toml`, `uv.lock`, or pinned interpreter; the code runs from `src/` by path |
+| Capability: `patchproof doctor` describes the actual Intel Mac and verifies topology, limits, read-only mounts, non-root, no egress, verifier-file and socket invisibility | **Missing as a command.** The verification exists (PP-003 runner), but `patchproof doctor` and `doctor --probe-isolation` (§13.1, "available by v0.0") do not |
+| Exit: owner reviews the detected environment and necessary installations | **Pending.** Needs a current report: Docker was upgraded since PP-001; Python 3.13.1 and Git 2.42.0 are still unpatched |
+| Exit: every required runtime restriction has a recorded tested result | Done (PP-003 run 3, 82/82) |
+| Exit: unit tests cover the verdict truth table, including crash/skip/no-baseline | Done (PP-004) |
+| Exit: no probe leaves unrelated changes or containers | Done (CLN-06, all three runs) |
+| Exit: STATUS records v0.0 passed only after actual evidence | Pending owner gate review |
+| Demo: harmless file-read isolation check, blocked external connection, deliberately invalid policy refused | **Pending.** Recorded evidence exists (FS-06/07, NET-02..07, POL-01..04); a live demonstration needs a separately approved execution |
+
+**Recommended minimal work package: "v0.0 closeout"**, one item tracked in
+`docs/backlog.md` under v0.0, in four phases with separate approvals:
+
+1. **C1 Packaging.** `pyproject.toml` (src layout; console script `patchproof`),
+   `.python-version`, `uv.lock`; tests via `uv run pytest`.
+   - Runtime dependencies: Typer (the CLI framework chosen in §3.1) and platformdirs
+     (§5.3 private-state paths).
+   - Development dependencies: pytest, jsonschema, referencing, mypy, ruff. Hypothesis is
+     optional and deferred.
+   - Each dependency's source and version are verified and documented (CLAUDE.md).
+2. **C2 `patchproof doctor`**, read-only. It reports: OS and hardware; Git, Python, and uv
+   versions; Docker context endpoint, client and server versions, and `docker info`
+   security fields; presence and identity of the approved probe image; evidence-root
+   state; and outstanding environment approvals. It makes no changes and stays
+   Docker-free in unit tests through a fake executor.
+3. **C3 `patchproof doctor --probe-isolation`**, a thin Typer wrapper over the existing
+   runner. It keeps the same A2/A3/A4 gates, the interactive confirmation, the deadlines,
+   and the policy. The probe logic and expectations are unchanged.
+4. **C4 Gate review and demonstration.** One owner-approved run of
+   `patchproof doctor --probe-isolation`, which also serves as the §15.1 live demo; the
+   invalid-policy refusal is shown Docker-free. Then the owner's gate review.
+
+**Approvals the work package needs:**
+
+- **C1:** install the current Python 3.13.x (download), or explicitly accept 3.13.1 for
+  v0.0; resolve and lock dependencies from PyPI (`uv lock`, network); create the project
+  virtual environment (`uv sync`, installs packages into `.venv`).
+- **C2:** read-only Docker queries from `doctor`, the same kind already performed in
+  PP-001 and PP-003.
+- **C4:** one probe execution (a new A4-type run).
+- Separately, and not blocking v0.0 unless the owner decides otherwise: `brew upgrade
+  git` (needed by PP-005); removing `~/.git`; committing the owner's ADR-010 work.
+
 ## Last completed gate and its evidence
 
-**No release gate has passed.** v0.0 is open. It needs PP-003 and PP-004 plus the §15.1
-demonstration.
+**No release gate has passed.** v0.0 is open. PP-001..PP-004 are accepted. The closeout
+work and the §15.1 review and demonstration remain; see "v0.0 closeout assessment".
 
 | Issue | Accepted | Evidence |
 |---|---|---|
 | PP-001 | 2026-10-11 | `docs/environment.lock.md` |
 | PP-002 | 2026-10-11 | commit `682ef63`; see "Accepted issues" above |
 | PP-003 | 2026-10-12 | commit `e38d0d1`; run `run-5c176591e0f793ebdb6c2f07667c4ead`; `docs/evidence/pp-003-isolation-probes.md` |
+| PP-004 | 2026-10-12 | commit `37ec588`; 6923 unit tests; 26/26 verdict scenarios |
 
 ## Next permitted issue
 
-**None until the owner reviews PP-004.** PP-005 is next in backlog order (v0.1) and needs
-explicit authorization. v0.0 still needs the §15.1 gate review and demonstration, and the
-integration of the probe runner into `patchproof doctor --probe-isolation` (which needs
-packaging, approval item 2).
-
-PP-004, the pure verdict engine, follows. It needs a pinned Python and a
-`pyproject.toml` (approval item 3). Taking PP-004 before PP-003 would need an explicit
-owner decision to reorder.
+**v0.0 closeout work only, once the owner authorizes it.** The v0.0 issues PP-001..PP-004
+are all accepted, but the v0.0 gate is not. PP-005 (v0.1) must not start until the v0.0
+gate is accepted or the owner explicitly reorders.
 
 ## Failed tests, risks, and blockers
 
@@ -682,7 +758,7 @@ In the order they block work:
 | # | Approval needed | Unblocks |
 |---|---|---|
 | 1 | ~~Owner review of PP-003~~: **ACCEPTED 2026-10-12** (commit `e38d0d1`) | — |
-| 2 | Install current Python 3.13.x and pin it; approve pinning the validation/test dependencies | PP-004 packaging |
+| 2 | Install current Python 3.13.x and pin it; approve pinning the validation/test dependencies | v0.0 closeout packaging (`pyproject.toml`, `uv.lock`, `patchproof doctor`) |
 | 3 | `brew upgrade git` (2.42.0 → 2.56.0) | PP-005 |
 | 4 | Decide whether to remove `/Users/aliel-asmar/.git` (nothing is tracked; recommend backing up its config first) | Safe local Git hygiene |
 | 5 | ~~Claude Code permissions~~ — closed by the owner's ADR-010 decision (2026-10-11). The ADR-010 file and its `CLAUDE.md`/`PROJECT_SPEC.md`/threat-model edits are uncommitted in the working tree. | — |
@@ -745,7 +821,8 @@ in-app updater or the Intel `.dmg`.
 **Not yet as the v0.0 demonstration.** All three §15.1 demo items now have real
 recorded results from A4 run 3: a file-read isolation check (FS-06, FS-07), blocked
 external connections (NET-02..07), and invalid policies refused before Docker (POL-01..04).
-The v0.0 gate also needs PP-004 and the owner's gate review.
+PP-004 is accepted. The v0.0 gate also needs the closeout work (packaging and
+`patchproof doctor`) and the owner's §15.1 review and demonstration.
 
 Per §15.1, a design document alone does not pass this gate.
 
