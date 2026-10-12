@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-12 (PP-003 **`READY_FOR_REVIEW`**: A4 run 3 ALL_PLANNED_PROBES_PASSED, independently verified; runs 1 and 2 preserved as BLOCKED and ISOLATION_FAILED)
+**Updated:** 2026-10-12 (PP-003 **`ACCEPTED`** by owner; implementation commit `e38d0d1`. v0.0 release gate NOT complete; next permitted issue PP-004, awaiting explicit owner authorization)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -9,8 +9,43 @@
 
 **Release:** v0.0 — Foundation and execution boundaries
 **Issue:** PP-003 — Harmless container isolation probe suite
-**State:** `READY_FOR_REVIEW` (2026-10-12). It is **not** `ACCEPTED`, and the v0.0
-release gate is **not** complete: PP-004 and the §15.1 exit-gate review remain.
+**State:** `ACCEPTED` by owner, 2026-10-12. This acceptance covers PP-003 only. The v0.0
+release gate is **not** complete: PP-004 and the §15.1 exit-gate review and demonstration
+remain.
+
+**Acceptance record:**
+
+- **Implementation commit:** `e38d0d1aa51934d00fd06fd58e4ed57b82e1211e` ("PP-003: implement
+  and validate container isolation probes").
+- **Accepted run:** `run-5c176591e0f793ebdb6c2f07667c4ead`, ALL_PLANNED_PROBES_PASSED. Runtime
+  probes: **82/82 PASS**, positive controls 17/17. Docker-free unit tests: **757 passed**.
+- **Sanitized evidence:** `docs/evidence/pp-003-isolation-probes.md` and
+  `docs/evidence/pp-003-isolation-probes.json`.
+- **Pre-acceptance review** of the 4 CONFIGURED_ONLY claims (no-new-privileges,
+  no-host-namespaces, no-host-environment, no-published-ports): each narrow claim is
+  supported. Every §15.1-named restriction has behavioral evidence. The user namespace is
+  shared with the Docker VM; this is a documented residual, mitigated by the non-root UID
+  and zero capabilities. See the evidence report's reviewer notes.
+- **Accepted limitations:**
+  - sleeper stdout not persisted (RES-12 corroborated by the command log);
+  - `fb_tunnels_only_for_init_net` unreadable (informational);
+  - CPU enforcement is statistical;
+  - log retention measured via `docker logs`, not on disk;
+  - no-new-privileges not behaviorally exercised;
+  - shared user namespace;
+  - `--pull=never` refusal of a missing image exercised only in unit tests;
+  - `/dev/mqueue` bounded only by the kernel default;
+  - results apply to Docker Desktop 4.94.0 / Engine 29.8.2 on 2026-10-12 only.
+
+**Future obligations (tracked; not part of PP-003):**
+
+1. Integrate the standalone probe runner into `patchproof doctor --probe-isolation`
+   (§13.1) before v0.0 acceptance. This needs the packaging approval (approval item 2).
+2. Persist the sleeper container's stdout in future runs (artifact-retention
+   improvement). This must not invalidate or relabel the historical run.
+3. Review the container-runtime version and security advisories at every later release
+   gate, and re-run the isolation probes after Docker Desktop upgrades.
+4. PP-004: implement and test the pure verdict engine (26 reviewed scenarios).
 
 A4 history (all three runs preserved unchanged in private evidence):
 
@@ -395,12 +430,13 @@ demonstration.
 |---|---|---|
 | PP-001 | 2026-10-11 | `docs/environment.lock.md` |
 | PP-002 | 2026-10-11 | commit `682ef63`; see "Accepted issues" above |
+| PP-003 | 2026-10-12 | commit `e38d0d1`; run `run-5c176591e0f793ebdb6c2f07667c4ead`; `docs/evidence/pp-003-isolation-probes.md` |
 
 ## Next permitted issue
 
-**PP-003 continues.** After owner review of A0, the next step is **A1** (one image pull),
-then A2, A3, and A4. PP-003 stays `IN_PROGRESS` until real probe results exist and the
-owner accepts them. PP-004 is not started.
+**PP-004** (pure verdict engine and initial negative tests) is next in backlog order. It
+**must not start until the owner explicitly authorizes it.** It needs a pinned Python and
+`pyproject.toml` (approval item 2).
 
 PP-004, the pure verdict engine, follows. It needs a pinned Python and a
 `pyproject.toml` (approval item 3). Taking PP-004 before PP-003 would need an explicit
@@ -570,7 +606,7 @@ In the order they block work:
 
 | # | Approval needed | Unblocks |
 |---|---|---|
-| 1 | **Owner review of PP-003** (`READY_FOR_REVIEW`; evidence in `docs/evidence/pp-003-isolation-probes.md`) | PP-004 start; v0.0 exit gate |
+| 1 | ~~Owner review of PP-003~~: **ACCEPTED 2026-10-12** (commit `e38d0d1`) | — |
 | 2 | Install current Python 3.13.x and pin it; approve pinning the validation/test dependencies | PP-004 packaging |
 | 3 | `brew upgrade git` (2.42.0 → 2.56.0) | PP-005 |
 | 4 | Decide whether to remove `/Users/aliel-asmar/.git` (nothing is tracked; recommend backing up its config first) | Safe local Git hygiene |

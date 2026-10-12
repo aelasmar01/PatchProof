@@ -17,7 +17,7 @@ entry. A release gate is not complete because its files exist.
 |---|---|---|---|
 | PP-001 | Read-only host preflight and project tracking | Actual environment report, approved/unapproved actions, initialized status/backlog | `ACCEPTED` (2026-10-11) |
 | PP-002 | Threat model, ADRs, schemas, and verdict specification | Reviewed trust boundaries and machine-validated example records | `ACCEPTED` (2026-10-11, commit `682ef63`) |
-| PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `READY_FOR_REVIEW` (2026-10-12; A4 run 3: 82 of 82 passed; evidence `docs/evidence/pp-003-isolation-probes.md`) |
+| PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `ACCEPTED` (2026-10-12, commit `e38d0d1`; run `run-5c176591…`: 82/82 passed; 757 unit tests; evidence `docs/evidence/pp-003-isolation-probes.md`) |
 | PP-004 | Pure verdict engine and initial negative tests | Truth-table tests; no Docker dependency for unit tests | `NOT_STARTED` |
 
 PP-002 accepted by owner on 2026-10-11, including decisions D1–D6, ADR-008, ADR-009 and the
@@ -51,7 +51,14 @@ PP-003 progress, 2026-10-11:
   the runner refuses 1.0 profiles as unsupported.
 - A 20-minute global execution deadline and a 2-minute cleanup window bound A4.
 - Completion evidence: `docs/evidence/pp-003-isolation-probes.md` and `.json`
-  (sanitized). Owner review is pending; this is not acceptance, and the v0.0 gate is not passed.
+  (sanitized). **Accepted by owner 2026-10-12**, for PP-003 only; the v0.0 gate is not passed.
+- Follow-ups carried forward, outside PP-003:
+  - integrate the runner into `patchproof doctor --probe-isolation` before v0.0
+    acceptance;
+  - persist sleeper stdout in future runs;
+  - review runtime versions and advisories at each release gate, re-probing after
+    upgrades;
+  - PP-004 verdict engine.
 
 ## v0.1 — Verification core (useful CLI)
 
