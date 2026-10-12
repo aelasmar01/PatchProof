@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-12 (PP-004 **`ACCEPTED`** by owner, implementation commit `37ec588`; PP-001..PP-004 accepted; **v0.0 release gate NOT complete**: closeout work and the §15.1 review remain)
+**Updated:** 2026-10-12 (v0.0 closeout C1–C3 **`READY_FOR_REVIEW`**, uncommitted; PP-001..PP-004 accepted; **v0.0 release gate NOT complete**: C4 demonstration and the §15.1 review remain)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -8,9 +8,106 @@
 ## Current release and issue
 
 **Release:** v0.0 — Foundation and execution boundaries
-**Issue:** PP-004 — Pure verdict engine and initial negative tests
-**State:** `ACCEPTED` by owner, 2026-10-12. This acceptance covers PP-004 only; the v0.0
-release gate is not complete.
+**Issue:** v0.0-CLOSEOUT — C1 packaging, C2 `patchproof doctor`, C3 `doctor --probe-isolation`
+**State:** C1–C3 `READY_FOR_REVIEW` (2026-10-12). Not accepted and not committed; the
+owner authorized C1–C3 only. C4 (demonstration and gate review) needs separate approval.
+
+## v0.0 closeout C1–C3 — `READY_FOR_REVIEW` (2026-10-12)
+
+**C1 Packaging.**
+
+- uv 0.10.7 could not install CPython 3.13.16; it offers builds only up to 3.13.12. The
+  owner chose to upgrade uv, to 0.12.24. The pip `--user` install used a hash-pinned
+  wheel.
+- `uv python install 3.13.16 --no-bin` installed the managed interpreter. The system
+  `python3` is still 3.13.1.
+- Added `.python-version` (3.13.16), `pyproject.toml`, and `uv.lock`, and ran
+  `uv sync --locked` into the ignored `.venv`.
+  - Runtime: typer 0.27.2 and platformdirs 4.12.0.
+  - Dev: the exact versions that produced the accepted results (pytest 8.4.2,
+    jsonschema 4.25.0, referencing 0.36.2, mypy 1.18.2, ruff 0.14.2).
+  - 23 third-party packages are locked with hashes; all are PyPI wheels.
+  - `exclude-newer` gives a two-week cooldown.
+  - Sources and reasons: `docs/environment.lock.md` §3.1.
+- Under the pin, **before any C2/C3 code**, the unchanged suite gave **6923 passed**,
+  exactly the accepted baseline.
+- Ruff targeting 3.13 newly reports UP017, a style rule, on one line of the accepted
+  PP-003 orchestrator. It is suppressed for that file only, leaving the code unchanged.
+
+**C2 `patchproof doctor`, read-only** (`src/patchproof/doctor/`):
+
+- `environment.py` collects observed facts through a closed set of read-only commands:
+  - `docker --context desktop-linux` `context inspect`, `version`, `info`, and
+    `image inspect` of the approved ID;
+  - `git --version` and `uv --version` from allowlisted directories;
+  - `sysctl -n hw.memsize`.
+- Every command uses argument arrays, deadlines, capped output, and the runner's
+  sanitized environment. Doctor has its own executor, which refuses every runner
+  operation, so the PP-003 `DockerCli` allowlist is unchanged.
+- As in PRE-01, nothing beyond `context inspect` is sent unless the context points at
+  the Docker Desktop user socket.
+- `assessment.py` is pure. It maps facts to 17 checks: host, Python pin, uv, Git,
+  Docker reachability, the Docker Desktop CVE-2025-9074 floor, Linux/x86_64, cgroup v2,
+  seccomp, the `none` driver, daemon warnings, approved image identity, and evidence
+  directory readiness.
+  - A required check that is FAIL or UNKNOWN makes the report `BLOCKED` (exit 21).
+  - Observed facts, checks, and assumptions are reported separately.
+  - `isolation_verified_by_doctor` is always false.
+- Doctor never creates the evidence directory, pulls, or repairs anything.
+
+**C3 `patchproof doctor --probe-isolation`** (`src/patchproof/cli/main.py`):
+
+- It calls the accepted PP-003 entry point unchanged:
+  `patchproof.probes.cli.main(["run", "--image-id", <A2 ID from policy code>,
+  "--evidence-root", <fixed platformdirs A3 path>])`.
+- It accepts no image, path, platform, Docker option, or `--yes`; `--json` is refused.
+  All of these exit 2.
+- It prints an ACTIVE DOCKER OPERATION banner, then the runner applies its own A2/A3
+  checks, interactive A4 phrase, deadlines, exact-ID cleanup, and private evidence.
+- Shell-completion installation and rich tracebacks are disabled.
+
+**Results (2026-10-12):**
+
+- `uv run --locked python -I -m pytest tests/unit`: **7008 passed**, 0 failed, 0
+  skipped. That is 6923 baseline + 58 doctor + 27 CLI. The system Python 3.13.1 gives
+  the same 7008.
+- `uv run --locked mypy` (strict, 20 files): clean. `ruff check` on the source and the
+  verdict, doctor, and CLI tests: clean.
+- **Weakening check:** 8/8 deliberate breakages were caught: image override,
+  mutating-op admission, context gate removal, a lowered Docker Desktop floor,
+  confirmation bypass, UNKNOWN treated as pass, evidence-directory creation, and an
+  isolation claim.
+- **Live `patchproof doctor`** (read-only; text and `--json`): `READY`, exit 0.
+  - Required checks: all OK.
+  - Advisories: Git 2.42.0 < 2.56.0, and `~/.git` present.
+  - Observed: Docker Desktop 4.94.0 (241994), server 29.8.2, cgroup v2, seccomp
+    builtin, `null` driver present, and the approved image present with the exact ID.
+- **Live wrapper refusals** (no Docker call): `--probe-isolation </dev/null` refused at
+  A4, exit 21, nothing written. `--image-id` and `--json` give exit 2.
+- PP-003 evidence: all 32 files of the three preserved runs still match their saved
+  checksum manifests.
+- **Owner review fix (2026-10-12):** READY is now explicitly scoped.
+  - Text output: "Overall (v0.0 environment readiness): READY, N advisory warning(s)
+    unresolved", followed by a scope line.
+  - JSON output: a `scope` field.
+- **Offline check:** `uv run --locked --offline patchproof doctor` gave exit 0, made no
+  registry access in uv's verbose log, and left `uv.lock` and `pyproject.toml`
+  byte-identical. Git 2.42.0 and `~/.git` still show as warnings.
+- No change to accepted runner, probe, core, container, schema, or architecture files
+  (`git diff HEAD` empty for those paths).
+
+**Not done:**
+
+- No probe run, container, pull, or Docker setting change.
+- No commit.
+- C4 is not started.
+- `containers/probes/run_isolation_probes.py` remains as the PP-003 launcher. Its
+  docstring and `probes/cli.py`'s still say packaging is pending; they were left
+  unchanged as accepted PP-003 files.
+
+## PP-004 — acceptance record (2026-10-12)
+
+**State:** `ACCEPTED` by owner, 2026-10-12. This acceptance covers PP-004 only.
 
 **Acceptance record:**
 
@@ -526,7 +623,7 @@ PP-002 acceptance is acceptance of that issue only. **It is not the v0.0 release
 - PP-008 owes safe encoding and bounding of target-derived event content (D6) and
   code-level resource ceilings (ADR-009).
 
-## v0.0 closeout assessment (2026-10-12; assessment only, nothing implemented)
+## v0.0 closeout assessment (2026-10-12; C1–C3 since implemented, see above)
 
 Against `PROJECT_SPEC.md` §15.1 and §13.1:
 
@@ -589,9 +686,10 @@ work and the §15.1 review and demonstration remain; see "v0.0 closeout assessme
 
 ## Next permitted issue
 
-**v0.0 closeout work only, once the owner authorizes it.** The v0.0 issues PP-001..PP-004
-are all accepted, but the v0.0 gate is not. PP-005 (v0.1) must not start until the v0.0
-gate is accepted or the owner explicitly reorders.
+**None until the owner reviews v0.0 closeout C1–C3.** C4 then needs separate approval: one
+live `patchproof doctor --probe-isolation` run, the Docker-free invalid-policy
+demonstration, and the owner's §15.1 gate review. PP-005 (v0.1) must not start until the
+v0.0 gate is accepted or the owner explicitly reorders.
 
 ## Failed tests, risks, and blockers
 
@@ -758,7 +856,7 @@ In the order they block work:
 | # | Approval needed | Unblocks |
 |---|---|---|
 | 1 | ~~Owner review of PP-003~~: **ACCEPTED 2026-10-12** (commit `e38d0d1`) | — |
-| 2 | Install current Python 3.13.x and pin it; approve pinning the validation/test dependencies | v0.0 closeout packaging (`pyproject.toml`, `uv.lock`, `patchproof doctor`) |
+| 2 | ~~Install current Python 3.13.x and pin it~~: **done 2026-10-12** (3.13.16 via uv 0.12.24; v0.0 closeout C1) | — |
 | 3 | `brew upgrade git` (2.42.0 → 2.56.0) | PP-005 |
 | 4 | Decide whether to remove `/Users/aliel-asmar/.git` (nothing is tracked; recommend backing up its config first) | Safe local Git hygiene |
 | 5 | ~~Claude Code permissions~~ — closed by the owner's ADR-010 decision (2026-10-11). The ADR-010 file and its `CLAUDE.md`/`PROJECT_SPEC.md`/threat-model edits are uncommitted in the working tree. | — |

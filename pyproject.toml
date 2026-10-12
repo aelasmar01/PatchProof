@@ -1,0 +1,60 @@
+# v0.0 closeout C1: reproducible packaging (PROJECT_SPEC.md 3.1). Every dependency is an
+# exact, reviewed pin; uv.lock records the full set with hashes. Dependency sources and
+# the reasons for each are recorded in docs/environment.lock.md.
+[project]
+name = "patchproof"
+version = "0.0.0"
+description = "Local application security fix-verification workbench."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = "==3.13.*"
+dependencies = [
+    "typer==0.27.2",        # CLI (PROJECT_SPEC.md 3.1)
+    "platformdirs==4.12.0", # OS-appropriate private-state paths (PROJECT_SPEC.md 5.3)
+]
+
+[project.scripts]
+patchproof = "patchproof.cli.main:main"
+
+[dependency-groups]
+# The exact tool versions that produced the accepted PP-001..PP-004 results.
+dev = [
+    "pytest==8.4.2",
+    "jsonschema==4.25.0",
+    "referencing==0.36.2",
+    "mypy==1.18.2",
+    "ruff==0.14.2",
+]
+
+[build-system]
+requires = ["uv_build==0.12.24"]
+build-backend = "uv_build"
+
+[tool.uv]
+required-version = "==0.12.24"
+# Supply-chain cooldown: resolve only distributions published at least two weeks before
+# the lock was created. Changing this date is a dependency review.
+exclude-newer = "2026-09-28T00:00:00Z"
+python-preference = "only-managed"
+python-downloads = "manual"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+
+[tool.mypy]
+strict = true
+files = ["src/patchproof"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Style only (`timezone.utc` vs `datetime.UTC`), newly reported once ruff targets 3.13.
+# The accepted PP-003 orchestrator is left byte-for-byte unchanged.
+"src/patchproof/probes/orchestrator.py" = ["UP017"]

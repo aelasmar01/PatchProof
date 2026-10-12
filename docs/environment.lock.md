@@ -47,9 +47,9 @@ snapshot), container images, and evidence retention with wide margin.
 | Tool | Measured version | Path / source | Specification target | Verdict |
 |---|---|---|---|---|
 | Git | 2.42.0 | `/usr/local/bin/git` (Homebrew, installed 2023-09-06) | "supported patched Git release" (§9.2) | **CONFLICT — see 6.2** |
-| Python | 3.13.1 | `python3` | Python 3.13, "supported patched release" (§3.1) | **CONFLICT — see 6.3** |
+| Python (system) | 3.13.1 | `python3` | Python 3.13, "supported patched release" (§3.1) | Not used by the project; see 3.1 and 6.3 (RESOLVED) |
 | Python (other) | 3.12.13, 3.11.11 | `python3.12`, `python3.11` | n/a | Available |
-| `uv` | 0.10.7 | on `PATH` | `uv` packaging (§3.1) | Satisfied |
+| `uv` | 0.10.7 at PP-001; **0.12.24** since 2026-10-12 | `/usr/local/bin/uv` → `~/Library/Python/3.13/bin/uv` (pip `--user`) | `uv` packaging (§3.1) | Satisfied; see 3.1 |
 | Node.js | 22.22.1 | `node` (via `nvm` 0.40.1) | Node.js 24 LTS (§3.1) | **CONFLICT — see 6.4** |
 | npm | 10.9.4 | `npm` | npm lockfile (§3.1) | Satisfied |
 | Homebrew | 6.0.21 | `brew` | n/a | Available for approved upgrades |
@@ -57,6 +57,49 @@ snapshot), container images, and evidence retention with wide margin.
 
 Not installed, and not required before the issue that needs them: Semgrep, Gitleaks,
 Trivy, ZAP, Playwright browsers.
+
+### 3.1 Project interpreter and dependencies (v0.0 closeout C1, 2026-10-12)
+
+Owner-approved on 2026-10-12. Installed without `sudo`; the system Python, Git, and
+macOS were not changed.
+
+**uv 0.10.7 → 0.12.24.** uv 0.10.7 offered CPython 3.13 builds only up to 3.13.12.
+CPython 3.13.16 support arrived in uv 0.12.22, per its changelog. The owner chose to
+upgrade uv rather than settle for an older interpreter. 0.12.24 (2026-10-08) is the
+latest 0.12 patch; the 0.13.0 minor release (2026-10-09) was avoided. It was installed
+the way uv was originally installed, `pip install --user`, into the host Python 3.13,
+with `--require-hashes` against the PyPI digest of
+`uv-0.12.24-py3-none-macosx_10_12_x86_64.whl`:
+`sha256:48cc70ecf59eece47e28d37c5c5eb9bb093e16881b1cc03e4a202286765a2022`.
+
+**Interpreter.** `uv python install 3.13.16 --no-bin` installed CPython 3.13.16
+(`cpython-3.13.16-macos-x86_64-none`, built 2026-10-03, OpenSSL 3.5.9) under
+`~/.local/share/uv/python/`. `--no-bin` keeps it off `PATH`, so `python3` remains the
+system 3.13.1. `.python-version` pins 3.13.16, and `pyproject.toml` sets
+`python-preference = "only-managed"` and `python-downloads = "manual"`.
+
+**Dependencies.** Every top-level pin in `pyproject.toml` is exact. `uv.lock`
+records all 23 third-party packages with PyPI sha256 hashes; all come from
+`https://pypi.org/simple`, and all have wheels for macOS x86_64, so nothing is built
+from source. `exclude-newer = 2026-09-28T00:00:00Z` admits only distributions
+published at least two weeks before locking. The project itself is built by uv's
+built-in `uv_build` backend; no build backend was downloaded.
+
+| Package | Version | Why | Source |
+|---|---|---|---|
+| typer | 0.27.2 | CLI framework chosen in §3.1. Since 0.26.0 it vendors Click instead of depending on it. | github.com/fastapi/typer (MIT) |
+| platformdirs | 4.12.0 | OS-appropriate private-state paths (§5.3). 4.12.1 fell 5 hours after the cutoff. | github.com/tox-dev/platformdirs (MIT) |
+| rich 15.0.0, shellingham 1.5.4, annotated-doc 0.0.5 | — | Runtime dependencies of Typer | Textualize/rich, sarugaku/shellingham, fastapi/annotated-doc |
+| markdown-it-py 4.2.0, mdurl 0.1.2, pygments 2.21.0 | — | Dependencies of rich | PyPI |
+| colorama 0.4.6 | — | Windows-only marker of typer/pytest; locked, not installed on macOS | PyPI |
+| pytest | 8.4.2 | Dev: the version that produced the accepted PP-001..PP-004 results | github.com/pytest-dev/pytest |
+| jsonschema, referencing | 4.25.0, 0.36.2 | Dev: schema validation in tests (same versions as accepted results) | github.com/python-jsonschema |
+| mypy | 1.18.2 | Dev: `--strict` type checking (same version as accepted results) | github.com/python/mypy |
+| ruff | 0.14.2 | Dev: lint (same version as accepted results) | github.com/astral-sh/ruff |
+| attrs, rpds-py, jsonschema-specifications, iniconfig, pluggy, packaging, mypy-extensions, pathspec, typing-extensions | locked | Transitive dependencies of the dev tools | PyPI |
+
+With the dev tools held at their accepted versions, the 6923-test baseline reproduced
+exactly under 3.13.16 (see `STATUS.md`).
 
 ## 4. Container runtime
 
@@ -230,7 +273,10 @@ changes. Not performed — PP-001 forbids installation.
 PP-005's dependency review and should cite the Git release notes directly rather than
 being asserted here.
 
-### 6.3 Minor (approval required) — Python 3.13.1 is behind on patches
+### 6.3 RESOLVED (2026-10-12, v0.0 closeout C1) — Python 3.13.1 is behind on patches
+
+Resolved by pinning the uv-managed CPython 3.13.16 for the project (3.1). The system
+`python3` is still 3.13.1 and is not used by the project's pinned environment.
 
 3.13.1 shipped 2024-12. §3.1 asks for a *supported patched release* of 3.13 selected
 during preflight. Later 3.13.x patches exist.
@@ -376,7 +422,7 @@ Desktop sync is ever enabled in iCloud, would become a cloud-synced destination.
 |---|---|---|---|
 | 1 | Approve `brew upgrade git` 2.42.0 → 2.56.0 (6.2) | Owner | PP-005 |
 | 2 | Decide on removing `~/.git` (6.1) | Owner | Safe local Git hygiene |
-| 3 | Approve Python 3.13.x patch + pin (6.3) | Owner | PP-004 packaging |
+| 3 | ~~Approve Python 3.13.x patch + pin (6.3)~~ — done 2026-10-12 (3.1) | Owner | — |
 | 4 | Approve running the PP-003 isolation probe suite — now unblocked on the runtime side | Owner | v0.0 exit gate |
 
 **Completed 2026-10-11:**

@@ -19,6 +19,7 @@ entry. A release gate is not complete because its files exist.
 | PP-002 | Threat model, ADRs, schemas, and verdict specification | Reviewed trust boundaries and machine-validated example records | `ACCEPTED` (2026-10-11, commit `682ef63`) |
 | PP-003 | Harmless container isolation probe suite | Saved results for files, network, namespaces, privileges, and resource controls | `ACCEPTED` (2026-10-12, commit `e38d0d1`; run `run-5c176591…`: 82/82 passed; 757 unit tests; evidence `docs/evidence/pp-003-isolation-probes.md`) |
 | PP-004 | Pure verdict engine and initial negative tests | Truth-table tests; no Docker dependency for unit tests | `ACCEPTED` (2026-10-12, commit `37ec588`; 26/26 scenarios exact; 6923 Docker-free tests) |
+| v0.0-CLOSEOUT | C1 packaging · C2 read-only `patchproof doctor` · C3 `doctor --probe-isolation` integration · C4 demonstration and gate review | Pinned interpreter and lockfile; suite reproduced under the pin; Docker-free doctor and wrapper tests; C4: one approved live run and the owner's §15.1 review | C1–C3 `READY_FOR_REVIEW` (2026-10-12, uncommitted; 7008 Docker-free tests); C4 `NOT_STARTED` (needs separate approval) |
 
 PP-002 accepted by owner on 2026-10-11, including decisions D1–D6, ADR-008, ADR-009 and the
 reviewed scenarios. Accepted at commit `682ef63039df72ecdb3de13d2861c4dea8cda9fd`, where
@@ -54,7 +55,7 @@ PP-003 progress, 2026-10-11:
   (sanitized). **Accepted by owner 2026-10-12**, for PP-003 only; the v0.0 gate is not passed.
 - Follow-ups carried forward, outside PP-003:
   - integrate the runner into `patchproof doctor --probe-isolation` before v0.0
-    acceptance;
+    acceptance: done in v0.0-CLOSEOUT C3 (`READY_FOR_REVIEW`);
   - persist sleeper stdout in future runs;
   - review runtime versions and advisories at each release gate, re-probing after
     upgrades;

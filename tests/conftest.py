@@ -1,7 +1,8 @@
-"""Test configuration: make the not-yet-packaged `src/` tree importable.
+"""Test configuration: make the `src/` tree importable.
 
-Packaging (pyproject.toml, approval item 2) is still unapproved, so tests add `src/`
-explicitly instead of relying on an installed package or PYTHONPATH.
+`uv run pytest` uses the editable install from pyproject.toml. Adding `src/` here as
+well keeps the tests runnable from an exported tree or another interpreter without
+relying on PYTHONPATH.
 """
 
 import sys
