@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-12 (**PP-005 `READY_FOR_REVIEW`**; v0.0 foundation release `ACCEPTED` by owner; PP-006 not started)
+**Updated:** 2026-10-12 (**PP-005 `ACCEPTED` by owner**, implementation commit `c8128a7`; v0.0 foundation release `ACCEPTED`; next issue PP-006, **not started**)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -9,14 +9,41 @@
 
 **Release:** v0.1 — Useful CLI verification
 **Issue:** PP-005 — Safe repository registration and source snapshots
-**State:** `READY_FOR_REVIEW`. **Not accepted:** only the owner's recorded review sets
-`ACCEPTED`. Not committed, pushed or tagged.
-**Next permitted issue:** none until the owner reviews PP-005. PP-006 is not started.
+**State:** `ACCEPTED` by owner, 2026-10-12. Committed locally; not pushed or tagged.
+**Next issue:** PP-006 (reference authorization API and fixture profile), `NOT_STARTED`. It
+requires separate owner authorization.
 **Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 is a
 library with no CLI yet (PP-009); its behaviour is demonstrated only by the test suite on
 synthetic repositories.
 
-## PP-005 — `READY_FOR_REVIEW` (2026-10-12)
+## PP-005 — `ACCEPTED` by owner (2026-10-12)
+
+**Owner decision (2026-10-12):** conditionally ACCEPT PP-005, subject to the final
+staged-code checks. All checks passed, so the condition is met. The owner also decided:
+1. **APPROVED:** `src/patchproof/git/command.py` is the only new production file allowed to
+   import `subprocess`, matched by its exact project-relative path. The PP-003 exceptions
+   are unchanged.
+2. **ACCEPTED:** the Homebrew changes that came with Git 2.56.0: cmake 4.4.4, json-c 0.19,
+   pcre2 10.49, gettext 1.0, libunistring 1.4.2 and pkgconf 3.0.8. The linkage checks are
+   sufficient for this phase. No further upgrades or cleanup.
+3. **ACCEPTED:** mutation M11 survives because `ObjectId` enforces the identical length
+   rule with the same error. Verified that no callable path bypasses `ObjectId`
+   validation (F1 below). The redundant check is kept.
+4. **ACCEPTED:** the 11 pre-existing Ruff E501 findings in `tests/` are not PP-005
+   regressions. They are documented, not suppressed.
+
+**Acceptance record:**
+
+| Item | Value |
+|---|---|
+| Implementation commit | `c8128a7b2bbecfa6c542734c19c357296e3d204f` ("PP-005: implement safe Git repository registration and snapshots"), 23 files |
+| Committed-tree verification | `git archive c8128a7` exported to scratch and tested in isolation: 7337 passed; mypy strict clean; Ruff clean on `src` and the PP-005 tests |
+| Environment | Git 2.56.0 (Homebrew `2.56.0_1`), with the dependency changes above (`docs/environment.lock.md` §3.2); `~/.git` retained (§6.1), hazard remains |
+| Unit tests | 7320 at READY_FOR_REVIEW; **7337** after the final review (+17: F1, F2) |
+| Negative tests | Refs/revisions, registration and ambiguity, unsafe paths, symlinks/gitlinks/LFS, collisions, limits, secret policy, malformed output, environment/config injection, replace objects, partial clone, crash and interruption: see the criteria table below |
+| Mutation check | Final single pass on the committed sources: **33/34 caught**. M11 is the accepted equivalent mutant. Sources hash-verified after restoration |
+| Repository preservation | Every snapshot and resolve test asserts an unchanged fingerprint (content, mode, size, mtime_ns of every path including `.git`); uncommitted edits survive, including under SIGKILL |
+| Accepted residual risks | Listed under "Residual risks" below. Crash-leftover reconciliation is a PP-014 obligation |
 
 **Owner authorization (2026-10-12):** start PP-005, beginning with Git remediation.
 
@@ -154,7 +181,7 @@ unchanged.
   still refuses any clash.
 - Single-user ownership checks only (§4.1).
 
-**Proposed PP-005 implementation commit scope** (awaiting approval; nothing staged):
+**PP-005 implementation commit scope** (committed as `c8128a7`):
 - `src/patchproof/git/`: `__init__.py`, `command.py`, `errors.py`, `paths.py`,
   `repository.py`, `snapshot.py`;
 - `schemas/source-manifest.schema.json`;

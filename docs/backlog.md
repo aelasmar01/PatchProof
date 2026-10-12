@@ -70,7 +70,7 @@ PP-003 progress, 2026-10-11:
 
 | Issue | Work package | Completion evidence required | Status |
 |---|---|---|---|
-| PP-005 | Safe repository registration and source snapshots | No original-repo mutation; path/ref/size rejection tests | `READY_FOR_REVIEW` (2026-10-12; not committed; 7320 tests; mutation check 33/34 with 1 equivalent mutant; evidence `STATUS.md` PP-005, `docs/architecture/source-snapshots.md`) |
+| PP-005 | Safe repository registration and source snapshots | No original-repo mutation; path/ref/size rejection tests | `ACCEPTED` (2026-10-12, commit `c8128a7`; 7337 Docker-free tests; mutation check 33/34, M11 equivalent; Git 2.56.0; evidence `STATUS.md` PP-005, `docs/architecture/source-snapshots.md`) |
 | PP-006 | Reference authorization API and fixture profile | Stable vulnerable/correct/inadequate/deny-all revisions and documented ground truth | `NOT_STARTED` |
 | PP-007 | Pack validation, collection, and approval records | Exact test IDs and hashes; stale approval rejection | `NOT_STARTED` |
 | PP-008 | Target/verifier runner and typed event transport | Source/test separation; successful and deliberately interrupted runs; every owned container labelled with installation ID and run ID | `NOT_STARTED` |
