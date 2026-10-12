@@ -12,6 +12,7 @@ requires-python = "==3.13.*"
 dependencies = [
     "typer==0.27.2",        # CLI (PROJECT_SPEC.md 3.1)
     "platformdirs==4.12.0", # OS-appropriate private-state paths (PROJECT_SPEC.md 5.3)
+    "pydantic==2.13.5",     # strict record models, ADR-008 (owner-approved 2026-10-12, PP-007)
 ]
 
 [project.scripts]
@@ -45,7 +46,13 @@ addopts = "-p no:cacheprovider"
 
 [tool.mypy]
 strict = true
-files = ["src/patchproof"]
+files = ["src/patchproof", "verifier/patchproof_verifier"]
+plugins = ["pydantic.mypy"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [tool.ruff]
 line-length = 120

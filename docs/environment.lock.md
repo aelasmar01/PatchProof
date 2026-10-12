@@ -97,6 +97,23 @@ built-in `uv_build` backend; no build backend was downloaded.
 | mypy | 1.18.2 | Dev: `--strict` type checking (same version as accepted results) | github.com/python/mypy |
 | ruff | 0.14.2 | Dev: lint (same version as accepted results) | github.com/astral-sh/ruff |
 | attrs, rpds-py, jsonschema-specifications, iniconfig, pluggy, packaging, mypy-extensions, pathspec, typing-extensions | locked | Transitive dependencies of the dev tools | PyPI |
+| **pydantic** | **2.13.5** | Runtime: strict record models required by ADR-008 (PP-007; owner-approved 2026-10-12) | github.com/pydantic/pydantic (MIT); PyPI Trusted Publishing attestation from `pydantic/pydantic` `ci.yml` |
+| pydantic-core 2.46.5, annotated-types 0.8.0, typing-inspection 0.4.4 | — | Runtime dependencies of pydantic (pydantic pins pydantic-core exactly). typing-extensions 4.16.0, already locked, is now also a runtime dependency | PyPI (MIT). Attestation found for typing-inspection; none found for pydantic-core or annotated-types, so the lockfile hash is their only integrity check |
+
+**Pydantic addition (PP-007, owner-approved 2026-10-12).**
+- **Review:** done read-only on 2026-10-12, against the PyPI JSON API, OSV, and PyPI
+  provenance.
+- **Advisories:** none for any of the four packages at these versions. pydantic's two
+  historical advisories, CVE-2021-29510 and CVE-2024-3772, affect far older releases.
+- **Cooldown:** 2.13.5 (2026-08-28) is the newest stable release before the unchanged
+  `exclude-newer` date. 2.14.x is newer.
+- **Lock:** `uv lock` added exactly these four packages (23 → 27). The wheel hashes it
+  recorded equal the reviewed ones, for example pydantic
+  `346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73` and pydantic-core
+  cp313 macOS x86_64 `b7ca9034437b6022f941f4857459562ee00a560b97e7cce8a0ec5a74fc6766e0`.
+- **Install:** `uv sync --frozen` installed them with hash verification.
+- **Type checking:** mypy now uses the `pydantic.mypy` plugin and also checks
+  `verifier/patchproof_verifier`.
 
 With the dev tools held at their accepted versions, the 6923-test baseline reproduced
 exactly under 3.13.16 (see `STATUS.md`).

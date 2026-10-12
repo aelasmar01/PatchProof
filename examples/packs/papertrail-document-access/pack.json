@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "papertrail-document-access",
+  "pack_version": "1.0.0",
+  "title": "PaperTrail private documents are readable only by their owner or a granted role",
+  "expectation": "An authenticated caller can read a private document only if they own it or their role is listed in the document's reader_roles. Unauthenticated and invalid-token requests are refused. A disclosure is witnessed by the document's synthetic protected marker in the response body, never by a status code alone. Owners, the explicitly granted auditor role and the caller's own identity remain readable.",
+  "adapter": "python-asgi-http-v1",
+  "fixture_contract": "synthetic-documents-v1",
+  "tests": [
+    {"id": "AUTH-001", "nodeid": "tests/test_documents.py::test_nonowner_cannot_read_private_document", "kind": "security", "baseline_expected": "VIOLATION_CONFIRMED", "candidate_expected": "SECURE"},
+    {"id": "AUTH-002", "nodeid": "tests/test_documents.py::test_unauthenticated_read_is_refused", "kind": "security", "baseline_expected": "SECURE", "candidate_expected": "SECURE"},
+    {"id": "AUTH-003", "nodeid": "tests/test_documents.py::test_role_grant_does_not_extend_to_other_documents", "kind": "security", "baseline_expected": "VIOLATION_CONFIRMED", "candidate_expected": "SECURE"},
+    {"id": "AUTH-004", "nodeid": "tests/test_documents.py::test_invalid_token_is_refused", "kind": "security", "baseline_expected": "SECURE", "candidate_expected": "SECURE"},
+    {"id": "FUNC-001", "nodeid": "tests/test_documents.py::test_owner_reads_own_document", "kind": "functional", "baseline_expected": "PASS", "candidate_expected": "PASS"},
+    {"id": "FUNC-002", "nodeid": "tests/test_documents.py::test_granted_auditor_reads_listed_document", "kind": "functional", "baseline_expected": "PASS", "candidate_expected": "PASS"},
+    {"id": "FUNC-003", "nodeid": "tests/test_documents.py::test_second_owner_reads_own_document", "kind": "functional", "baseline_expected": "PASS", "candidate_expected": "PASS"},
+    {"id": "FUNC-004", "nodeid": "tests/test_documents.py::test_caller_reads_own_identity", "kind": "functional", "baseline_expected": "PASS", "candidate_expected": "PASS"}
+  ],
+  "repetitions": {"pairs": 1, "fixture_seed_policy": "same-within-pair-different-between-pairs"},
+  "limits": {"max_response_bytes": 262144, "case_timeout_seconds": 20}
+}

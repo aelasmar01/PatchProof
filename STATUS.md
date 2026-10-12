@@ -1,7 +1,7 @@
 # STATUS
 
-**Updated:** 2026-10-12 (**PP-006 `ACCEPTED` by owner**, implementation commit `4b8f288`, local
-only; PP-005 `ACCEPTED` and pushed, `origin/main` = `aa3a0a3`; v0.0 foundation release `ACCEPTED`)
+**Updated:** 2026-10-12 (**PP-007 `READY_FOR_REVIEW`**, uncommitted; Pydantic 2.13.5 added under
+owner approval; PP-006 `ACCEPTED` and pushed, `origin/main` = `22c43dd`)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -9,14 +9,151 @@ only; PP-005 `ACCEPTED` and pushed, `origin/main` = `aa3a0a3`; v0.0 foundation r
 ## Current release and issue
 
 **Release:** v0.1 — Useful CLI verification
-**Issue:** PP-006 — Reference authorization API and fixture profile
-**State:** `ACCEPTED` by owner, 2026-10-12. Committed locally (`4b8f288`); not pushed or
-tagged.
-**Next issue:** PP-007 (pack validation, collection, and approval records), `NOT_STARTED`.
-It requires separate owner authorization.
+**Issue:** PP-007 — Pack validation, collection, and approval records
+**State:** `READY_FOR_REVIEW`, 2026-10-12. Not committed, pushed or tagged. **No pack is
+approved.** Real verifier collection and the verifier image are pending PP-008.
+**Previous issue:** PP-006, `ACCEPTED` and pushed (`aa3a0a3..22c43dd`, ordinary
+fast-forward, 2026-10-12).
 **Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 and PP-006
 are libraries and fixtures with no CLI workflow yet (PP-009). PaperTrail has **not been
 executed**; its expected behavior is declared and checked statically only.
+
+## PP-007 — `READY_FOR_REVIEW` (2026-10-12)
+
+**Owner authorization (2026-10-12):**
+- push PP-006, then implement PP-007 only;
+- approve the Pydantic 2.13.5 dependency plan exactly as proposed;
+- do not approve a pack on the owner's behalf;
+- no containers, images, PaperTrail execution, PP-008, commit, push or tag.
+
+**Dependency change (approved plan, applied as proposed):**
+- **`pyproject.toml`:** `pydantic==2.13.5` added; mypy uses the `pydantic.mypy` plugin and
+  also checks `verifier/patchproof_verifier`.
+- **`uv lock`:** added exactly pydantic 2.13.5, pydantic-core 2.46.5, annotated-types 0.8.0
+  and typing-inspection 0.4.4 (23 → 27 packages). The recorded hashes equal the reviewed
+  ones.
+- **`uv sync --frozen`:** installed them with hash verification.
+- **Cooldown:** the `exclude-newer` date is unchanged.
+- **Record:** `docs/environment.lock.md` §3.1.
+
+**What was built** (details in `docs/architecture/packs-and-approvals.md`):
+- **Strict loader and models:** `core/strict_json.py`, and `core/records/` with strict,
+  closed, frozen Pydantic models for all 12 record contracts.
+- **Pack validation:** `packs/validation.py`. It is static and never imports pack code;
+  hashes are computed over the manifest and the whole pack tree, and the fixture copy must
+  match its contract hash.
+- **Collection:** `packs/collection.py` builds the fixed verifier-side collection plan and
+  checks that the collection is exact at review time and in the approved order at run time.
+- **Approvals:** `core/approvals.py` provides immutable approval records with an explicit
+  typed confirmation, an append-only store, supersession, and staleness for every binding.
+- **Outcome rules:** `core/outcomes.py` implements lifecycle and semantic derivation, rules
+  L1–L11.
+- **Verifier helpers:** `verifier/patchproof_verifier/` holds
+  `check.secure/violation/inconclusive`, bounded evidence, the authorization witnesses, the
+  hash-checked fixture copy, path checks and the collection plugin. `verifier/pytest.ini` is
+  the PatchProof-owned configuration.
+- **Pack:** `examples/packs/papertrail-document-access/` covers the eight PP-006 checks.
+  - manifest `sha256:a4c4ce48d5d2aaa512c746e7ba90d06fd76e879de3a3dea5280079531a8804c8`
+  - pack tree `sha256:529d3cd3ebf307586dcecef43a0df8ab9b55296849182f8f43c4ad7d6a8a6c31`
+
+**Validation (pinned environment, 2026-10-12):**
+- **Full unit suite:** **7964 passed**, 0 failed, 0 skipped. That is 7439 + 525 PP-007
+  tests: 260 parity and loader tests, 61 outcome tests, 95 verifier-helper tests, 73 pack and
+  collection tests, and 36 approval tests.
+- **mypy `--strict`:** clean, 48 files, including `verifier/`.
+- **Ruff:** clean on all new and changed code. `ruff check .` still reports the 11
+  pre-existing E501 lines.
+- **Lockfile:** `uv lock --check` is consistent.
+- **JSON Schema / Pydantic parity (ADR-008 condition):**
+  - 160 corpus records (all valid and invalid examples, the JSONL stream, and all 26
+    scenarios), **0 disagreements**.
+  - Full differential run: 223,815 mutations, **0** cases of a model accepting what a
+    schema rejects and 0 unexplained differences. 2,606 differences are model-stricter only
+    (trailing newline, integral float), as documented.
+  - The unit suite runs a bounded deterministic sample every time.
+- **Fixed during development:**
+  - Pydantic `Literal[False]`/`Literal[True]` accepted `0`/`1` in strict mode, which made the
+    model more permissive than the schema on 3 fields. They are now strict booleans with an
+    identity check.
+  - The first mutation run showed that a file swapped for a FIFO between `lstat` and
+    `open` would block pack validation, or the approval store, forever. Both now open with
+    `O_NONBLOCK` and re-check the opened descriptor with `fstat`. A race test, run in a
+    watchdog thread, covers it.
+- **PaperTrail pack against PP-006 (synthetic):** the helpers judge synthetic responses
+  shaped like PaperTrail's documented replies, and all 32 check × revision combinations give
+  the declared outcome. This is not an observation of PaperTrail running.
+- **Final mutation check** (owner's final review, 2026-10-12; scratch log
+  `scratchpad/pp007/mut-final-review.log`, not committed). It covered the 33 original
+  mutants plus 2 for the new store-root controls, all on the final sources. The baseline
+  passed under the identical command (524 tests), and all 20 source files were
+  hash-verified after restoration. **34/35 caught.**
+  - **M00–M25 and M27–M32 (the original 33 except M26):** all caught. That includes M14,
+    the post-open identity check, which is now caught by
+    `test_file_swapped_for_another_same_size_file_after_lstat_is_refused`.
+  - **M33 and M34 (the new store-root identity and `O_NOFOLLOW` controls):** caught by the
+    replaced-root and symlinked-root tests.
+  - **M26 survives and is equivalent.** It replaces
+    `elif call.failure_class == "assertion": FAIL` with `else: FAIL` for a functional test.
+    An exhaustive comparison over every valid block found **0** differences between the
+    original and the mutant:
+    - 12 setup × 14 call × 10 teardown valid reports;
+    - 0–2 observations;
+    - complete and truncated blocks;
+    - both test kinds;
+    - 3,320 blocks in all.
+
+    The code-level reason is that L6, L7 and L9 route every other failed-call class away
+    from `COMPLETED`, and the report model forbids `failure_class: none` on a failed report.
+    `test_functional_fail_is_reachable_only_through_an_assertion` pins this reachability
+    invariant. The explicit check is kept as a redundant layer.
+
+**Final review findings (2026-10-12):**
+- **R1 (fixed):** `ApprovalStore` checked its root once, at construction, and later
+  operations re-resolved the path. A root swapped for a symlink or another directory would
+  have been followed. Every operation now opens the root with `O_DIRECTORY|O_NOFOLLOW`,
+  checks the device, inode, owner and mode, and creates, lists and reads entries relative to
+  that descriptor. Three tests were added.
+- **R2 (PP-008 obligation):** validation hashes the pack as it was read. The runner must mount
+  exactly those bytes, or re-hash what it mounts and refuse a mismatch.
+- **Documentation:** it now states that the static pack checks are not a sandbox.
+- **Reviewed with no change needed:**
+  - `tests/conftest.py` only adds `verifier/` to `sys.path`; the plugin is never registered
+    with the host pytest.
+  - Pack code cannot reach the plugin's recorder, because `_private` attribute access is
+    refused.
+  - A second terminal call raises `HelperMisuse`.
+  - HTTP errors and failed requests are never violations: a 500 is inconclusive, and an
+    exception is `CALL_ERROR`.
+
+**Edits to existing accepted files:**
+- `tests/conftest.py`: adds `verifier/` to `sys.path` (additive).
+- `pyproject.toml` and `uv.lock`: the approved dependency change.
+- No assertion in an accepted test was changed. `test_schemas.py` and the verdict engine
+  are unchanged.
+
+**Not executed, and not claimed:**
+- no verifier image, container, collection or HTTP request;
+- no PaperTrail execution;
+- **no pack approval**: none exists, and a test asserts that no `apr-*.json` is present;
+- no run-authorization record (PP-009).
+
+**Pending, for PP-008 and PP-009:**
+- **Verifier image:** pytest, `patchproof_verifier`, `pytest.ini`, and an HTTP client
+  library (§3.1 names HTTPX). This needs owner approval and pinned hashes.
+- **Plugin transport and event channel:** session, phase reports with `failure_class`,
+  observations, session end.
+- **Collector:** grammar checks, then `derive_outcome`.
+- **First real collection:** `collection_plan` run in the container, checked with
+  `review_collection`.
+- **Approval:** only then, the owner's explicit approval through the PP-009 CLI.
+- **Run time:** `check_run_collection` against the approved list.
+
+**Limits of this design:**
+- **Narrow pack policy:** the static checks (imports, no `try`/`with`, no decorators) are a
+  deliberately narrow v1 policy.
+- **Reviewer identity:** it is only locally asserted.
+- **Approval files:** they are protected by convention and permissions, not by cryptography
+  (ADR-007).
 
 ## PP-006 — `ACCEPTED` by owner (2026-10-12)
 
@@ -1117,13 +1254,12 @@ gate checklist `docs/evidence/v0.0-release-gate.md`; C4 run
 | v0.0-CLOSEOUT | 2026-10-12 | C1–C3 commit `62887bf`; C4 run `run-883e1a62b93ced171a8cd9275ceb9a66` (82/82); evidence commit `d1bcbfc`; 7008 unit tests |
 | **v0.0 release** | **2026-10-12** | `docs/evidence/v0.0-release-gate.md` |
 | PP-005 | 2026-10-12 | commit `c8128a7`; acceptance `aa3a0a3` (pushed); 7337 unit tests |
-| PP-006 | 2026-10-12 | commit `4b8f288` (local); 7439 unit tests; `docs/architecture/papertrail-reference.md` |
+| PP-006 | 2026-10-12 | commit `4b8f288`; acceptance `22c43dd` (pushed); 7439 unit tests; `docs/architecture/papertrail-reference.md` |
 
 ## Next permitted issue
 
-**PP-006 is `ACCEPTED`** (commits `4b8f288` and the acceptance commit; both local only).
-PP-007 is the next planned issue. It is **not started** and needs separate owner
-authorization. Pushing these commits also needs owner approval.
+**PP-007 is `READY_FOR_REVIEW`** (see above). PP-008 is next. It needs separate owner
+authorization, and its verifier image and HTTP client need dependency approval.
 
 ## Failed tests, risks, and blockers
 
