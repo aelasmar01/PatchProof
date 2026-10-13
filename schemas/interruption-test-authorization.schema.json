@@ -1,0 +1,342 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:interruption-test-authorization:1.0",
+  "title": "Interruption-test authorization record",
+  "description": "PP-008. The owner's explicit, single-use permission for ONE deliberate interruption demonstration: the baseline revision only, at most two containers (the target started, the verifier created and inspected but never started), and one SIGTERM from the dedicated controller to its own runner child at the reviewed synchronization point. It is not a run authorization and can never authorize a comparison, a candidate execution, a retry or a SIGKILL. Records are immutable; an unused authorization may be superseded, never edited. This is workflow accountability, not proof of a separate human reviewer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "authorization_id",
+    "created_at",
+    "supersedes",
+    "single_use",
+    "plan_sha256",
+    "plan",
+    "reviewer",
+    "rationale",
+    "scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion"
+    },
+    "kind": {
+      "const": "interruption-test-authorization"
+    },
+    "authorization_id": {
+      "type": "string",
+      "pattern": "^iau-[0-9a-f]{32}$"
+    },
+    "created_at": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/timestamp"
+    },
+    "supersedes": {
+      "description": "An unused interruption-test authorization this one replaces, or null.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^iau-[0-9a-f]{32}$"
+        }
+      ]
+    },
+    "single_use": {
+      "const": true
+    },
+    "plan_sha256": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+    },
+    "plan": {
+      "description": "The frozen interruption-test plan. plan_sha256 is the SHA-256 of its canonical JSON (sorted keys, no whitespace).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_kind",
+        "run_id",
+        "installation_id",
+        "pack_approval_id",
+        "pack",
+        "profile",
+        "images",
+        "sources",
+        "source_inclusion",
+        "fixture",
+        "revision",
+        "containers",
+        "interruption",
+        "expected_outcome",
+        "runtime",
+        "evidence"
+      ],
+      "properties": {
+        "plan_kind": {
+          "const": "papertrail-interruption-sigterm-baseline-v1"
+        },
+        "run_id": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/runId"
+        },
+        "installation_id": {
+          "type": "string",
+          "pattern": "^inst-[0-9a-f]{32}$"
+        },
+        "pack_approval_id": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/approvalId"
+        },
+        "pack": {
+          "$ref": "urn:patchproof:schema:run-authorization:1.0#/properties/plan/properties/pack"
+        },
+        "profile": {
+          "$ref": "urn:patchproof:schema:run-authorization:1.0#/properties/plan/properties/profile"
+        },
+        "images": {
+          "$ref": "urn:patchproof:schema:run-authorization:1.0#/properties/plan/properties/images"
+        },
+        "sources": {
+          "description": "The baseline revision only; there is no candidate source.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baseline"
+          ],
+          "properties": {
+            "baseline": {
+              "$ref": "urn:patchproof:schema:run-authorization:1.0#/properties/plan/properties/sources/properties/baseline"
+            }
+          }
+        },
+        "source_inclusion": {
+          "$ref": "urn:patchproof:schema:run-authorization:1.0#/properties/plan/properties/source_inclusion"
+        },
+        "fixture": {
+          "description": "Owner decision D1: the fixed synthetic fixture, exact hash, no seed.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "fixture_contract",
+            "fixture_sha256",
+            "seed"
+          ],
+          "properties": {
+            "mode": {
+              "const": "fixed-fixture-v0.1-exception"
+            },
+            "fixture_contract": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier"
+            },
+            "fixture_sha256": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+            },
+            "seed": {
+              "type": "null"
+            }
+          }
+        },
+        "revision": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pair",
+            "side",
+            "candidate_execution",
+            "automatic_retry"
+          ],
+          "properties": {
+            "pair": {
+              "const": 1
+            },
+            "side": {
+              "const": "baseline"
+            },
+            "candidate_execution": {
+              "const": false
+            },
+            "automatic_retry": {
+              "const": false
+            }
+          }
+        },
+        "containers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_creations",
+            "max_started",
+            "target",
+            "verifier",
+            "cleanup"
+          ],
+          "properties": {
+            "max_creations": {
+              "const": 2
+            },
+            "max_started": {
+              "const": 1
+            },
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "network",
+                "input_mount",
+                "start"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^pp-run-[0-9a-f]{12}-p1-baseline-target$"
+                },
+                "network": {
+                  "const": "none"
+                },
+                "input_mount": {
+                  "const": "source-snapshot-read-only-at-/app/source"
+                },
+                "start": {
+                  "const": "after-pre-start-inspection-gate"
+                }
+              }
+            },
+            "verifier": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "network",
+                "input_mount",
+                "start"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "pattern": "^pp-run-[0-9a-f]{12}-p1-baseline-verifier$"
+                },
+                "network": {
+                  "const": "container:exact-target-id"
+                },
+                "input_mount": {
+                  "const": "pack-read-only-at-/pack"
+                },
+                "start": {
+                  "const": "never"
+                }
+              }
+            },
+            "cleanup": {
+              "const": "exact-id-ownership-reverified-graceful-stop-then-remove-force-only-if-running"
+            }
+          }
+        },
+        "interruption": {
+          "description": "One SIGTERM from the controller to its own child process at the synchronization point; never SIGKILL, never a retry.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "stage",
+            "signal",
+            "signals_sent",
+            "escalation",
+            "channel",
+            "synchronization_wait_seconds",
+            "checkpoint_report_timeout_seconds",
+            "cleanup_timeout_seconds",
+            "automatic_retry"
+          ],
+          "properties": {
+            "stage": {
+              "const": "baseline-target-ready"
+            },
+            "signal": {
+              "const": "SIGTERM"
+            },
+            "signals_sent": {
+              "const": 1
+            },
+            "escalation": {
+              "const": "none"
+            },
+            "channel": {
+              "const": "controller-child-pipe-v1"
+            },
+            "synchronization_wait_seconds": {
+              "const": 30
+            },
+            "checkpoint_report_timeout_seconds": {
+              "const": 600
+            },
+            "cleanup_timeout_seconds": {
+              "const": 600
+            },
+            "automatic_retry": {
+              "const": false
+            }
+          }
+        },
+        "expected_outcome": {
+          "description": "Expectations to compare against, never results. Lifecycle exit code per PROJECT_SPEC.md 13.2.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "lifecycle",
+            "evidence_status",
+            "cleanup_status",
+            "verdict",
+            "decision_rule",
+            "lifecycle_exit_code"
+          ],
+          "properties": {
+            "lifecycle": {
+              "const": "INTERRUPTED"
+            },
+            "evidence_status": {
+              "const": "INCOMPLETE"
+            },
+            "cleanup_status": {
+              "const": "COMPLETE"
+            },
+            "verdict": {
+              "const": "INCONCLUSIVE"
+            },
+            "decision_rule": {
+              "const": "V-05"
+            },
+            "lifecycle_exit_code": {
+              "const": 20
+            }
+          }
+        },
+        "runtime": {
+          "$ref": "urn:patchproof:schema:run-authorization:1.0#/properties/plan/properties/runtime"
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "destination"
+          ],
+          "properties": {
+            "destination": {
+              "description": "Relative to the PatchProof user data directory.",
+              "type": "string",
+              "pattern": "^evidence/interruption-tests/run-[0-9a-f]{32}$"
+            }
+          }
+        }
+      }
+    },
+    "reviewer": {
+      "$ref": "urn:patchproof:schema:run-authorization:1.0#/properties/reviewer"
+    },
+    "rationale": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+    },
+    "scope": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+    }
+  }
+}

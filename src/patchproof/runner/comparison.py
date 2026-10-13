@@ -13,7 +13,9 @@
    `pack_integrity` post-execution. Streams that are MALFORMED or IDENTITY_MISMATCH fail
    `result_provenance`; the engine enforces this as well (G1).
 4. **Verdict.** Assemble the verdict input from host-collected facts only, and evaluate it
-   with the accepted PP-004 engine, which is unchanged.
+   with the accepted PP-004 engine, which is unchanged. `evaluated_at` may be a function: it
+   is then called immediately before the engine evaluates, so the record carries the real
+   evaluation time rather than the comparison's start.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from ..core.verdicts import evaluate
 from .cleanup import OwnershipRegistry
 from .docker_cli import Executor
 from .inputs import InputIntegrityError, verify_pack_snapshot
-from .revision import Clock, RevisionResult, execute_revision
+from .revision import Checkpoint, Clock, RevisionResult, execute_revision
 from .run_plan import APPROVED_RUN_IMAGES, ApprovedRunImage, RunPlan, check_preconditions
 
 PRECONDITIONS = ("authorization", "pack_integrity", "source_identity", "environment_identity", "result_provenance")
@@ -80,19 +82,21 @@ def _no_gate(pair: int, side: str, started: bool) -> RevisionGate | None:
 
 
 def run_comparison(executor: Executor, plan: RunPlan, approvals: Iterable[ApprovalRecord],
-                   registry: OwnershipRegistry, *, clock: Clock, evaluated_at: str,
+                   registry: OwnershipRegistry, *, clock: Clock, evaluated_at: str | Callable[[], str],
                    approved_images: Iterable[ApprovedRunImage] = APPROVED_RUN_IMAGES,
                    cancel: Callable[[], bool] = lambda: False,
                    before_revision: Callable[[int, str, bool], RevisionGate | None] = _no_gate,
                    continue_after: Callable[[RevisionResult], bool] = lambda result: True,
-                   on_revision: Callable[[RevisionResult], None] = lambda result: None) -> ComparisonResult:
+                   on_revision: Callable[[RevisionResult], None] = lambda result: None,
+                   checkpoint: Checkpoint | None = None) -> ComparisonResult:
     """Run preconditions, revisions and the verdict.
 
     The three optional hooks default to no effect. `before_revision` re-validates inputs
     immediately before each revision; `continue_after` lets a scheduling policy stop before
     the next revision (the run then ends `interrupted`, so its evidence is incomplete and can
     never be `VERIFIED_FOR_CASES`); `on_revision` receives each result as soon as it exists,
-    so it can be persisted before the next revision starts.
+    so it can be persisted before the next revision starts. `checkpoint` is for the
+    interruption test only (`execute_revision`); no production caller passes it.
     """
     preconditions = check_preconditions(plan, approvals, approved_images)
     preconditions["result_provenance"] = Precondition(state="PASSED", detected_phase=None, reason_codes=[])
@@ -113,12 +117,16 @@ def run_comparison(executor: Executor, plan: RunPlan, approvals: Iterable[Approv
                     name, code = gate.failure
                     preconditions[name] = _failed("post_execution" if started else "pre_execution", code)
                     break
-                result = execute_revision(executor, plan, pair, side, registry, clock=clock, cancel=cancel)
+                result = execute_revision(executor, plan, pair, side, registry, clock=clock, cancel=cancel,
+                                          checkpoint=checkpoint)
                 revisions.append(result)
                 on_revision(result)
                 started = started or result.execution.started
                 if result.execution.canceled:
                     termination = "canceled"
+                if result.interruption is not None:  # interruption test only: never set in production
+                    termination = "interrupted"
+                    break
                 if result.precondition_failure is not None:
                     name, code = result.precondition_failure
                     preconditions[name] = _failed("post_execution" if started else "pre_execution", code)
@@ -142,5 +150,6 @@ def run_comparison(executor: Executor, plan: RunPlan, approvals: Iterable[Approv
         preconditions["result_provenance"] = Precondition(state="NOT_EVALUATED", detected_phase=None,
                                                           reason_codes=[])
     verdict_input = build_verdict_input(plan, preconditions, revisions, termination)
-    verdict = evaluate(parse_verdict_input(verdict_input.model_dump()), evaluated_at)
+    parsed = parse_verdict_input(verdict_input.model_dump())
+    verdict = evaluate(parsed, evaluated_at() if callable(evaluated_at) else evaluated_at)
     return ComparisonResult(verdict_input=verdict_input, verdict=verdict, revisions=tuple(revisions))

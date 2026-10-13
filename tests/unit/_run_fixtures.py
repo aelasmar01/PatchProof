@@ -141,8 +141,10 @@ def declared_outcomes(revision: str) -> dict[str, str]:
 
 def ok(op: DockerOp, stdout: bytes = b"", **extra: Any) -> CommandResult:
     return CommandResult(op_name=op.op_name, argv=tuple(op.argv_tail()), returncode=extra.pop("returncode", 0),
-                         stdout=stdout, stderr=b"", stdout_truncated=extra.pop("stdout_truncated", False),
-                         stderr_truncated=False, timed_out=extra.pop("timed_out", False), duration_seconds=0.0)
+                         stdout=stdout, stderr=extra.pop("stderr", b""),
+                         stdout_truncated=extra.pop("stdout_truncated", False),
+                         stderr_truncated=extra.pop("stderr_truncated", False),
+                         timed_out=extra.pop("timed_out", False), duration_seconds=0.0)
 
 
 def fail(op: DockerOp, stderr: bytes = b"error") -> CommandResult:
@@ -248,6 +250,9 @@ class FakeDocker:
     stopped: set[str] = field(default_factory=set)
     started: set[str] = field(default_factory=set)
     target_logs: bytes = b"INFO started\n{\"type\":\"session_end\"}\n"
+    target_stderr: bytes = b"INFO:     Uvicorn running on http://127.0.0.1:8080\n"
+    verifier_console: bytes = b"PASSED tests/test_x.py::test_a\n"
+    logs_fail: bool = False
 
     def _cid(self, role: RunRole) -> str:
         return ("c" if role is RunRole.TARGET else "d") + format(len(self.created) + 1, "063x")
@@ -296,13 +301,16 @@ class FakeDocker:
             if self.on_attach is not None:
                 self.on_attach(self.specs[op.container.value].side)
             out = self.streams.get(self.specs[op.container.value].side, self.verifier_stdout)
-            return ok(op, out, returncode=None if self.verifier_timeout else self._exit(op.container.value),
+            return ok(op, out, stderr=self.verifier_console,
+                      returncode=None if self.verifier_timeout else self._exit(op.container.value),
                       timed_out=self.verifier_timeout, stdout_truncated=self.verifier_truncated)
         if isinstance(op, Stop):
             self.stopped.add(op.container.value)
             return ok(op)
         if isinstance(op, Logs):
-            return ok(op, self.target_logs)
+            if self.logs_fail:
+                return fail(op, b"Error response from daemon: synthetic log read failure")
+            return ok(op, self.target_logs, stderr=self.target_stderr)
         if op.op_name in ("remove", "force-remove"):
             self.removed.append(op.argv_tail()[-1])
             return ok(op)

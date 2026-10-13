@@ -27,7 +27,13 @@ validation)
 | `core/records/authorization.py`, `schemas/run-authorization.schema.json` | The run-authorization contract 1.0 and its frozen plan document |
 | `core/run_authorizations.py` | Semantic checks, the confirmation phrases, creation, the private store, supersession of unused records, and the single-use claim |
 | `runner/papertrail_plan.py` | Recomputes the one frozen plan kind `papertrail-authz-r1-r3-one-pair-v1` from the real private artifacts |
-| `runner/run_evidence.py` | Exclusive private evidence directory, write-once files, the Docker operation journal and the four-creation budget, inventory capture and reconciliation by identity |
+| `runner/run_evidence.py` | Exclusive private evidence directory, write-once files, the metadata-only Docker operation journal (`docker-ops-v2`) with bounded output artifacts and the creation budget, inventory capture and reconciliation by identity |
+| `runner/interruption_point.py` | Interruption-test synchronization: the child's checkpoint and the controller's single SIGTERM; not reachable from any production driver |
+| `core/records/interruption.py`, `schemas/interruption-test-authorization.schema.json` | The separate interruption-test authorization contract 1.0 (baseline only, two containers, one SIGTERM) |
+| `core/interruption_authorizations.py` | Its semantic checks, phrases, creation, the separate private store, supersession of unused records, and the single-use claim naming the controller |
+| `runner/interruption_plan.py` | Recomputes the one plan kind `papertrail-interruption-sigterm-baseline-v1` (r1 only) from the real private artifacts |
+| `runner/interruption_run.py` | Executes one claimed interruption test: baseline only (four guards), the checkpoint, evidence, the lifecycle/verdict/exit-code classification |
+| `interruption_authorization.py`, `interruption_test.py`, `interruption_child.py` | Owner-operated: authorize the test once; the controller that runs it once; the runner child only the controller starts |
 | `runner/authorized_run.py` | Executes one claimed authorization: per-revision re-validation, the D2 baseline stop, evidence, inventories; separate evidence, lifecycle and cleanup states |
 | `runner/interrupts.py` | SIGINT, SIGTERM and SIGHUP become one interrupt so cleanup and finalization run; repeats are ignored |
 | `runner/run_recovery.py` | Read-only assessment of one consumed run's containers; exact-ID removal of verified owned ones |
@@ -299,15 +305,53 @@ execution failure: the candidate runs and the engine classifies it (for example
 `O_EXCL`, fsynced, and hard-linked into place, so it is complete or absent and never
 overwritten. Journals are append-only and fsynced per line. Contents: the claim, the
 authorization bytes, the frozen plan, the pack approval and its history, both source
-manifests, the collection, the inventories and their reconciliation, every Docker operation
-(argv, exit, timing, output hash and size; create, inspect and listing output inline; never
-the verifier stream or target logs), the ownership journal, the re-validation log, per side
-the execution record, observation cells, the raw verifier stream (`verifier-stream-…bin`, the
-only event channel) and the untrusted target log (`untrusted-target-log-…log`, never parsed),
-cleanup outcomes, the verdict input and verdict, and `outcome.json`. `manifest.json` is
+manifests, the collection, the inventories and their reconciliation, the Docker operation
+journal (below), the ownership journal, the re-validation log, per side the execution record,
+observation cells, the raw verifier stream (`verifier-stream-…bin`, the only event channel),
+the untrusted target stdout and stderr (`untrusted-target-stdout-…log`,
+`untrusted-target-stderr-…log`) and verifier console (`untrusted-verifier-console-…log`), never
+parsed, cleanup outcomes, the verdict input and verdict, and `outcome.json`. `manifest.json` is
 written last with the hash of every file: `FINALIZED`, or `INCOMPLETE` after a handled
 failure. No manifest means a crash; the partial files remain. A file above 64 MiB or a
 journal line above 1 MiB is refused (above the schema's 50 MiB result-cap maximum).
+
+**Output routing (evidence hardening, 2026-10-13).** The first live run showed two routing
+defects: Uvicorn writes to stderr while only the target's stdout was saved (its
+`untrusted-target-log-…log` files were empty and the stderr sat inline in the journal), and
+the verifier's pytest console (its stderr) was inline in the journal too. That run's evidence
+is kept exactly as recorded. For later runs:
+
+| Stream | Cap | Stored as | Parsed |
+|---|---|---|---|
+| verifier stdout (event channel) | result cap + 1 | `verifier-stream-<tag>.bin` | yes, by the collector only |
+| verifier stderr (pytest console, client errors) | 1 MiB | `untrusted-verifier-console-<tag>.log` | never |
+| target stdout | 5 MiB | `untrusted-target-stdout-<tag>.log` | never |
+| target stderr | 5 MiB | `untrusted-target-stderr-<tag>.log` | never |
+| any other Docker CLI output (inspect, listings, client errors) | per operation (64 KiB stderr) | `docker-ops-<seq>-<stream>.out`, 96 MiB total per journal | by the host's own gates only, never as events |
+
+Each stream has its own enforced cap (`run_bounded`; `Logs` and `StartAttached` declare a
+`stderr_cap`, bounded and checked). `revision-<tag>.json` records, per untrusted output, the
+capture status (`CAPTURED`, `CAPTURE_FAILED`, `NOT_ATTEMPTED`), size, SHA-256, truncation
+and artifact name. A failed read is `CAPTURE_FAILED` with no file, never an empty file, and
+makes the evidence `INCOMPLETE`.
+
+**Operation journal (`docker-ops-v2`).** Metadata only: per operation a `requested` line, then
+a `completed` line (UTC start and end with microseconds, monotonic duration, the client's own
+duration, exit code, `EXITED` or `TIMED_OUT`, and per stream its class, byte count, SHA-256,
+cap, truncation, storage state and artifact) or an `interrupted` line (`finished_at: null`,
+never an invented end). Raw bytes never appear in it. `verify_evidence` checks every v2 line's
+keys and every stored artifact's hash and size. Lines without `format` are the earlier inline
+format (`v1`, the first live run); they are reported by `journal_format`, not as problems.
+A journal or artifact write that fails is collected, never raised: cleanup always proceeds.
+After a journal failure, `create`, `start` and `start-attached` are refused, while inspection,
+stop and removal continue; the evidence is `INCOMPLETE`.
+
+**Timestamps.** `outcome.json.timestamps` holds `execution_started_at` (before the first
+Docker operation), `evaluated_at` (read when the engine evaluates, after the last revision's
+cleanup; it equals `verdict.json`), `execution_finished_at` (after the after-inventory) and
+`order` (`CONSISTENT` or `INCONSISTENT`; a backward clock is reported, never corrected). In
+the first live run `evaluated_at` was read at the comparison's start, so it records when the
+comparison began; that record is not rewritten. The engine and its rules are unchanged.
 
 **Three separate states (spec 8.2).** `outcome.json` keeps:
 - *evidence status*: `FINALIZED` only when the engine evaluated the run, no exception or
@@ -385,6 +429,139 @@ run the owner selects by typing its run ID. It is not the general PP-014 recover
   assessment, operation journals, cleanup results, manifest). The run's own evidence is only
   read.
 
+## Retained response evidence (what a run can and cannot show)
+
+- **Observed by the trusted verifier, inside its container:** for each security test, the
+  status code, whether the protected document's own marker appeared in the body, and the
+  caller identity; for each functional test, the pack's assertions (exact IDs, owner,
+  content, role, no token echo).
+- **Preserved in structured evidence:** the event stream (`verifier-stream-…bin`): per test
+  the setup, call and teardown reports with outcome and failure class, and one observation
+  per security test with its classification and attested facts. `evidence_refs` are empty:
+  the plugin attests the facts, it does not store the response.
+- **Recomputable by an independent audit:** the stream's integrity and grammar, every cell
+  from the stream, the verdict input from the records, the verdict from the engine, and the
+  match with the declared table.
+- **Not reconstructible:** the response bodies and headers themselves. Whether a marker was
+  really present, or a functional body really matched, rests on the verifier's attested
+  observation, not on retained bytes. Raw responses are not retained by default (synthetic
+  tokens and markers would otherwise be stored); changing that needs a plugin, pack or event
+  schema change and a new approval, and is not proposed here.
+- **Scope:** `VERIFIED_FOR_CASES` covers the selected tests on the bound revisions, fixture
+  and environment. It is not a claim of comprehensive application security.
+
+## Interruption test (implemented Docker-free; never executed)
+
+PP-008 needs one deliberately interrupted live run. The ordinary run authorization cannot
+express it and is not reinterpreted: a separate, versioned contract, store and pair of
+commands exist for it alone. None has been used: no real interruption authorization exists
+and no interruption run has executed.
+
+**Contract** (`interruption-test-authorization` 1.0; strict JSON, closed Pydantic model and
+JSON Schema with model/schema parity tests). The record binds a unique run ID and `iau-` ID,
+the current pack approval, pack, profile, approved r2 images, fixture hash and runtime limits
+(the pack, profile, image, source and runtime sections reference the `run-authorization` 1.0
+definitions unchanged), the r1 commit, tree and snapshot hashes, and the canonical plan hash,
+with the locally asserted reviewer, rationale, scope and time. Fixed by the schema, so no
+record can authorize more:
+- `revision`: pair 1, baseline, `candidate_execution: false`, `automatic_retry: false`; no
+  candidate identity exists in the plan (the schema rejects a `sources.candidate` key);
+- `containers`: `max_creations: 2`, `max_started: 1`; the target `--network none` with the
+  source read-only and started after its inspection gate; the verifier joined to the exact
+  target with the pack read-only and `start: never`; exact-ID cleanup;
+- `interruption`: stage `baseline-target-ready`, one `SIGTERM`, `escalation: none`, the
+  controller-child pipe, a 30 s synchronization wait, 600 s report and cleanup timeouts, no
+  retry;
+- `expected_outcome`: `INTERRUPTED`, `INCOMPLETE`, cleanup `COMPLETE`, `INCONCLUSIVE` by
+  `V-05`, lifecycle exit code 20 (expectations, never results);
+- evidence under `evidence/interruption-tests/<run-id>`.
+
+**Store** (`<user data>/interruption-authorizations/`): the accepted run-authorization
+discipline, unchanged: 0700, owner check, no symlink traversal, a stable device and inode,
+exclusive 0400 records, strict validation, an `O_EXCL`, fsynced claim before any child
+exists, no reuse, no retry, supersession only of the single unused record. The claim also
+records the claiming controller's PID. The two stores refuse each other's files.
+
+**Commands.**
+- `python -I -m patchproof.interruption_authorization` (owner, foreground terminal, no
+  arguments or `PATCHPROOF*` variables): recomputes the plan, shows the images, r1 snapshot,
+  budget, signal behavior, why no verified-fix result is possible, cleanup and residual
+  risks; asks identity, rationale and scope; requires
+  `AUTHORIZE INTERRUPTION TEST <run-id> <plan-sha256>`; revalidates; writes and verifies.
+- `python -I -m patchproof.interruption_test` (owner, same gate, separate Docker approval):
+  revalidates, requires `INTERRUPT <run-id>`, claims, then starts exactly one child
+  `python -I -m patchproof.interruption_child <run-id> <fd>` with one inherited pipe, its own
+  interpreter, a validated run ID and an explicit environment (`HOME`, `PATH=/usr/bin:/bin`,
+  `LC_ALL`/`LANG=C`; nothing inherited). It is the only module besides the reviewed Docker,
+  probe and Git wrappers allowed to import `subprocess` (exact path, owner-approved
+  2026-10-13), and it has no Docker client.
+- The child refuses unless the claim names its parent PID and the recomputed plan equals the
+  frozen plan. There is no option, flag or environment variable that selects the test mode,
+  and the ordinary driver has no parameter that reaches it.
+
+**Synchronization** (`runner/interruption_point.py`). `execute_revision` calls the checkpoint
+with facts it has established itself (`CheckpointState`). The child reports only for pair 1,
+baseline, the target started and `READY`, and the verifier created and through its
+inspection gate but not started; any other state reports nothing and aborts. The report is
+one fixed JSON line (stage, run ID, PID, both container IDs, target readiness, verifier
+state, and `send_by_monotonic`: the end of the child's wait minus a margin, on the
+system-wide monotonic clock). The controller checks every key and value, including that the
+PID is its own unreaped child and that the send-by time has not passed, and sends one SIGTERM
+through the process handle; otherwise nothing. The child waits at most 30 s; with no signal
+it aborts the same way (fail closed). The send-by time keeps a stalled controller from
+signalling a child that has already begun its abort cleanup.
+
+**Container budget and guards.** Four independent guards keep the candidate out, each
+tested with the ones before it disabled: `continue_after` stops after the baseline;
+`before_revision` refuses any candidate (`interrupt`); the private engine adapter
+(`interruption_plan._BaselineOnlyEnginePlan`) has no candidate source or stream and refuses
+before anything is created; the recorder refuses a third creation before Docker. Only the
+target starts.
+
+**No candidate identity anywhere.** The accepted engine's `RunPlan` dataclass has a
+candidate slot; the adapter fills it with the very same baseline object, so the engine's
+precondition check re-verifies only the baseline. Nothing is written from that slot: the
+authorization, plan, verdict input and outcome name the baseline alone, and a test checks
+that no stored byte mentions the candidate's tag, commit or tree.
+
+**Result classification** (owner correction, 2026-10-13; PP-004 decision table unchanged).
+`execute_revision` records a signal (or abort) raised at the checkpoint as the revision's
+`interruption`, never starts the verifier, removes both containers by exact ID and returns;
+`run_comparison` then ends the run `interrupted` and the accepted engine evaluates the
+recorded execution:
+
+| | Reviewed interruption | Signal elsewhere (abrupt) |
+|---|---|---|
+| lifecycle | `INTERRUPTED` | `INTERRUPTED` |
+| evidence status | `INCOMPLETE` (always, by design) | `INCOMPLETE` |
+| cleanup | `COMPLETE` only if every created ID has a verified removal and is absent from a complete after-inventory | same |
+| verdict | `INCONCLUSIVE`, rule `V-05` (required observations missing) | none: the engine did not run |
+| lifecycle exit code (13.2) | 20 | 20 |
+
+A precondition failure before anything starts is `BLOCKED` (exit 21). `VERIFIED_FOR_CASES`,
+or `BLOCKED` after execution started, is never recorded as the verdict; an engine result like
+that is reported as an evidence failure. The controller's own harness exit code is separate:
+0 expected outcome observed exactly, 1 deviation, 3 claimed but no child ran, 2 refused.
+
+**Evidence.** The child's directory holds the frozen plan, authorization and claim, the
+before and after inventories, the metadata-only operation journal, the ownership journal,
+`execution-…`, `revision-…` (with `interruption`), the empty event stream, the target's
+untrusted output, `verdict-input.json`, `verdict.json`, `interruption.json` (report, signal
+observed, timings) and `outcome.json` (states, exit code, IDs, removals, deviations from the
+expected outcome); its manifest status is always `INCOMPLETE`. The controller writes its own
+record (`evidence/interruption-controller/<run-id>/controller.json`: delivery, child PID,
+lifecycle exit code, durations, the check of the child's evidence). `recover_run` lists
+consumed interruption-test authorizations too.
+
+**A child that does not exit** within the cleanup timeout is reported, never killed: no
+further signal, no Docker operation (the controller has none), the child's evidence is not
+read while it may still be written, cleanup is not confirmed, the controller record stays
+`INCOMPLETE`, and the output names the container IDs from the child's report and the
+`recover_run` step (recovery finds the containers by their fixed names and the child's
+ownership journal). The same recovery note is shown whenever cleanup is not confirmed.
+
+**Not covered.** A SIGKILL of the child (cleanup then needs `recover_run`).
+
 ## Docker-free evidence
 
 | Test file | What it shows |
@@ -400,6 +577,8 @@ run the owner selects by typing its run ID. It is not the general PP-014 recover
 | `test_run_authorization_store.py` | the schema example is hash-consistent; semantic rules the schema cannot express; strict loading; the exact phrase; the store's save, claim, supersession and run-ID rules; damaged, loose, symlinked or replaced stores refused; all three entry points refuse piped input, arguments and `PATCHPROOF*` variables, and fail closed in a real foreground pseudo-terminal; the reusable contract accepts a revision against itself while `check_first_run_scope` refuses it, swapped sides, another tree and another tag |
 | `test_authorized_run.py` | the plan binds every full identity and equals the PP-006 record; refusal of a missing or stale approval, a wrong fixture hash, substituted images, a bad installation ID, a missing pack copy, two pairs, ambiguous or modified snapshots, an invalid run ID and a changed runtime policy; the authorization command's display, phrase, statement and change-detection rules, supersession and run-ID reuse, and distinct post-write failure; drift after authorization blocks before the claim with no Docker operation; single use; two competing claimers; crashes before and after the claim; an indeterminate claim; D2 stops for startup failure, crash, OOM, timeout, truncation, abnormal exit, target exit and malformed, truncated, absent, identity-mismatched and over-cap streams; uncertain cleanup; a trusted baseline with unexpected outcomes still runs the candidate; candidate preparation failure; approval, claim, snapshot and policy drift during the baseline; a daemon restart; target-log text never becomes an event; the complete evidence set, its hashes and modes; no overwrite; incomplete evidence after an exception; an incomplete before-inventory is `BLOCKED` with no container; the four-creation budget; reconciliation by identity. Security review additions: the driver refuses a same-revision authorization; the D2 boundary agrees with the public engine for 13 faults; real SIGINT, SIGTERM and SIGHUP clean up, finalize `INCOMPLETE` and ignore a repeat; a real SIGKILL (child process) leaves a consumed claim, journaled IDs and no manifest; evidence-write failures stop before the candidate or keep the engine verdict without establishing it (`NOT_FIXED` and `VERIFIED_FOR_CASES`); a trusted violation survives a cleanup failure; an incomplete after-inventory; file and line bounds; `verify_evidence` and verdict recomputation; the fixed-fixture limitation; candidate timeout, OOM, crash or absent stream is never a regression; a trusted deny-all is; a restart after the candidate, unchanged IDs as no proof, unexplained changes, Docker unavailable before the candidate, and the daemon vanishing during it |
 | `test_run_recovery.py` | confirmed cleanup removes exactly the verified owned containers and never touches others; nothing without the typed phrase; foreign labels, an extra run container, a missing journal or an unreachable daemon refuse all cleanup; a change after confirmation refuses; failed removal is incomplete; nothing to remove after a clean run; no store, no claim, unknown run IDs; never resumes or re-authorizes; an interrupt; the allowlist refuses create, start, attach, logs and wait; recovery after a real SIGKILL |
+| `test_run_evidence_hardening.py` | target stdout/stderr and verifier console carrying synthetic tokens, markers and a complete valid event stream never reach the journal or any metadata file and never become events; per-stream caps in `run_bounded` and the Docker client; truncation and failed captures recorded (failed capture is `INCOMPLETE`); journal keys, UTC timestamps, monotonic durations, no invented end for an interrupted operation; the output budget and write failures recorded; a journal failure never blocks cleanup and refuses new containers; `verify_evidence` detects a changed output artifact and smuggled raw keys while v1 lines stay readable; `evaluated_at` read at evaluation and ordered between start and finish, a backward clock reported; the interruption point: configuration refusals, a single stage, single use, a real SIGTERM at the checkpoint removing both baseline containers with no verifier start, fail-closed timeout and broken channel, the two-container budget, unreachability from production, the current contract refusing such a plan; the controller with real child processes: one SIGTERM to its own child, nothing for a wrong run, a foreign PID, a silent or exited child; after an interrupted run the authorization is spent and recovery finds nothing; recovery with a failed journal write finalizes `INCOMPLETE`; a verdict time other than the recorded evaluation time is `INCOMPLETE`; a pipe placed on a standard stream is still refused; the checkpoint reports nothing in any state but the reviewed one; the controller refuses a report that is late, lacks its send-by time, has an extra key, a not-ready target or a started verifier |
+| `test_interruption_test.py` | the interruption contract: example hash, the two contracts never accept each other, 13 broader-execution attempts refused by the model, semantic rules; the plan binds only r1 and the approved images; the store's single use, eight simultaneous claimers with one winner, a crash during the claim (consumed, controller and child refuse), partial, corrupt, foreign, stray and mismatched-claim stores refused, the ordinary store refusing interruption records, mode and replaced-directory refusals, supersession of unused records only, strict claim parsing; the owner command's display, wrong phrases (including the ordinary ones), the phrase as rationale, empty identity, input change during review, non-interactive refusal of both commands; the driver: the reviewed SIGTERM gives `INTERRUPTED`/`INCOMPLETE`/`COMPLETE`/`INCONCLUSIVE`/`V-05`/20 with two creations, one start and consistent evidence; a signal before the checkpoint leaves no verdict and nothing finalized; no signal fails closed; an unverified verifier is `BLOCKED` before any start (21); a target that never becomes ready reports nothing; the candidate gate, the engine adapter and the creation budget each hold alone; no stored byte names the candidate's tag, commit or tree; any unverified cleanup outcome fails cleanup; an engine `VERIFIED_FOR_CASES`, `BLOCKED` or `NOT_FIXED` is never presented; cleanup and evidence-write failures are reported; the 13.2 exit-code table; the child's single argument form, refusal of another process's claim, of another run and of stale inputs; the controller refusing stale inputs and a wrong phrase without claiming; **a real controller and real child process end to end** (exit 0, child 20, one SIGTERM, consistent evidence, no retry, recovery finds nothing); a child that does not exit (a real local process ignoring SIGTERM) is reported, never killed or re-signalled, its evidence unread, cleanup unconfirmed and the controller record `INCOMPLETE`, with the recovery step shown; wrong, missing or late reports send nothing; a claim changed before the baseline is `BLOCKED` with no container; the child never runs twice; a failed child start leaves the authorization consumed; harness and lifecycle exit codes kept apart; the ordinary path cannot select the test mode; the fixed child argv, its explicit environment and argument validation; no general process interface in the controller (AST check) |
 | `test_pack_approval_supersede.py` | supersession keeps every earlier record byte-for-byte and links the replacement; the current record and its statement are shown before any prompt; one current approval across repeated supersession; refusal of stale bindings, a wrong phrase, the phrase as rationale or scope, empty or ended input, a missing store or current approval, and store or binding changes before the write; a failed write leaves the original current; a failure after the write is exit 4, never success; non-interactive invocation refused |
 
 ## Not done and not claimed
@@ -407,9 +586,11 @@ run the owner selects by typing its run ID. It is not the general PP-014 recover
 - No real verifier collection, image, container, or HTTP request to PaperTrail.
 - No PaperTrail pack approval. Every approval in the tests is synthetic, in a temporary
   directory. Only the owner can create one, with `patchproof.pack_approval`.
-- No real run authorization, and no live comparison. Every authorization, claim and evidence
-  directory in the tests is synthetic and temporary. Only the owner can create one, with
-  `patchproof.run_authorization`, and execute it, with `patchproof.run_papertrail_once`.
+- Every authorization, claim and evidence directory in the tests is synthetic and
+  temporary. The one live comparison (2026-10-13) was created and executed by the owner;
+  see `docs/evidence/pp-008-first-live-comparison.md`.
+- No live interruption test, and no real interruption-test authorization. The contract,
+  store, commands and driver are implemented and tested Docker-free only.
 - `APPROVED_RUN_IMAGES` holds only the gate-B r2 images.
 - **Docker Desktop specifics are unverified until gate C:** for example, whether
   `Mounts[].Source` is reported as the host path, and the health-state field names. The

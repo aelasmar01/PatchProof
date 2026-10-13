@@ -12,7 +12,9 @@ verdict engine), through three hooks:
   re-listed: if they changed, the container runtime lost continuity (for example a Docker
   Desktop restart) and the run ends `interrupted`.
 - **After each revision:** its execution record, observation cells, the verifier's raw
-  stream, the untrusted target log and cleanup outcomes are written immediately.
+  stream, the untrusted target stdout and stderr, the untrusted verifier console and cleanup
+  outcomes are written immediately. Each output file's capture status, size, hash and
+  truncation are in `revision-<tag>.json`; a failed capture makes the evidence incomplete.
 - **Baseline failure policy (owner decision D2, 2026-10-13):** after a baseline
   execution-level failure the candidate is not started. Execution-level failure means the
   engine's own trust rule fails for the execution (readiness, termination, OOM, deadline,
@@ -31,6 +33,11 @@ stops early ends `interrupted`, so it can never be `VERIFIED_FOR_CASES`.
   `BLOCKED`, `CANCELED` or `INTERRUPTED`.
 - *cleanup status*: `COMPLETE` only when every container this run created is absent from a
   complete after-inventory; otherwise `FAILED`, which needs `patchproof.recover_run`.
+
+**Timestamps (UTC, microseconds).** `timestamps.execution_started_at` is taken before the
+first Docker operation, `evaluated_at` when the engine evaluates (after the last revision),
+and `execution_finished_at` after the after-inventory. Their order is checked and reported;
+none of them is ever adjusted or invented.
 
 `verdict` is set only when the evidence is finalized (`verdict_established`). The engine's
 evaluation is always kept as `engine_verdict` and in `verdict.json`, so a trusted candidate
@@ -69,7 +76,15 @@ from .papertrail_plan import (
 )
 from .policy import PolicyViolation
 from .revision import Clock, RevisionResult
-from .run_evidence import EvidenceError, Inventory, RecordingExecutor, RunEvidence, capture_inventory, reconcile
+from .run_evidence import (
+    EvidenceError,
+    Inventory,
+    RecordingExecutor,
+    RunEvidence,
+    capture_inventory,
+    reconcile,
+    utc_stamp,
+)
 
 CLEANUP_VERIFIED: Final = frozenset({CleanupStatus.REMOVED, CleanupStatus.FORCE_REMOVED})
 
@@ -122,8 +137,14 @@ class RunOutcome:
     notes: list[str] = field(default_factory=list)
 
 
-def _stamp(now: datetime) -> str:
-    return now.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+def timestamp_order(started: str | None, evaluated: str | None, finished: str | None) -> str:
+    """`CONSISTENT` when started <= evaluated <= finished (absent values are skipped)."""
+    present = [t for t in (started, evaluated, finished) if t is not None]
+    if not present:
+        return "UNAVAILABLE"
+    instants = [datetime.strptime(t, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=UTC) if "." in t
+                else datetime.strptime(t, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC) for t in present]
+    return "CONSISTENT" if instants == sorted(instants) else "INCONSISTENT"
 
 
 def _canonical(value: Any) -> bytes:
@@ -136,6 +157,7 @@ def execute_authorized_run(env: RunEnvironment, stored: RunAuthorization, stored
     plan_doc = stored.plan
     run_id = plan_doc.run_id
     notes: list[str] = []
+    timestamps: dict[str, str | None] = {"execution_started_at": utc_stamp(now()), "evaluated_at": None}
     evidence.write("claim.json", claim_raw)
     evidence.write("authorization.json", stored_raw)
     evidence.write("plan.json", _canonical(plan_doc.model_dump(mode="json")) + b"\n")
@@ -147,7 +169,7 @@ def execute_authorized_run(env: RunEnvironment, stored: RunAuthorization, stored
         evidence.write(f"source-manifest-{side}.json", raw)
     evidence.write_json("collection.json", [c.model_dump() for c in assembled.plan.collection])
 
-    recorder = RecordingExecutor(executor, evidence)
+    recorder = RecordingExecutor(executor, evidence, wall_clock=now)
     before = capture_inventory(recorder)
     evidence.write_json("inventory-before.json", before.document())
 
@@ -219,13 +241,25 @@ def execute_authorized_run(env: RunEnvironment, stored: RunAuthorization, stored
         evidence.write(f"observations-{tag}.jsonl",
                        b"".join(_canonical(c.model_dump(mode="json")) + b"\n" for c in result.stream.cells))
         evidence.write(f"verifier-stream-{tag}.bin", result.raw_stream)
-        evidence.write(f"untrusted-target-log-{tag}.log", result.target_log)
+        outputs: dict[str, Any] = {}
+        for prefix, captured in (("untrusted-target-stdout", result.target_stdout),
+                                 ("untrusted-target-stderr", result.target_stderr),
+                                 ("untrusted-verifier-console", result.verifier_console)):
+            name = f"{prefix}-{tag}.log" if captured.capture == "CAPTURED" else None
+            if name is not None:
+                evidence.write(name, captured.data)
+            outputs[prefix] = {"capture": captured.capture, "detail": captured.detail, "artifact": name,
+                               "bytes": len(captured.data), "truncated": captured.truncated,
+                               "sha256": "sha256:" + hashlib.sha256(captured.data).hexdigest()}
+        failed = [p for p, o in outputs.items() if o["capture"] == "CAPTURE_FAILED"]
+        if failed:  # recorded, never presented as empty output
+            evidence_failures.append(f"pair {result.pair} {result.side}: output capture failed: {failed}")
         evidence.write_json(f"revision-{tag}.json", {
             "pair": result.pair, "side": result.side, "notes": list(result.notes),
             "precondition_failure": list(result.precondition_failure) if result.precondition_failure else None,
             "stream_status": result.stream.status, "verifier_stream_bytes": len(result.raw_stream),
             "verifier_stream_sha256": "sha256:" + hashlib.sha256(result.raw_stream).hexdigest(),
-            "target_log_truncated": result.target_log_truncated,
+            "untrusted_outputs": outputs,
             "cleanup": [{"name": c.name, "container_id": c.container_id, "status": c.status.value,
                          "detail": c.detail} for c in result.cleanup],
             "execution_failure_reasons": execution_failure_reasons(result, cap),
@@ -234,19 +268,25 @@ def execute_authorized_run(env: RunEnvironment, stored: RunAuthorization, stored
     def continue_after(result: RevisionResult) -> bool:
         if result.side != "baseline":
             return True  # nothing follows the candidate; its evidence state is judged in `_finish`
-        if evidence_failures:
-            stop.setdefault("reason", "EVIDENCE_WRITE_FAILED: " + "; ".join(evidence_failures))
+        if evidence_failures or recorder.failures:
+            stop.setdefault("reason", "EVIDENCE_WRITE_FAILED: " + "; ".join([*evidence_failures,
+                                                                             *recorder.failures]))
             return False
         reasons = execution_failure_reasons(result, cap)
         if reasons:
             stop.setdefault("reason", "D2_BASELINE_EXECUTION_FAILURE: " + ", ".join(reasons))
         return not reasons
 
+    def evaluation_time() -> str:
+        stamp = utc_stamp(now())  # read when the engine evaluates, not when the comparison starts
+        timestamps["evaluated_at"] = stamp
+        return stamp
+
     comparison: ComparisonResult | None = None
     exception: str | None = None
     try:
         comparison = run_comparison(recorder, assembled.plan, assembled.approvals.values(), registry, clock=clock,
-                                    evaluated_at=_stamp(now()), approved_images=env.approved_images,
+                                    evaluated_at=evaluation_time, approved_images=env.approved_images,
                                     before_revision=before_revision, continue_after=continue_after,
                                     on_revision=on_revision)
     except KeyboardInterrupt as exc:  # Ctrl-C, or SIGTERM/SIGHUP via runner.interrupts
@@ -265,15 +305,21 @@ def execute_authorized_run(env: RunEnvironment, stored: RunAuthorization, stored
                 evidence_failures.append(f"{name}: {type(exc).__name__}: {exc}")
     return _finish(evidence, recorder, before, comparison, registry, stop_reason=stop.get("reason"),
                    notes=notes, exception=exception, evidence_failures=evidence_failures,
-                   continuity=continuity, run_id=run_id, stored=stored)
+                   continuity=continuity, run_id=run_id, stored=stored, timestamps=timestamps, now=now)
 
 
 def _finish(evidence: RunEvidence, recorder: RecordingExecutor, before: Inventory,
             comparison: ComparisonResult | None, registry: OwnershipRegistry, *,
             stop_reason: str | None, notes: list[str], exception: str | None, evidence_failures: list[str],
-            continuity: dict[str, str], run_id: str, stored: RunAuthorization) -> RunOutcome:
+            continuity: dict[str, str], run_id: str, stored: RunAuthorization,
+            timestamps: dict[str, str | None], now: Callable[[], datetime]) -> RunOutcome:
     after = capture_inventory(recorder)
     evidence_failures = list(evidence_failures)
+    finished_at = utc_stamp(now())
+    times = {**timestamps, "execution_finished_at": finished_at}
+    times["order"] = timestamp_order(times["execution_started_at"], times["evaluated_at"], finished_at)
+    if comparison is not None and comparison.verdict["evaluated_at"] != times["evaluated_at"]:
+        evidence_failures.append("the verdict's evaluated_at is not the recorded evaluation time")
     try:
         evidence.write_json("inventory-after.json", after.document())
     except (EvidenceError, OSError) as exc:
@@ -292,6 +338,7 @@ def _finish(evidence: RunEvidence, recorder: RecordingExecutor, before: Inventor
     cleanup_complete = after.complete and not remaining and all(c.status in CLEANUP_VERIFIED for c in known)
     engine = comparison.verdict if comparison else None
     termination = comparison.verdict_input.run_termination if comparison else None
+    evidence_failures.extend(recorder.failures)
     complete = (engine is not None and exception is None and not evidence_failures
                 and before.complete and after.complete)
     if engine is not None and engine["verdict"] == "BLOCKED":
@@ -327,6 +374,7 @@ def _finish(evidence: RunEvidence, recorder: RecordingExecutor, before: Inventor
                "reconciliation": reconciliation["status"],
                "daemon_restart_suspected": reconciliation["daemon_restart_suspected"],
                "daemon_continuity": daemon_continuity, "daemon_continuity_note": CONTINUITY_NOTE,
+               "timestamps": times,
                "fixture": {"mode": stored.plan.fixture.mode, "fixture_sha256": stored.plan.fixture.fixture_sha256,
                            "seed": None, "pairs": stored.plan.repetitions.pairs, "limitation": FIXTURE_LIMITATION},
                "notes": notes}

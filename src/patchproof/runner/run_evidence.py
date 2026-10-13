@@ -13,9 +13,22 @@ means the evidence is incomplete**: a crash leaves the partial files and no mani
 handled failure writes `manifest.json` with `status: INCOMPLETE` and the reason.
 
 **Trusted and untrusted bytes stay apart.** The verifier's attached standard output, the
-only event channel, is stored as `verifier-stream-<side>.bin`. Target logs are stored as
-`untrusted-target-log-<side>.log` and never parsed. The operation journal records only
-the length and hash of both, never their content.
+only event channel, is stored as `verifier-stream-<tag>.bin`. The target's stdout and stderr
+(`untrusted-target-stdout-<tag>.log`, `untrusted-target-stderr-<tag>.log`) and the
+verifier's console (`untrusted-verifier-console-<tag>.log`) are stored by the revision's
+persistence, each bounded, and never parsed.
+
+**The operation journal holds structured metadata only (format `docker-ops-v2`).** Each
+operation has a `requested` line and then a `completed` or `interrupted` line with its type,
+fixed argv, UTC wall-clock start and end (`null` end when interrupted), monotonic duration,
+exit or termination status, and the timeout and truncation flags. Output never appears in
+the journal: each stream is described by class, byte count, SHA-256, cap, truncation and
+where its bytes are stored. Docker CLI output (inspect JSON, listings, client errors) goes to
+`docker-ops-<seq>-<stream>.out` within a total output budget; the event channel, target logs
+and verifier console are stored by the revision (`stored: "REVISION_ARTIFACT"`). A journal or
+artifact write that fails is recorded in `RecordingExecutor.failures` (the run's evidence is
+then incomplete) and never stops cleanup: after a journal failure, operations that create or
+start containers are refused, while inspection, stop and removal continue.
 
 **Container budget.** `RecordingExecutor` refuses a fifth container creation before it
 reaches Docker. Exactly four are planned.
@@ -39,14 +52,16 @@ import os
 import re
 import secrets
 import stat
-from collections.abc import Iterable, Mapping
+import time
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final, Literal
 
 from ..core.verdict_input import parse_verdict_input
 from ..core.verdicts import evaluate
-from .docker_cli import CommandResult, DockerOp, Executor, SnapshotList
+from .docker_cli import DEFAULT_STDERR_CAP, CommandResult, DockerOp, Executor, SnapshotList
 from .policy import PolicyViolation
 
 MAX_CONTAINER_CREATIONS: Final = 4
@@ -58,10 +73,21 @@ MAX_DOCKER_OPERATIONS: Final = 200
 _NAME_RE: Final = re.compile(r"[a-z0-9][a-z0-9.-]{0,100}")
 _RUN_RE: Final = re.compile(r"run-[0-9a-f]{32}")
 _RECOVERY_RE: Final = re.compile(r"rec-[0-9a-f]{32}")
-# Operation outputs kept inline in the journal: configuration evidence. Verifier output
-# (`start-attached`) and target logs (`logs`) are stored separately, by the caller.
-_INLINE_OUTPUT: Final = frozenset({"run-create", "inspect", "image-inspect", "snapshot", "stop", "remove",
-                                   "force-remove", "start"})
+JOURNAL_FORMAT: Final = "docker-ops-v2"
+# Total bytes of Docker CLI output a run may store as `docker-op-*` artifacts. Each output is
+# already capped per operation; this bounds the sum. Beyond it, output is hashed and counted
+# but not stored, and the run's evidence is incomplete.
+MAX_DOCKER_OUTPUT_BYTES: Final = 96 * 1024 * 1024
+# Streams whose bytes the revision stores under its own names (never in the journal, never
+# by the recorder): class per (operation, stream).
+REVISION_STREAMS: Final[Mapping[tuple[str, str], str]] = {
+    ("start-attached", "stdout"): "verifier-event-channel",
+    ("start-attached", "stderr"): "untrusted-verifier-console",
+    ("logs", "stdout"): "untrusted-target-stdout",
+    ("logs", "stderr"): "untrusted-target-stderr",
+}
+# After a journal failure these are refused, so nothing new is created or started unrecorded.
+_REFUSED_WHEN_DEGRADED: Final = frozenset({"create", "run-create", "start", "start-attached"})
 INVENTORY_KINDS: Final = ("images", "containers", "networks", "volumes")
 BUILTIN_NETWORKS: Final = ("bridge", "host", "none")
 
@@ -242,6 +268,9 @@ def verify_evidence(directory: Path) -> dict[str, Any]:
             problems.append(f"{name}: content differs from the manifest")
         if name.startswith(".tmp-"):
             problems.append(f"{name}: a partial write was left behind")
+    for name in present:
+        if name.startswith("docker-ops") and name.endswith(".jsonl"):
+            problems.extend(check_operation_journal(directory, name))
     if (directory / "verdict-input.json").is_file() and (directory / "verdict.json").is_file():
         try:
             recorded = json.loads((directory / "verdict.json").read_bytes())
@@ -256,38 +285,180 @@ def verify_evidence(directory: Path) -> dict[str, Any]:
 
 # ------------------------------------------------------------------ Docker operation journal
 
+_STREAM_KEYS: Final = frozenset({"bytes", "sha256", "truncated", "cap", "artifact", "class", "stored"})
+_LINE_KEYS: Final = {
+    "requested": frozenset({"format", "seq", "op", "argv_tail", "started_at", "phase"}),
+    "completed": frozenset({"format", "seq", "op", "argv_tail", "started_at", "phase", "finished_at",
+                            "monotonic_duration_seconds", "client_duration_seconds", "returncode", "timed_out",
+                            "termination", "stdout", "stderr"}),
+    "interrupted": frozenset({"format", "seq", "op", "argv_tail", "started_at", "phase", "finished_at",
+                              "monotonic_duration_seconds", "termination", "exception_type"}),
+}
+
+
+def check_operation_journal(directory: Path, name: str) -> list[str]:
+    """Structural check of a `docker-ops-v2` journal: metadata keys only, no output bytes, and
+    every stored output artifact present with its recorded hash and size. Read-only.
+
+    Lines without `format` are the earlier format (v1, which kept Docker output inline); they
+    are reported by `journal_format`, not as problems, so earlier evidence stays readable as
+    it was recorded.
+    """
+    problems: list[str] = []
+    for number, raw in enumerate((directory / name).read_bytes().splitlines(), 1):
+        try:
+            line = json.loads(raw)
+        except ValueError:
+            problems.append(f"{name} line {number}: not JSON")
+            continue
+        if not isinstance(line, dict) or line.get("format") is None:
+            continue
+        where = f"{name} line {number}"
+        if line.get("format") != JOURNAL_FORMAT or line.get("phase") not in _LINE_KEYS:
+            problems.append(f"{where}: unknown format or phase")
+            continue
+        if set(line) != _LINE_KEYS[line["phase"]]:
+            problems.append(f"{where}: unexpected keys {sorted(set(line) ^ _LINE_KEYS[line['phase']])}")
+            continue
+        for stream in ("stdout", "stderr") if line["phase"] == "completed" else ():
+            described = line[stream]
+            if not isinstance(described, dict) or set(described) != _STREAM_KEYS:
+                problems.append(f"{where}: {stream} description has unexpected keys")
+                continue
+            artifact = described["artifact"]
+            if described["stored"] == "STORED":
+                path = directory / str(artifact)
+                if not isinstance(artifact, str) or not _NAME_RE.fullmatch(artifact) or not path.is_file():
+                    problems.append(f"{where}: {stream} artifact missing")
+                    continue
+                data = path.read_bytes()
+                if _sha256(data) != described["sha256"] or len(data) != described["bytes"]:
+                    problems.append(f"{where}: {stream} artifact differs from the journal")
+            elif artifact is not None:
+                problems.append(f"{where}: {stream} names an artifact it did not store")
+    return problems
+
+
+def journal_format(directory: Path, name: str = "docker-ops.jsonl") -> str:
+    """`docker-ops-v2`, `v1` (the earlier inline-output format), `mixed` or `absent`."""
+    path = directory / name
+    if not path.is_file():
+        return "absent"
+    formats = {json.loads(raw).get("format", "v1") for raw in path.read_bytes().splitlines() if raw.strip()}
+    return formats.pop() if len(formats) == 1 else ("absent" if not formats else "mixed")
+
+
+
+def utc_stamp(moment: datetime) -> str:
+    """RFC 3339 UTC with microseconds, as the verdict engine's timestamp grammar accepts."""
+    if moment.tzinfo is None:
+        raise ValueError("timestamps must be timezone-aware")
+    return moment.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+
+
+def _system_now() -> datetime:
+    return datetime.now(UTC)
+
 
 @dataclass
 class RecordingExecutor:
-    """Wraps the real executor: journals every operation and enforces the container budget."""
+    """Wraps the real executor: journals every operation and enforces the container budget.
+
+    The journal never holds output bytes (see the module docstring). Evidence-writing
+    failures are collected in `failures`, never raised, so they cannot stop cleanup.
+    """
 
     inner: Executor
     evidence: RunEvidence
     journal: str = "docker-ops.jsonl"
+    max_creations: int = MAX_CONTAINER_CREATIONS
+    wall_clock: Callable[[], datetime] = _system_now
     creations: int = 0
     operations: int = 0
+    stored_output_bytes: int = 0
     results: list[CommandResult] = field(default_factory=list)
+    failures: list[str] = field(default_factory=list)
+
+    @property
+    def degraded(self) -> bool:
+        """True after the journal itself could not be written."""
+        return any(f.startswith("journal:") for f in self.failures)
 
     def run(self, op: DockerOp) -> CommandResult:
+        if not 1 <= self.max_creations <= MAX_CONTAINER_CREATIONS:
+            raise PolicyViolation("the container budget must be between one and four")
         if self.operations >= MAX_DOCKER_OPERATIONS:
             raise PolicyViolation("the run exceeded its Docker operation bound")
+        if self.degraded and op.op_name in _REFUSED_WHEN_DEGRADED:
+            raise PolicyViolation(f"the operation journal is unavailable; {op.op_name} is refused")
         if op.op_name in ("run-create", "create"):
-            if self.creations >= MAX_CONTAINER_CREATIONS:
-                raise PolicyViolation("the authorized run may create at most four containers")
+            if self.creations >= self.max_creations:
+                count = ("one", "two", "three", "four")[self.max_creations - 1]
+                raise PolicyViolation(f"the authorized run may create at most {count} containers")
             self.creations += 1
         self.operations += 1
-        entry: dict[str, Any] = {"seq": self.operations, "op": op.op_name, "argv_tail": op.argv_tail()}
-        self.evidence.append_line(self.journal, {**entry, "phase": "requested"})
-        result = self.inner.run(op)
-        entry.update({"phase": "completed", "returncode": result.returncode, "timed_out": result.timed_out,
-                      "stdout_truncated": result.stdout_truncated, "duration_seconds": result.duration_seconds,
-                      "stdout_bytes": len(result.stdout), "stdout_sha256": _sha256(result.stdout),
-                      "stderr": result.stderr[:4096].decode("utf-8", "replace")})
-        if op.op_name in _INLINE_OUTPUT:
-            entry["stdout"] = result.stdout.decode("utf-8", "replace")
-        self.evidence.append_line(self.journal, entry)
+        seq = self.operations
+        entry: dict[str, Any] = {"format": JOURNAL_FORMAT, "seq": seq, "op": op.op_name,
+                                 "argv_tail": op.argv_tail(), "started_at": self._now()}
+        self._append({**entry, "phase": "requested"})
+        started = time.monotonic()
+        try:
+            result = self.inner.run(op)
+        except BaseException as exc:
+            # Interrupted (a signal) or refused inside the executor: no end time is invented.
+            self._append({**entry, "phase": "interrupted", "finished_at": None,
+                          "monotonic_duration_seconds": round(time.monotonic() - started, 6),
+                          "termination": "INTERRUPTED" if isinstance(exc, KeyboardInterrupt) else "RAISED",
+                          "exception_type": type(exc).__name__})
+            raise
+        entry.update({
+            "phase": "completed", "finished_at": self._now(),
+            "monotonic_duration_seconds": round(time.monotonic() - started, 6),
+            "client_duration_seconds": result.duration_seconds, "returncode": result.returncode,
+            "timed_out": result.timed_out, "termination": "TIMED_OUT" if result.timed_out else "EXITED",
+            "stdout": self._output(seq, op, "stdout", result.stdout, result.stdout_truncated, op.stdout_cap),
+            "stderr": self._output(seq, op, "stderr", result.stderr, result.stderr_truncated,
+                                   getattr(op, "stderr_cap", DEFAULT_STDERR_CAP)),
+        })
+        self._append(entry)
         self.results.append(result)
         return result
+
+    def _now(self) -> str | None:
+        try:
+            return utc_stamp(self.wall_clock())
+        except (ValueError, OverflowError, OSError) as exc:
+            self.failures.append(f"clock: {type(exc).__name__}")
+            return None
+
+    def _append(self, line: Mapping[str, Any]) -> None:
+        try:
+            self.evidence.append_line(self.journal, line)
+        except (EvidenceError, OSError) as exc:
+            self.failures.append(f"journal: {self.journal} line {line.get('seq')} {line.get('phase')}: "
+                                 f"{type(exc).__name__}")
+
+    def _output(self, seq: int, op: DockerOp, stream: str, data: bytes, truncated: bool,
+                cap: int) -> dict[str, Any]:
+        described: dict[str, Any] = {"bytes": len(data), "sha256": _sha256(data), "truncated": truncated,
+                                     "cap": cap, "artifact": None}
+        revision_class = REVISION_STREAMS.get((op.op_name, stream))
+        if revision_class is not None:
+            return {**described, "class": revision_class, "stored": "REVISION_ARTIFACT"}
+        described["class"] = "docker-cli-output"
+        if not data:
+            return {**described, "stored": "EMPTY"}
+        if self.stored_output_bytes + len(data) > MAX_DOCKER_OUTPUT_BYTES:
+            self.failures.append(f"output: op {seq} {stream} not stored: output budget exhausted")
+            return {**described, "stored": "NOT_STORED_BUDGET"}
+        name = f"{self.journal.removesuffix('.jsonl')}-{seq:04d}-{stream}.out"
+        try:
+            self.evidence.write(name, data)
+        except (EvidenceError, OSError) as exc:
+            self.failures.append(f"output: op {seq} {stream}: {type(exc).__name__}")
+            return {**described, "stored": "WRITE_FAILED"}
+        self.stored_output_bytes += len(data)
+        return {**described, "stored": "STORED", "artifact": name}
 
 
 # ------------------------------------------------------------------ inventory

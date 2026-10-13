@@ -6,7 +6,15 @@ equality, owner-operated `patchproof.pack_approval`); the owner approved the Pap
 (`apr-f30bd94302802ad9aa8b394be066d1fa`), whose rationale and scope held the confirmation phrase; the
 owner superseded it (current `apr-f4b493f9be53db6b0eff607f79508a65`). Single-use run authorization, the
 PaperTrail driver and evidence capture are implemented Docker-free; the final run-authorization security review
-added signal-safe interruption and a limited recovery command (local checkpoint commit; not pushed); no run is authorized.
+added signal-safe interruption and a limited recovery command (local checkpoint commit `b2cdedd`; not pushed). The owner
+then ran the first live comparison (`run-036553ef…`): independently audited read-only, `VERIFIED_FOR_CASES` (V-09)
+reproduced; a live deliberately interrupted run is still outstanding. Evidence hardening (target-log and
+console routing, metadata-only operation journal, real `evaluated_at`) and a deterministic interruption-test
+mechanism are implemented Docker-free. The owner then authorized the separate interruption-test contract:
+implemented Docker-free (contract, store, owner command, controller, child, driver); after the final
+interruption security review (explicit child environment, exact subprocess allowlist, private baseline-only
+engine adapter, nonterminating-child handling) both are in one local checkpoint commit (not pushed);
+READY_FOR_REVIEW; no real interruption authorization exists and nothing ran.
 Gate A done; gate B COMPLETE; **gate C collection and protocol validation COMPLETED
 with a documented C1b exception**: C1a PASS; C1b FAIL, owner-adjudicated ACCEPTED_FOR_C2_PROGRESSION; C2 PASS.
 PP-007 is `ACCEPTED` and pushed, `origin/main` = `d85b6db`)
@@ -62,6 +70,156 @@ execute; loading and outcomes are unaffected.
 1. the owner's PaperTrail pack approval decision (PP-007 workflow);
 2. the first live baseline/candidate comparison (separate approval; plan in `run-images.md` §7);
 3. host pytest 9.0.3 remediation (delta prepared in `environment.lock.md`; not executed).
+
+## PP-008 final interruption security review and checkpoint (2026-10-13); READY_FOR_REVIEW
+
+Owner-approved architecture and narrow subprocess exception; one local checkpoint commit
+authorized conditionally. The live interruption demonstration is NOT authorized and was not
+run: no Docker command, no PaperTrail execution, no real interruption authorization, no signal
+to any Docker-backed process. PP-008 stays `IN_PROGRESS`.
+
+| Item | Result |
+|---|---|
+| Subprocess exception | `tests/unit/test_docker_cli.py`: the rule is one predicate, `subprocess_allowed`; the PP-003 basename entries (`docker_cli.py`, `isolation_probe.py`) are unchanged; exact project paths `src/patchproof/git/command.py` and `src/patchproof/interruption_test.py`. Ten negative cases (same filename elsewhere, case variants, suffix tricks) are refused; a second test pins the exact set of importing modules (four). The controller: one `subprocess.Popen` call (AST check), no `shell`, no `os.kill`/`killpg`/`exec*`/`fork`/`spawn*`/`importlib`, no Docker client; argv is this interpreter, `-I -m patchproof.interruption_child`, a regex-validated run ID and a descriptor in 3..9999; **explicit environment** `HOME`, `PATH=/usr/bin:/bin`, `LC_ALL`/`LANG=C`, nothing inherited (new) |
+| Candidate slot | The authorization, plan, verdict input and evidence carry no candidate identity (the schema rejects `sources.candidate`; unchanged). The engine's `RunPlan` slot is filled by a private adapter `interruption_plan._BaselineOnlyEnginePlan`: the slot is the very same baseline object (the precondition check re-verifies only the baseline), and asking for a candidate source or stream raises before anything is created, a fourth independent guard. A test checks that no stored byte (authorization store or evidence) names the candidate's tag, commit or tree and that the verdict input holds baseline executions only. The ordinary `run-authorization` schema and `RunPlan` are unchanged |
+| Nonterminating child | No further signal and no Docker operation (the controller has none); the child's evidence is not read while it may still be written; cleanup is not confirmed; the controller record stays `INCOMPLETE`; the output lists the container IDs from the child's report and the `recover_run` step (recovery finds the containers by their fixed names and the child's ownership journal); the authorization stays consumed. Tested with a real local process that ignores SIGTERM (bounded wait scaled for the test) and with an exited child that left no evidence |
+| Timing | Checkpoint only at pair 1 baseline, target started and `READY`, verifier created and through its inspection gate and not started; the controller checks stage, run ID, the PID of its own unreaped child, both IDs, readiness, verifier state and the send-by deadline; a wrong stage (new case), run, PID, state, extra key, late or malformed deadline sends nothing; with no signal the child aborts after 30 s and never starts the verifier or a candidate; report 600 s and cleanup 600 s bounds; no retry |
+| Flaky test | `test_an_interrupt_stops_the_docker_client_process` failed under concurrent load with `FileNotFoundError` on the PID file: its fixed 1 s timer fired before the shell had started (a timing assumption, not the security property). It now interrupts only once the client has written its PID (bounded at 30 s); the property (the client process group is stopped) is unchanged. 25/25 passed on a quiet machine and 25/25 with 14 CPU-bound processes on 16 cores |
+| D10 | No longer reported as equivalent. Through the accepted registry each owned ID has exactly one cleanup outcome (`record_created` refuses a duplicate ID), so the clause is redundant on every reachable path; but it also rejects an extra or duplicate failed outcome, and a new defence-in-depth test injecting one now kills D10 |
+
+**Mutation (this round, sources and tests restored byte-identical afterwards, 118 files hashed):**
+75 interruption mutations (the previous 58, D2 re-anchored to the renumbered guard comment, plus 17 new:
+P20' checkpoint stage, E1-E4 child environment and argument validation, A1-A5 engine adapter, N1-N5
+nonterminating child, AL1-AL2 allowlist broadening): **74 of 75 killed in the pass**; the survivor A3
+("adapter accepts two pairs", masked because the base plan already caps pairs at the pack's declared one)
+was closed by an added two-pair-manifest test and then killed on re-run, so all 75 now fail their tests;
+D10 is killed (not claimed equivalent). The earlier 92-case suite re-run on this tree: 87 killed, 0
+survived, 5 no longer apply to refactored code: N21, N24 and P27 re-expressed as N21', N24', P27' and all
+three killed; P20 superseded by P20' (killed in the 75) and P24 by P3 (foreign PID, killed in the 75).
+
+**Validation:** full Docker-free suite **8,667 passed, 0 failed** (twice, on a quiet machine, before and
+after the A3 test); mypy strict clean (80 files); Ruff clean on all 23 new or modified Python files apart
+from four long lines already present in the committed `test_docker_cli.py` and `test_schemas.py`; parity and
+schema tests 585 passed. The live run still verifies `CONSISTENT`/`FINALIZED` (journal `v1`) and its plan
+recomputes to `b3b0593a…`. Owner-facing output and a synthetic stored record were captured in temporary
+directories and reviewed (record 0400 in a 0700 store; claim names the controller PID).
+
+**Preservation:** the live run `run-036553ef…` evidence and the run-authorization store are byte-, mode-, mtime-
+and inode-identical to the audit snapshot; both approval records unchanged (0400, `06f89515…`, `3b6354eb…`);
+no interruption store or interruption evidence exists in the private data directory. ADR-010 diff hash
+`8f1fc685…` and file hash `dd5cad81…` unchanged; stash list empty; the dropped stash object `885e7cce…` still
+present (checked read-only with `git cat-file -t`); home-directory repository unchanged.
+
+## PP-008 interruption authorization implementation (2026-10-13); READY_FOR_REVIEW
+
+Owner-authorized implementation only. No Docker command, no real interruption authorization
+(the private data directory has no `interruption-authorizations/` and no interruption
+evidence), no PaperTrail execution, no signal to any Docker-backed run, no package change.
+Not committed. PP-008 stays `IN_PROGRESS`; the live interruption demonstration needs a
+separate execution approval.
+
+| Item | Result |
+|---|---|
+| Result contract (owner correction) | Reviewed interruption: lifecycle `INTERRUPTED`, evidence `INCOMPLETE` (always), cleanup `COMPLETE` only when every created ID has a verified removal and is absent from a complete after-inventory, verdict `INCONCLUSIVE` by the accepted engine's `V-05`, lifecycle exit code 20 (13.2). `execute_revision` records a checkpoint signal as the revision's `interruption` and returns, so the engine evaluates the recorded execution; the PP-004 decision table is unchanged. A signal elsewhere: no verdict, `INCOMPLETE`, `INTERRUPTED`, 20. `VERIFIED_FOR_CASES`, or `BLOCKED` after start, is never recorded as the verdict. Harness exit codes (0/1/2/3) are separate from the child's lifecycle exit code. |
+| Contract | `interruption-test-authorization` 1.0 (`schemas/interruption-test-authorization.schema.json`, `core/records/interruption.py`): baseline r1 only, no candidate source, `max_creations` 2, `max_started` 1, verifier `start: never`, one SIGTERM, `escalation: none`, 30 s synchronization wait, 600 s report and cleanup timeouts, no retry, expected outcome, private evidence path; reuses the run-authorization 1.0 definitions by reference, which are unchanged. 1 valid and 22 invalid examples; model/schema parity |
+| Store | `core/interruption_authorizations.py`, `<user data>/interruption-authorizations/`: the accepted discipline (0700, owner, no symlinks, stable identity, `O_EXCL` 0400 records and claims, strict validation, history checks); the claim names the controller PID; supersession only of the single unused record; each store refuses the other's files |
+| Commands | `patchproof.interruption_authorization` (owner; display, identity/rationale/scope, `AUTHORIZE INTERRUPTION TEST <run-id> <plan-sha256>`, revalidation, verified write); `patchproof.interruption_test` (owner controller; `INTERRUPT <run-id>`, claim, one fixed child, one SIGTERM after an exact report, bounded waits, never SIGKILL, never kills a lingering child); `patchproof.interruption_child` (only argv form `<run-id> <fd>`; refuses unless the claim names its parent) |
+| Driver | `runner/interruption_run.py`: three independent candidate guards (stop after baseline, candidate gate, two-creation budget); revalidation of approval, authorization, claim and plan; evidence incl. `interruption.json` and the expected-outcome comparison; `recover_run` also lists consumed interruption-test authorizations |
+| Evidence-hardening review | Confirmed: separate bounded, hashed, untrusted target stdout/stderr and verifier console; journal metadata only; synthetic tokens/markers never in metadata; journal failure refuses create/start but not cleanup; failed capture is `INCOMPLETE`; real `evaluated_at`; UTC/monotonic operation times; no event-grammar, pack, profile or image identity change. One residual noted: Docker inspect JSON (stored as `docker-ops-*.out`, not in the journal) includes the fixed health probe's `State.Health.Log` output |
+
+**Security-test change for owner review:** `tests/unit/test_docker_cli.py`'s single-subprocess-module
+guard now also admits exactly `src/patchproof/interruption_test.py`, which starts its one fixed child
+argv with `subprocess.Popen` (no shell). The guard is otherwise unchanged.
+
+**Late-signal guard (found in self-review):** the child's report carries `send_by_monotonic` (the end of
+its 30 s wait minus a margin); the controller refuses to signal after it (`REPORT_TOO_LATE`), so a stalled
+controller can never interrupt the cleanup that follows a fail-closed abort.
+
+**Validation:** full Docker-free suite **8,647 passed, 0 failed** on a quiet machine (an earlier run
+made while other suites ran concurrently had one load-dependent failure,
+`test_an_interrupt_stops_the_docker_client_process`, a 1-second timer; it passed 3 of 3 alone and in the
+final run; and one real failure, the single-subprocess-module guard, resolved by the allowlist entry
+above). mypy strict clean (80 files); Ruff clean on all 23 new or modified Python files apart from four
+long lines already present in the committed `test_docker_cli.py` and `test_schemas.py`. Schema/model
+parity, valid and invalid examples, evidence-consistency, signal (real local processes, including a real
+controller and child end to end) and cleanup tests included. **Mutation:** interruption and authorization
+controls 57 of 58 killed in the final pass (the first pass left D12 "revalidation skips the claim" and T5
+"undelivered signal unchecked" alive, both closed by added tests; D10 "cleanup failures ignored" was
+reported as equivalent; superseded by the final review above, where a new test kills it); the 92 earlier PP-008 mutations re-run on the changed code: 87 killed, 3 re-expressed for
+refactored code and killed (N21', N24', P27'), 2 superseded by this pass (P20, P24: checkpoint state and
+foreign PID); sources verified byte-identical to the pre-mutation backup after every pass. The live run
+`run-036553ef…` is still `CONSISTENT`/`FINALIZED` (journal `v1`) and its plan recomputes to `b3b0593a…`
+(the current approval `APPROVED`); its evidence and the run-authorization store are byte-, mode-, mtime-
+and inode-identical to the audit snapshot; both approval records unchanged (0400, `06f89515…`,
+`3b6354eb…`). Not executed: Docker, PaperTrail, any real authorization, any live interruption.
+
+**Earlier process incident (recorded as the owner asked):** the stray `git stash` in the previous step was
+popped at once with no conflicts; ADR-010's contents were restored; its diff hash (`8f1fc685…`) and file
+hash (`dd5cad81…`) are unchanged (re-checked after this work); working-tree modification times changed;
+the dropped stash object (`885e7cce…`) remains in the object database and was not deleted, pruned,
+expired, recovered or rewritten. No stash, reset, clean or checkout was used in this step; the
+home-directory repository is unchanged.
+
+**Proposed checkpoint commit scope (not committed):** everything in `git status` except the owner's
+`CLAUDE.md`, `PROJECT_SPEC.md`, `docs/threat-model.md` and `docs/adr/ADR-010-agent-permission-mode.md`.
+
+**Next (each needs owner approval):** review this change set (including the subprocess-guard entry);
+a checkpoint commit; then, separately, the owner creates the real interruption-test authorization and
+approves Docker for the one live demonstration.
+
+## PP-008 evidence hardening and interruption-test preparation (2026-10-13); READY_FOR_REVIEW
+
+Owner-authorized, Docker-free. No Docker command, no comparison, no new or reused run
+authorization, no signal to any live run. The first live run's private evidence and the
+authorization store were re-compared after the work: byte-, mode-, mtime- and
+inode-identical. The corrected `verify_evidence` still reports that run
+`CONSISTENT`/`FINALIZED` (journal format `v1`), and its frozen plan still recomputes to
+`b3b0593a…`, so the pack, profile, plugin, images and policy identities are unchanged. Both
+approval records are unchanged (0400). The verdict engine, approved pack, verifier plugin,
+profile and r2 images were not modified. Not committed. PP-008 stays `IN_PROGRESS`.
+
+| Item | Change (future runs only) |
+|---|---|
+| Target logs | `Logs` reads the target's stdout and stderr with separate 5 MiB caps into `untrusted-target-stdout-<tag>.log` / `untrusted-target-stderr-<tag>.log`; `revision-<tag>.json` records capture status, size, hash, truncation; a failed read is `CAPTURE_FAILED` (no file) and makes the evidence `INCOMPLETE` |
+| Verifier console | `StartAttached` caps stderr at 1 MiB (bound checked, ≤ 4 MiB) into `untrusted-verifier-console-<tag>.log`; the event channel is unchanged |
+| Operation journal | format `docker-ops-v2`: metadata only (UTC start and end, monotonic and client durations, exit or `TIMED_OUT`, `interrupted` lines with `finished_at: null`; per stream class, bytes, SHA-256, cap, truncation, storage, artifact); other Docker output in `docker-ops-<seq>-<stream>.out` (96 MiB budget); journal or artifact write failures are collected, never raised; after a journal failure, create/start/attach are refused while inspect/stop/remove continue; `verify_evidence` checks v2 keys and artifact hashes; v1 lines are reported by format, not as problems |
+| Timestamps | `evaluated_at` read when the engine evaluates; `outcome.json.timestamps` adds execution start and finish and their `order`; a backward clock is reported, never corrected |
+| Recovery | `recover_run` finalizes `INCOMPLETE` if any of its own journal writes failed |
+| Interruption test (proposed) | `runner/interruption_point.py`: one checkpoint (`baseline-target-ready`) reporting over an inherited pipe with a bounded wait and fail-closed abort, and a controller that sends one SIGTERM only to its own unreaped child after an exact report; reachable only through an optional `checkpoint` argument no production caller passes. The current authorization contract cannot express this test (tested); a separate versioned contract is proposed in `docs/architecture/verification-runs.md` |
+| Response retention | unchanged (no raw responses); documented in `verification-runs.md` |
+
+**Validation:** full Docker-free suite 8,499 passed (8,463 before plus 36 new in `tests/unit/test_run_evidence_hardening.py`); mypy strict clean (73 files); Ruff clean on every changed file. Mutation: 92 of 92 killed (the 60 earlier PP-008 mutations re-run against the changed code plus 32 new ones for routing, caps, capture failure, journal keys, timestamps, the output budget, journal-failure handling and the interruption point and controller); the first pass left 3 survivors (P23 standard-stream refusal, P30 recovery failure reporting, P32 evaluated_at mismatch), closed by three added tests, not by weakening a check; sources verified byte-identical to the pre-mutation backup after both passes. Not executed: Docker, PaperTrail, any live interruption, the proposed authorization contract.
+
+**Process note:** during the work, a stray `git stash` was run by mistake and immediately
+popped. The owner's ADR-010 diff hash (`8f1fc685…`), the ADR file hash (`dd5cad81…`) and the
+home-directory repository stats were re-checked and are unchanged; file modification times of
+the working-tree files were refreshed by the stash and pop, and one dropped stash object
+remains unreferenced in the object store.
+
+**Next (each needs owner approval):** review this change set; approve or amend the proposed
+interruption-test authorization contract; then its implementation (schema, store, owner
+command, controller driver), a new single-use interruption authorization, and a separate
+Docker approval for the live demonstration.
+
+## PP-008 first live comparison — independent read-only evidence review (2026-10-13); READY_FOR_REVIEW
+
+The owner authorized and executed the first live comparison personally:
+`run-036553ef7b032f59955cc4a790409931`, authorization `rau-ed8bb6944af5d7681d52a9947199a37e`
+(consumed), plan `sha256:b3b0593a…e47e`. This review was read-only: no Docker command, no
+re-execution, raw evidence and the authorization store unchanged (bytes, modes, mtimes,
+inodes compared before and after). Sanitized report: `docs/evidence/pp-008-first-live-comparison.md`.
+
+| Item | Result |
+|---|---|
+| Evidence integrity | accepted `verify_evidence` CONSISTENT/FINALIZED; 164 independent checks, 0 failed (scratch script, not committed) |
+| Identities | r1 `68b2bc0e…` and r3 `2fb6d093…`, manifests `1444803c…`/`42d82e22…`, pack tree `529d3cd3…`, approval `apr-f4b493f9…`, profile `a1c130c2…`, images `98548ec4…`/`e880f609…`; the plan recomputed now equals the frozen plan |
+| Observations | baseline AUTH-001 and AUTH-003 `VIOLATION_CONFIRMED` (this document's marker in the body; caller not permitted), AUTH-002/004 `SECURE` (401); candidate all `SECURE` (404/401); FUNC-001–004 `PASS` on both sides (reviewed assertions; bodies not retained). 16/16 equal the PP-006 declared table, statuses and markers included |
+| Transport | both streams COMPLETE, 31 contiguous events, exact ordered collection, session_end agrees, 8,921 and 8,900 bytes of a 10 MiB cap; verifier exits 1 and 0 agree with the failed-report counts |
+| Recomputed verdict | rebuilt input equals the stored one; the engine reproduces the stored `verdict.json` exactly: `VERIFIED_FOR_CASES`, V-09, `ALL_CONDITIONS_SATISFIED`, 16/16 trusted cells, no flags |
+| Containers | 4 created, sequential; pre-start gate re-run on saved inspects passes for all four; `--network=none` targets, verifiers joined their own target; read-only separate mounts; limits and log policy as the profile; each removed by exact ID and confirmed absent; inventory identical before and after; continuity `NO_CHANGE_OBSERVED` (not proof) |
+| Timeline | readiness 1.38 s and 1.33 s; verifiers 1.21 s (exit 1) and 1.03 s (exit 0); about 14 s claim to manifest; cleanup 0.56 s and 0.63 s; shell exit code not captured |
+| Findings (not fixed) | target standard error lands inline in the operation journal and the target-log files are empty; verifier console output with synthetic tokens inline in the journal; `evaluated_at` is the start time; no wall-clock times per operation; witnesses are attested facts without retained bodies |
+| PP-008 criteria | source/test separation, successful run, labels and first dynamic reproduction met live; **a deliberately interrupted live run is not yet demonstrated** (smallest proposal in the report; not executed) |
 
 ## PP-008 final run-authorization security review (2026-10-13) — READY_FOR_REVIEW; local checkpoint
 

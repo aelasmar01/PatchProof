@@ -269,7 +269,9 @@ def test_target_log_text_is_never_evidence(env: Environment) -> None:
     docker.target_logs = stream(env.plan, 1, "candidate", declared_outcomes("correct"))
     result = run(env, docker, candidate="vulnerable")
     assert result.verdict["verdict"] == "NOT_FIXED"
-    assert all(r.target_log == docker.target_logs for r in result.revisions)
+    assert all(r.target_stdout.data == docker.target_logs and r.target_stdout.capture == "CAPTURED"
+               for r in result.revisions)
+    assert all(r.target_stderr.data == docker.target_stderr for r in result.revisions)
 
 
 def test_create_failure_records_a_runtime_error(env: Environment) -> None:

@@ -361,6 +361,9 @@ class StartAttached:
     container: ContainerId
     timeout_seconds: float
     stdout_cap: int
+    # The verifier's console (pytest's own terminal output) arrives on stderr: untrusted
+    # diagnostics, bounded separately and never part of the event channel.
+    stderr_cap: int = 1024 * 1024
     op_name: str = field(default="start-attached", init=False)
     mutates: bool = field(default=True, init=False)
 

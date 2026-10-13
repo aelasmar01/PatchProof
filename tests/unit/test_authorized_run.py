@@ -45,6 +45,7 @@ from patchproof.runner.inputs import materialize_pack
 from patchproof.runner.papertrail_plan import PAPERTRAIL_REVISIONS, RunEnvironment, assemble_run
 from patchproof.runner.policy import ImageId
 from patchproof.runner.run_plan import APPROVED_RUN_IMAGES, ApprovedRunImage
+from patchproof.runner.run_evidence import verify_evidence
 from patchproof.runner.run_policy import TARGET_HEALTHCHECK, RunCreate, RunRole
 
 RUN_ID = "run-0123456789abcdef0123456789abcdef"
@@ -706,7 +707,7 @@ def test_target_log_text_never_becomes_an_event(e: Env) -> None:
     docker.streams["baseline"] = b""
     code, _, _ = execute(e, docker)
     out = _assert_stopped_after_baseline(e, docker, code)
-    assert (e.evidence / "untrusted-target-log-pair-001-baseline.log").read_bytes() == docker.target_logs
+    assert (e.evidence / "untrusted-target-stdout-pair-001-baseline.log").read_bytes() == docker.target_logs
     assert (e.evidence / "verifier-stream-pair-001-baseline.bin").read_bytes() == b""
     assert (e.evidence / "observations-pair-001-baseline.jsonl").read_bytes() == b""
     assert "EVENT_STREAM_TRUNCATED" in out["reason_codes"] or "REQUIRED_CHECK_INCOMPLETE" in out["reason_codes"]
@@ -727,7 +728,8 @@ def test_complete_evidence_set_and_integrity(e: Env) -> None:
                  "ownership-journal.jsonl", "revalidation.jsonl", "verdict-input.json", "verdict.json",
                  "outcome.json", *(f"{p}-pair-001-{s}.{x}" for s in ("baseline", "candidate") for p, x in (
                      ("execution", "json"), ("observations", "jsonl"), ("verifier-stream", "bin"),
-                     ("untrusted-target-log", "log"), ("revision", "json")))):
+                     ("untrusted-target-stdout", "log"), ("untrusted-target-stderr", "log"),
+                     ("untrusted-verifier-console", "log"), ("revision", "json")))):
         assert name in m["files"], name
         data = (e.evidence / name).read_bytes()
         assert m["files"][name]["sha256"] == "sha256:" + hashlib.sha256(data).hexdigest()
@@ -738,10 +740,13 @@ def test_complete_evidence_set_and_integrity(e: Env) -> None:
     assert plan == stored["plan"]
     ops = [json.loads(line) for line in (e.evidence / "docker-ops.jsonl").read_text().splitlines()]
     attached = [o for o in ops if o["op"] == "start-attached" and o["phase"] == "completed"]
-    assert len(attached) == 2 and all("stdout" not in o for o in attached)
-    assert all("stdout" not in o for o in ops if o["op"] == "logs")
+    assert len(attached) == 2 and all(o["stdout"]["stored"] == "REVISION_ARTIFACT" and o["stdout"]["artifact"] is None
+                                      for o in attached)
+    assert all(o[s]["stored"] == "REVISION_ARTIFACT" for o in ops if o["op"] == "logs" and o["phase"] == "completed"
+               for s in ("stdout", "stderr"))
     inspected = [o for o in ops if o["op"] == "inspect" and o["phase"] == "completed" and o["returncode"] == 0]
-    assert inspected and all(json.loads(o["stdout"]) for o in inspected)
+    assert inspected and all(json.loads((e.evidence / o["stdout"]["artifact"]).read_bytes()) for o in inspected)
+    assert verify_evidence(e.evidence) == {"state": "CONSISTENT", "status": "FINALIZED", "problems": []}
 
 
 def test_evidence_files_are_never_overwritten(e: Env, tmp_path: Path) -> None:
@@ -1017,12 +1022,21 @@ def test_an_interrupt_stops_the_docker_client_process(tmp_path: Path) -> None:
     from patchproof.runner.docker_cli import run_bounded
 
     pid_file = tmp_path / "pid"
+    give_up = time.monotonic() + 30  # a bound on waiting for the client to start, not a timing assumption
 
     def interrupt(signum: int, frame: Any) -> None:
-        raise KeyboardInterrupt
+        # Synchronized: interrupt only once the client is running (its PID line is complete),
+        # however long a loaded machine takes to start it.
+        try:
+            ready = pid_file.read_text().endswith("\n")
+        except FileNotFoundError:
+            ready = False
+        if ready or time.monotonic() > give_up:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            raise KeyboardInterrupt
 
     previous = signal.signal(signal.SIGALRM, interrupt)
-    signal.setitimer(signal.ITIMER_REAL, 1.0)
+    signal.setitimer(signal.ITIMER_REAL, 0.05, 0.05)
     try:
         with pytest.raises(KeyboardInterrupt):
             run_bounded(["/bin/sh", "-c", f"echo $$ > {pid_file}; exec /bin/sleep 30"], env={"PATH": "/bin"},
@@ -1030,8 +1044,9 @@ def test_an_interrupt_stops_the_docker_client_process(tmp_path: Path) -> None:
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, previous)
+    assert pid_file.read_text().endswith("\n"), "the client never started"
     pid = int(pid_file.read_text())
-    deadline = time.monotonic() + 5
+    deadline = time.monotonic() + 30
     while time.monotonic() < deadline:
         try:
             os.kill(pid, 0)
@@ -1121,7 +1136,7 @@ def test_a_baseline_evidence_failure_stops_before_the_candidate(e: Env, monkeypa
 def test_incomplete_evidence_keeps_the_engine_verdict_but_never_establishes_it(
         e: Env, monkeypatch: pytest.MonkeyPatch, candidate: str, engine: str) -> None:
     assert authorize(e)[0] == 0
-    _failing_write(monkeypatch, "untrusted-target-log-pair-001-candidate.log")
+    _failing_write(monkeypatch, "untrusted-target-stderr-pair-001-candidate.log")
     code, term, _ = execute(e, fake(e, candidate=candidate))
     out = outcome(e)
     assert code == 4 and out["evidence_status"] == "INCOMPLETE" and out["lifecycle"] == "INTERRUPTED"

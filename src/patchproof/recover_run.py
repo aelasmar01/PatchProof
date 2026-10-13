@@ -10,7 +10,8 @@ and `docker container ls`):
 It NEVER resumes, retries or re-executes a run, and it cannot create or start a container
 (`runner.run_recovery.AllowlistExecutor`). In order:
 
-1. Lists every claimed (consumed) run authorization with its evidence state (manifest
+1. Lists every claimed (consumed) run authorization, and every claimed interruption-test
+   authorization (`patchproof.interruption_test`), with its evidence state (manifest
    re-hashed, verdict recomputed; no manifest means the run never finalized). You type the
    run ID to inspect.
 2. **Read-only assessment** of that run's four fixed container names against its ownership
@@ -32,14 +33,17 @@ import os
 import secrets
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .core.run_authorizations import Claim, RunAuthorizationError, RunAuthorizationStore, StoredAuthorization
+from .core.interruption_authorizations import InterruptionAuthorizationError, InterruptionAuthorizationStore
+from .core.run_authorizations import RunAuthorizationError, RunAuthorizationStore
 from .pack_approval import NotInteractive, Terminal, _ConsoleTerminal, require_interactive
 from .runner.cleanup import CleanupStatus
 from .runner.docker_cli import DockerCli, Executor, resolve_docker_binary
 from .runner.interrupts import graceful_termination
+from .runner.interruption_plan import interruption_environment
 from .runner.papertrail_plan import RunEnvironment, papertrail_environment
 from .runner.policy import Ownership, PolicyViolation
 from .runner.run_evidence import EvidenceError, RecordingExecutor, RunEvidence, verify_evidence
@@ -52,31 +56,59 @@ def cleanup_phrase(run_id: str) -> str:
     return f"CLEANUP {run_id}"
 
 
-def _run_evidence_state(env: RunEnvironment, run_id: str) -> dict[str, Any]:
-    directory = env.evidence_root / run_id
+@dataclass(frozen=True)
+class Subject:
+    """One consumed authorization of either kind: what recovery needs, nothing more."""
+
+    run_id: str
+    installation_id: str
+    authorization_id: str
+    claim_state: str
+    claim_raw: bytes
+    evidence_dir: Path
+
+
+def _run_evidence_state(directory: Path) -> dict[str, Any]:
     if not directory.is_dir():
         return {"state": "ABSENT", "status": None,
                 "problems": ["no evidence directory: the run stopped before its first Docker operation"]}
     return verify_evidence(directory)
 
 
+def consumed_subjects(env: RunEnvironment, interruption_env: RunEnvironment | None) -> dict[str, Subject]:
+    """Every claimed authorization, by run ID. Raises on an unreadable store or a run ID in both."""
+    records, claims = RunAuthorizationStore(env.authorization_store).scan()
+    subjects = {records[a].record.plan.run_id: Subject(
+        records[a].record.plan.run_id, records[a].record.plan.installation_id, a, claims[a].state, claims[a].raw,
+        env.evidence_root / records[a].record.plan.run_id) for a in sorted(claims) if a in records}
+    if interruption_env is None or not os.path.lexists(interruption_env.authorization_store):
+        return subjects  # the interruption store was never provisioned: nothing can have been claimed there
+    test_records, test_claims = InterruptionAuthorizationStore(interruption_env.authorization_store).scan()
+    for a in sorted(test_claims):
+        plan = test_records[a].record.plan
+        if plan.run_id in subjects:
+            raise InterruptionAuthorizationError("a run ID is claimed in both stores; the history is ambiguous")
+        subjects[plan.run_id] = Subject(plan.run_id, plan.installation_id, a, test_claims[a].state,
+                                        test_claims[a].raw, interruption_env.evidence_root / plan.run_id)
+    return subjects
+
+
 def recover(env: RunEnvironment, terminal: Terminal, executor_factory: Callable[[], Executor], *,
-            new_recovery_id: Callable[[], str] = lambda: f"rec-{secrets.token_hex(16)}") -> int:
+            new_recovery_id: Callable[[], str] = lambda: f"rec-{secrets.token_hex(16)}",
+            interruption_env: RunEnvironment | None = None) -> int:
     try:
-        records, claims = RunAuthorizationStore(env.authorization_store).scan()
-    except (RunAuthorizationError, OSError) as exc:
+        consumed = consumed_subjects(env, interruption_env)
+    except (RunAuthorizationError, InterruptionAuthorizationError, OSError) as exc:
         terminal.write(f"\nNOT RECOVERED: run-authorization store: {exc}. Nothing was inspected.\n")
         return 2
-    consumed: dict[str, tuple[StoredAuthorization, Claim]] = {
-        records[a].record.plan.run_id: (records[a], claims[a]) for a in sorted(claims) if a in records}
     if not consumed:
         terminal.write("\nNo run authorization has been claimed, so no run can have created a container. "
                        "Nothing to do.\n")
         return 0
     terminal.write("\nConsumed run authorizations:\n")
-    for run_id, (stored, claim) in consumed.items():
-        state = _run_evidence_state(env, run_id)
-        terminal.write(f"  {run_id}  {stored.record.authorization_id}  claim {claim.state}  evidence "
+    for run_id, subject in consumed.items():
+        state = _run_evidence_state(subject.evidence_dir)
+        terminal.write(f"  {run_id}  {subject.authorization_id}  claim {subject.claim_state}  evidence "
                        f"{state['state']} {state['status'] or ''}\n")
     try:
         typed = terminal.read_line("Run to inspect (type its run ID): ")
@@ -86,33 +118,38 @@ def recover(env: RunEnvironment, terminal: Terminal, executor_factory: Callable[
     if typed not in consumed:
         terminal.write("\nNOT RECOVERED: that is not a consumed run ID. Nothing was inspected.\n")
         return 2
-    stored, claim = consumed[typed]
-    plan = stored.record.plan
-    ownership = Ownership(installation_id=plan.installation_id, run_id=plan.run_id)
-    journal = env.evidence_root / plan.run_id / "ownership-journal.jsonl"
+    subject = consumed[typed]
+    ownership = Ownership(installation_id=subject.installation_id, run_id=subject.run_id)
+    journal = subject.evidence_dir / "ownership-journal.jsonl"
     try:
         executor = executor_factory()
-        evidence = RunEvidence.claim_recovery(env.evidence_root.parent / "recoveries", plan.run_id, new_recovery_id())
+        evidence = RunEvidence.claim_recovery(env.evidence_root.parent / "recoveries", subject.run_id,
+                                              new_recovery_id())
     except (PolicyViolation, EvidenceError, OSError) as exc:
         terminal.write(f"\nNOT RECOVERED: {exc}. Nothing was inspected.\n")
         return 2
 
+    recorders: list[RecordingExecutor] = []
+
     def finish(result: str, extra: dict[str, Any] | None = None) -> None:
-        summary = {"run_id": plan.run_id, "result": result, **(extra or {})}
+        failures = [f for r in recorders for f in r.failures]  # a lost journal line is never hidden
+        summary = {"run_id": subject.run_id, "result": result, **(extra or {}), "evidence_failures": failures}
         evidence.write_json("outcome.json", summary)
-        evidence.finalize(status="FINALIZED", summary=summary)
+        evidence.finalize(status="INCOMPLETE" if failures else "FINALIZED", summary=summary)
         terminal.write(f"\nRECOVERY {result}. Evidence: {evidence.directory}\n")
 
     try:
         evidence.write_json("subject.json", {
-            "run_id": plan.run_id, "authorization_id": stored.record.authorization_id, "claim_state": claim.state,
-            "claim_sha256": "sha256:" + hashlib.sha256(claim.raw).hexdigest(),
-            "run_evidence": _run_evidence_state(env, plan.run_id), "ownership_journal_present": journal.is_file(),
+            "run_id": subject.run_id, "authorization_id": subject.authorization_id,
+            "claim_state": subject.claim_state,
+            "claim_sha256": "sha256:" + hashlib.sha256(subject.claim_raw).hexdigest(),
+            "run_evidence": _run_evidence_state(subject.evidence_dir), "ownership_journal_present": journal.is_file(),
             "never": "this recovery never resumes, retries or re-executes the run"})
         reader = RecordingExecutor(AllowlistExecutor(executor, READ_ONLY_OPS), evidence)
+        recorders.append(reader)
         assessment = assess(reader, ownership, journal if os.path.lexists(journal) else None)
         evidence.write_json("assessment.json", assessment.document())
-        terminal.write(f"\nRun {plan.run_id}, read-only assessment:\n{describe(assessment)}")
+        terminal.write(f"\nRun {subject.run_id}, read-only assessment:\n{describe(assessment)}")
         if not assessment.cleanup_permitted:
             finish("REFUSED_AMBIGUOUS", {"problems": list(assessment.problems)})
             terminal.write("Nothing was removed. Resolve the listed problems manually; ambiguous or foreign "
@@ -124,12 +161,13 @@ def recover(env: RunEnvironment, terminal: Terminal, executor_factory: Callable[
             return 0
         terminal.write("\n")
         typed = terminal.read_line(f"To stop and remove exactly these {len(removable)} container(s) by ID, type "
-                                   f"exactly:  {cleanup_phrase(plan.run_id)}\nConfirmation: ")
-        if typed != cleanup_phrase(plan.run_id):
+                                   f"exactly:  {cleanup_phrase(subject.run_id)}\nConfirmation: ")
+        if typed != cleanup_phrase(subject.run_id):
             finish("NOT_CONFIRMED")
             return 2
         cleaner = RecordingExecutor(AllowlistExecutor(executor, CLEANUP_OPS), evidence,
                                     journal="docker-ops-cleanup.jsonl")
+        recorders.append(cleaner)
         again = assess(cleaner, ownership, journal if os.path.lexists(journal) else None)
         evidence.write_json("assessment-before-cleanup.json", again.document())
         if not again.cleanup_permitted or [(f.name, f.container_id) for f in again.removable] != removable:
@@ -162,7 +200,8 @@ def main() -> int:
         return 2
     with graceful_termination():
         return recover(papertrail_environment(), _ConsoleTerminal(),
-                       lambda: DockerCli(resolve_docker_binary(), str(Path.home())))
+                       lambda: DockerCli(resolve_docker_binary(), str(Path.home())),
+                       interruption_env=interruption_environment())
 
 
 if __name__ == "__main__":

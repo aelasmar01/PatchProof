@@ -49,6 +49,9 @@ from .run_policy import RunCreate, StartAttached, assert_run_create_shape, run_c
 
 DEFAULT_STDOUT_CAP: Final = 1024 * 1024
 DEFAULT_STDERR_CAP: Final = 64 * 1024
+# The target's own log streams (`docker container logs` relays the container's stdout and
+# stderr separately). Each is capped on its own; both are untrusted and never parsed.
+TARGET_LOG_STREAM_CAP: Final = 5 * 1024 * 1024
 READ_CHUNK: Final = 65536
 
 # Absolute locations the docker client may be resolved from. Anything else is refused.
@@ -179,8 +182,11 @@ class Wait:
 
 @dataclass(frozen=True)
 class Logs:
+    """The target's log streams. Its stdout and stderr arrive on the client's stdout and stderr."""
+
     container: ContainerId
     stdout_cap: int = DEFAULT_STDOUT_CAP
+    stderr_cap: int = DEFAULT_STDERR_CAP
     op_name: str = field(default="logs", init=False)
     timeout_seconds: float = 30.0
     mutates: bool = field(default=False, init=False)
@@ -494,10 +500,19 @@ class DockerCli:
             env=sanitized_env(self.home),
             timeout_seconds=op.timeout_seconds,
             stdout_cap=op.stdout_cap,
+            stderr_cap=stderr_cap_of(op),
             op_name=op.op_name,
         )
         self.command_log.append(result)
         return result
+
+
+def stderr_cap_of(op: DockerOp) -> int:
+    """The stderr bound of an operation: its own `stderr_cap` if it declares one, else the default."""
+    cap = getattr(op, "stderr_cap", DEFAULT_STDERR_CAP)
+    if isinstance(cap, bool) or not isinstance(cap, int) or not 1 <= cap <= 64 * 1024 * 1024:
+        raise PolicyViolation("an operation's stderr cap must be a positive bounded integer")
+    return cap
 
 
 def assert_no_forbidden_tokens(op: DockerOp) -> None:
@@ -512,7 +527,8 @@ def assert_no_forbidden_tokens(op: DockerOp) -> None:
         return
     if isinstance(op, StartAttached):
         if (type(op) is not StartAttached or tail != ["container", "start", "--attach", "--", op.container.value]
-                or not 1 <= op.timeout_seconds <= 900 or not 1 <= op.stdout_cap <= 52428801):
+                or not 1 <= op.timeout_seconds <= 900 or not 1 <= op.stdout_cap <= 52428801
+                or not 1 <= op.stderr_cap <= 4 * 1024 * 1024):
             raise PolicyViolation("start-attached argv or bounds deviate from the fixed shape")
         return
     if isinstance(op, ForceRemove):

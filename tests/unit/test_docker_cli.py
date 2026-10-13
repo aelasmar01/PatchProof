@@ -6,6 +6,7 @@ harmless code), never Docker. A monkeypatched Popen proves the plan path never s
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -227,6 +228,39 @@ def test_run_bounded_refuses_string_commands() -> None:
         dc.run_bounded([], env={}, timeout_seconds=1, stdout_cap=10)
 
 
+# Modules allowed to import subprocess. The two basename entries are unchanged from PP-003; the
+# project-relative paths are exact: PP-005's allowlisted Git command module and PP-008's
+# interruption controller (owner-approved 2026-10-13: it starts its single fixed child argv
+# with `subprocess.Popen`, no shell; see test_interruption_test).
+SUBPROCESS_BASENAMES = ("docker_cli.py", "isolation_probe.py")
+SUBPROCESS_PATHS = ("src/patchproof/git/command.py", "src/patchproof/interruption_test.py")
+
+
+def subprocess_allowed(relative: str) -> bool:
+    return relative.rsplit("/", 1)[-1] in SUBPROCESS_BASENAMES or relative in SUBPROCESS_PATHS
+
+
+@pytest.mark.parametrize("relative", [
+    "src/patchproof/runner/interruption_test.py", "src/interruption_test.py", "containers/interruption_test.py",
+    "src/patchproof/interruption_child.py", "src/patchproof/interruption_test.pyi",
+    "src/patchproof/x/src/patchproof/interruption_test.py", "src/patchproof/Interruption_test.py",
+    "src/patchproof/run_papertrail_once.py", "src/patchproof/git/other.py", "src/patchproof/command.py",
+])
+def test_the_subprocess_allowlist_is_exact(relative: str) -> None:
+    assert not subprocess_allowed(relative)
+
+
+def test_the_subprocess_allowlist_entries() -> None:
+    assert SUBPROCESS_BASENAMES == ("docker_cli.py", "isolation_probe.py")
+    assert SUBPROCESS_PATHS == ("src/patchproof/git/command.py", "src/patchproof/interruption_test.py")
+    importing = sorted(
+        path.relative_to(ROOT).as_posix()
+        for path in [*(ROOT / "src").rglob("*.py"), *(ROOT / "containers").rglob("*.py")]
+        if re.search(r"^\s*(import subprocess|from subprocess import)", path.read_text(), re.M))
+    assert importing == ["containers/probes/isolation_probe.py", "src/patchproof/git/command.py",
+                         "src/patchproof/interruption_test.py", "src/patchproof/runner/docker_cli.py"]
+
+
 def test_no_shell_true_and_single_subprocess_module() -> None:
     import ast
 
@@ -244,5 +278,5 @@ def test_no_shell_true_and_single_subprocess_module() -> None:
                 names = [a.name for a in node.names] + [getattr(node, "module", None) or ""]
                 if "subprocess" in names:
                     # PP-005 adds exactly one reviewed wrapper: the allowlisted Git command module.
-                    assert (path.name in ("docker_cli.py", "isolation_probe.py")
-                            or path.relative_to(ROOT).as_posix() == "src/patchproof/git/command.py"), path
+                    # PP-008 adds the interruption controller (see SUBPROCESS_PATHS).
+                    assert subprocess_allowed(path.relative_to(ROOT).as_posix()), path

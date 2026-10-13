@@ -46,6 +46,7 @@ RECORD_SCHEMAS = (
     "source-manifest",
     "reference-fixture",
     "run-authorization",
+    "interruption-test-authorization",
 )
 
 # filename -> (failing keyword, JSON pointer of the failing instance location).
@@ -145,6 +146,28 @@ INVALID_CASES: dict[str, tuple[str, str]] = {
     "run-authorization--verified-reviewer.json": ("const", "/reviewer/basis"),
     "run-authorization--absolute-evidence-path.json": ("pattern", "/plan/evidence/destination"),
     "run-authorization--duplicate-key.json": ("duplicate_key", ""),
+    "interruption-test-authorization--candidate-execution.json": ("const", "/plan/revision/candidate_execution"),
+    "interruption-test-authorization--candidate-side.json": ("const", "/plan/revision/side"),
+    "interruption-test-authorization--candidate-source.json": ("additionalProperties", "/plan/sources"),
+    "interruption-test-authorization--three-containers.json": ("const", "/plan/containers/max_creations"),
+    "interruption-test-authorization--two-started.json": ("const", "/plan/containers/max_started"),
+    "interruption-test-authorization--verifier-started.json": ("const", "/plan/containers/verifier/start"),
+    "interruption-test-authorization--bridge-network.json": ("const", "/plan/containers/target/network"),
+    "interruption-test-authorization--sigkill.json": ("const", "/plan/interruption/signal"),
+    "interruption-test-authorization--escalation.json": ("const", "/plan/interruption/escalation"),
+    "interruption-test-authorization--two-signals.json": ("const", "/plan/interruption/signals_sent"),
+    "interruption-test-authorization--long-wait.json": ("const", "/plan/interruption/synchronization_wait_seconds"),
+    "interruption-test-authorization--automatic-retry.json": ("const", "/plan/interruption/automatic_retry"),
+    "interruption-test-authorization--expects-verified.json": ("const", "/plan/expected_outcome/verdict"),
+    "interruption-test-authorization--expects-finalized.json": ("const", "/plan/expected_outcome/evidence_status"),
+    "interruption-test-authorization--wrong-exit-code.json": ("const", "/plan/expected_outcome/lifecycle_exit_code"),
+    "interruption-test-authorization--run-authorization-kind.json": ("const", "/kind"),
+    "interruption-test-authorization--run-authorization-id.json": ("pattern", "/authorization_id"),
+    "interruption-test-authorization--ordinary-plan-kind.json": ("const", "/plan/plan_kind"),
+    "interruption-test-authorization--reusable.json": ("const", "/single_use"),
+    "interruption-test-authorization--ordinary-evidence-path.json": ("pattern", "/plan/evidence/destination"),
+    "interruption-test-authorization--unknown-field.json": ("additionalProperties", ""),
+    "interruption-test-authorization--duplicate-key.json": ("duplicate_key", ""),
 }
 
 

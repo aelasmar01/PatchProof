@@ -15,6 +15,7 @@ from pydantic import BaseModel, ValidationError
 from ..strict_json import DEFAULT_MAX_BYTES, StrictJsonError, loads_strict
 from .authorization import RunAuthorization
 from .evidence import IsolationProbeRun, ReferenceFixture, SourceManifest
+from .interruption import InterruptionTestAuthorization
 from .pack import ApprovalRecord, ExecutionProfileV10, ExecutionProfileV11, PackManifest
 from .run import Execution, Observation, VerdictInput, VerdictRecord, VerifierEvent
 
@@ -32,6 +33,7 @@ RECORD_MODELS: Final[dict[str, type[BaseModel]]] = {
     "source-manifest": SourceManifest,
     "reference-fixture": ReferenceFixture,
     "run-authorization": RunAuthorization,
+    "interruption-test-authorization": InterruptionTestAuthorization,
 }
 
 

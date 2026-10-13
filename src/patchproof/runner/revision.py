@@ -17,7 +17,10 @@
    bounded at `result_cap_bytes + 1` and within the remaining revision deadline. A verifier
    still running after that is stopped.
 6. **Observe.** Inspect exit code, OOM state and whether the target exited during the tests.
-7. **Target logs.** Read them bounded, labeled untrusted, and never parsed.
+7. **Target logs.** Read both target streams (stdout and stderr) bounded, each with its own
+   cap, labeled untrusted, and never parsed. A failed read is recorded as `CAPTURE_FAILED`,
+   never as empty output. The verifier's console (its stderr) is kept the same way; only
+   its stdout is the event channel.
 8. **Cleanup.** Remove both containers by exact ID after re-checking ownership (PP-003
    `cleanup.remove_owned`). Nothing else is touched.
 
@@ -36,7 +39,17 @@ from ..core.records import validate_record
 from ..core.records.run import Execution
 from .cleanup import CleanupResult, OwnershipRegistry, remove_owned
 from .collector import CollectedStream, collect_stream
-from .docker_cli import ContainerRef, Executor, ImageInspect, Inspect, Logs, Start, Stop
+from .docker_cli import (
+    TARGET_LOG_STREAM_CAP,
+    CommandResult,
+    ContainerRef,
+    Executor,
+    ImageInspect,
+    Inspect,
+    Logs,
+    Start,
+    Stop,
+)
 from .inputs import InputIntegrityError, verify_pack_snapshot, verify_source_snapshot
 from .inspect_gate import parse_single_inspect
 from .policy import ContainerId, PolicyViolation
@@ -52,7 +65,8 @@ from .run_policy import (
     verifier_command,
 )
 
-TARGET_LOG_CAP: Final = 5 * 1024 * 1024
+TARGET_LOG_CAP: Final = TARGET_LOG_STREAM_CAP
+VERIFIER_CONSOLE_CAP: Final = 1024 * 1024
 READINESS_POLL_SECONDS: Final = 0.5
 
 
@@ -77,6 +91,34 @@ class _Facts:
     runtime_errors: list[str] = field(default_factory=list)
 
 
+CaptureStatus = Literal["CAPTURED", "CAPTURE_FAILED", "NOT_ATTEMPTED"]
+
+
+@dataclass(frozen=True)
+class CapturedOutput:
+    """Untrusted bytes read from one output stream, with how the read went. Never parsed."""
+
+    data: bytes = b""
+    truncated: bool = False
+    capture: CaptureStatus = "NOT_ATTEMPTED"
+    detail: str = ""
+
+    @classmethod
+    def stdout_of(cls, result: CommandResult) -> CapturedOutput:
+        return cls._of(result, result.stdout, result.stdout_truncated)
+
+    @classmethod
+    def stderr_of(cls, result: CommandResult) -> CapturedOutput:
+        return cls._of(result, result.stderr, result.stderr_truncated)
+
+    @classmethod
+    def _of(cls, result: CommandResult, data: bytes, truncated: bool) -> CapturedOutput:
+        if result.ok:
+            return cls(data, truncated, "CAPTURED", "")
+        return cls(data, truncated, "CAPTURE_FAILED",
+                   "timed out" if result.timed_out else f"the read exited {result.returncode}")
+
+
 @dataclass(frozen=True)
 class RevisionResult:
     pair: int
@@ -84,11 +126,15 @@ class RevisionResult:
     execution: Execution
     stream: CollectedStream
     raw_stream: bytes
-    target_log: bytes
-    target_log_truncated: bool
+    target_stdout: CapturedOutput
+    target_stderr: CapturedOutput
+    verifier_console: CapturedOutput
     cleanup: tuple[CleanupResult, ...]
     precondition_failure: tuple[str, str] | None
     notes: tuple[str, ...]
+    # Set only when a checkpoint (interruption test) raised: the signal name (`SIGTERM`) or
+    # the abort reason. Always None in a production run, which passes no checkpoint.
+    interruption: str | None = None
 
 
 def _image_problems(stdout: bytes, approved: ApprovedRunImage) -> list[str]:
@@ -118,13 +164,49 @@ def _state(obj: dict[str, Any]) -> dict[str, Any]:
     return state if isinstance(state, dict) else {}
 
 
+@dataclass(frozen=True)
+class CheckpointState:
+    """What the runner itself has established when it calls a checkpoint (stage `target-ready`).
+
+    Only `execute_revision` builds this, from its own facts: the target was started and
+    reported `healthy`, and the verifier was created and passed the pre-start inspection gate
+    but was not started.
+    """
+
+    pair: int
+    side: Literal["baseline", "candidate"]
+    stage: Literal["target-ready"]
+    target_id: str
+    target_started: bool
+    target_readiness: str
+    verifier_id: str
+    verifier_gate_passed: bool
+    verifier_started: bool
+
+
+Checkpoint = Callable[[CheckpointState, Clock], None]
+
+
 def execute_revision(executor: Executor, plan: RunPlan, pair: int, side: Literal["baseline", "candidate"],
                      registry: OwnershipRegistry, *, clock: Clock,
-                     cancel: Callable[[], bool] = lambda: False) -> RevisionResult:
+                     cancel: Callable[[], bool] = lambda: False,
+                     checkpoint: Checkpoint | None = None) -> RevisionResult:
+    """Execute one revision. `checkpoint`, absent in every production run, is called with stage
+    `target-ready` once the target is healthy and before the verifier starts; it exists only
+    for a separately authorized interruption test (`runner.interruption_point`).
+
+    A signal (`KeyboardInterrupt`, including `RunTerminated`) or a `PolicyViolation` raised by
+    the checkpoint is recorded in `interruption`: the verifier is never started, the target's
+    output is read and both containers are removed by exact ID as usual, and the result is
+    returned so the run can be evaluated as `interrupted`. Anything raised elsewhere leaves
+    through the same exact-ID cleanup, unchanged.
+    """
     facts = _Facts()
     notes: list[str] = []
     created: list[ContainerId] = []
-    out: dict[str, Any] = {"raw": b"", "log": b"", "log_truncated": False, "failure": None}
+    out: dict[str, Any] = {"raw": b"", "failure": None, "target_stdout": CapturedOutput(),
+                           "target_stderr": CapturedOutput(), "verifier_console": CapturedOutput(),
+                           "interruption": None}
     cap = plan.profile.result_cap_bytes
     target_limits, verifier_limits = plan.limits(RunRole.TARGET), plan.limits(RunRole.VERIFIER)
     deadline = clock.monotonic() + target_limits.deadline_seconds
@@ -235,13 +317,31 @@ def execute_revision(executor: Executor, plan: RunPlan, pair: int, side: Literal
                 break
             clock.sleep(READINESS_POLL_SECONDS)
 
-        if facts.readiness == "READY" and not facts.canceled:
+        if facts.readiness == "READY" and not facts.canceled and checkpoint is not None:
+            reached = CheckpointState(pair=pair, side=side, stage="target-ready", target_id=target_id.value,
+                                      target_started=facts.started, target_readiness=facts.readiness,
+                                      verifier_id=verifier_id.value, verifier_gate_passed=True,
+                                      verifier_started=False)
+            try:
+                checkpoint(reached, clock)
+            except KeyboardInterrupt as exc:  # the signal the interruption test is waiting for
+                out["interruption"] = getattr(exc, "signal_name", "SIGINT")
+            except PolicyViolation as exc:  # the checkpoint refused or timed out: fail closed
+                out["interruption"] = f"ABORTED: {exc}"
+            if out["interruption"] is not None:
+                notes.append(f"interrupted at the target-ready checkpoint ({out['interruption']}); "
+                             "the verifier was never started")
+        if facts.readiness == "READY" and not facts.canceled and out["interruption"] is None:
             remaining = deadline - clock.monotonic()
             if remaining <= 0:
                 facts.deadline_exceeded = True
             else:
-                attached = executor.run(StartAttached(verifier_id, timeout_seconds=remaining, stdout_cap=cap + 1))
+                attached = executor.run(StartAttached(verifier_id, timeout_seconds=remaining, stdout_cap=cap + 1,
+                                                      stderr_cap=VERIFIER_CONSOLE_CAP))
                 out["raw"] = attached.stdout
+                # The attached client's stderr: the verifier's console, plus any client error. A
+                # non-zero exit is the verifier's own result, so the read itself counts as done.
+                out["verifier_console"] = CapturedOutput(attached.stderr, attached.stderr_truncated, "CAPTURED")
                 facts.deadline_exceeded = attached.timed_out
                 if attached.stdout_truncated:
                     notes.append("verifier output reached the result cap; reading stopped")
@@ -256,8 +356,8 @@ def execute_revision(executor: Executor, plan: RunPlan, pair: int, side: Literal
             else:
                 facts.target_oom = facts.target_oom or _state(target_obj).get("OOMKilled") is True
                 facts.target_exited = not _state(target_obj).get("Running")
-        logs = executor.run(Logs(target_id, stdout_cap=TARGET_LOG_CAP))
-        out["log"], out["log_truncated"] = logs.stdout, logs.stdout_truncated
+        logs = executor.run(Logs(target_id, stdout_cap=TARGET_LOG_CAP, stderr_cap=TARGET_LOG_CAP))
+        out["target_stdout"], out["target_stderr"] = CapturedOutput.stdout_of(logs), CapturedOutput.stderr_of(logs)
 
     cleanup: list[CleanupResult] = []
     try:
@@ -282,8 +382,10 @@ def execute_revision(executor: Executor, plan: RunPlan, pair: int, side: Literal
                    "failed_reports": stream.failed_reports},
     }, "execution")
     return RevisionResult(pair=pair, side=side, execution=execution, stream=stream, raw_stream=raw,
-                          target_log=out["log"], target_log_truncated=out["log_truncated"],
-                          cleanup=tuple(cleanup), precondition_failure=out["failure"], notes=tuple(notes))
+                          target_stdout=out["target_stdout"], target_stderr=out["target_stderr"],
+                          verifier_console=out["verifier_console"],
+                          cleanup=tuple(cleanup), precondition_failure=out["failure"], notes=tuple(notes),
+                          interruption=out["interruption"])
 
 
 def _record_verifier(facts: _Facts, obj: dict[str, Any] | None, *, stopped_by_host: bool) -> None:
