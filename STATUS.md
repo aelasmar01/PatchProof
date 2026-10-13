@@ -2,8 +2,9 @@
 
 **Updated:** 2026-10-13 (**PP-008 `IN_PROGRESS`**: the profile and approval-infrastructure blockers are
 resolved (versioned profile `profiles/papertrail-reference-1.0.0.json`, strict loader, profile/runtime
-equality, owner-operated `patchproof.pack_approval`); the PaperTrail pack is **NOT_APPROVED** and awaits the
-owner's own typed decision. Gate A done; gate B COMPLETE; **gate C collection and protocol validation COMPLETED
+equality, owner-operated `patchproof.pack_approval`); the owner approved the PaperTrail pack
+(`apr-f30bd94302802ad9aa8b394be066d1fa`), whose rationale and scope hold the confirmation phrase; an
+owner-operated supersession workflow is ready for the owner's correction. Gate A done; gate B COMPLETE; **gate C collection and protocol validation COMPLETED
 with a documented C1b exception**: C1a PASS; C1b FAIL, owner-adjudicated ACCEPTED_FOR_C2_PROGRESSION; C2 PASS.
 PP-007 is `ACCEPTED` and pushed, `origin/main` = `d85b6db`)
 **Specification:** `PROJECT_SPEC.md` v1.0
@@ -18,9 +19,11 @@ PP-007 is `ACCEPTED` and pushed, `origin/main` = `d85b6db`)
 and protocol validation is complete with the documented C1b exception; the profile and
 approval infrastructure is implemented. The implementation is recorded in a local,
 owner-authorized **checkpoint commit** (2026-10-13, not pushed, not tagged). That commit is
-not issue acceptance. The PaperTrail pack is **NOT_APPROVED**: no approval record exists, and
-the approval store has not been created. PaperTrail has not been executed. No live comparison
-has been authorized.
+not issue acceptance. The owner then approved the PaperTrail pack personally
+(`apr-f30bd94302802ad9aa8b394be066d1fa`, 2026-10-13T05:24:44Z). Its rationale and scope both
+hold the confirmation phrase, an audit-quality deficiency the owner will correct by
+supersession (see below). PaperTrail has not been executed. No live comparison has been
+authorized.
 **Previous issue:** PP-007, implementation `ACCEPTED` and pushed (`22c43dd..d85b6db`, ordinary
 fast-forward, 2026-10-12).
 **Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 and PP-006
@@ -56,6 +59,24 @@ execute; loading and outcomes are unaffected.
 1. the owner's PaperTrail pack approval decision (PP-007 workflow);
 2. the first live baseline/candidate comparison (separate approval; plan in `run-images.md` §7);
 3. host pytest 9.0.3 remediation (delta prepared in `environment.lock.md`; not executed).
+
+## PP-008 approval statement correction by supersession (2026-10-13) — workflow ready, owner action pending
+
+The owner ran `patchproof.pack_approval` personally. It wrote
+`apr-f30bd94302802ad9aa8b394be066d1fa` and reported PACK APPROVED. The phrase was typed into the
+rationale and scope fields. This is an audit-quality deficiency of the reviewer's statement, not
+of the pack identity. Owner-authorized: a narrowly scoped, owner-operated supersession workflow.
+No replacement was created; the original was not modified; no Docker operation; PaperTrail was not run. Recorded in an owner-authorized local checkpoint commit (not pushed, not tagged, not acceptance).
+
+| Item | Result |
+|---|---|
+| Original record, read through the PP-007 `ApprovalStore` (read-only) | exists; the only record; current (supersedes nothing); valid against `approval-record` (schema and model); file name equals its approval ID; mode `0400`, 2056 B, SHA-256 `3b6354eb59d097224c4d958064c0c11907a7c4982e2298d2ed01322f9b048735`; `check_approval` **APPROVED** against freshly recomputed bindings (no stale field); `rationale` and `scope` are each exactly `APPROVE papertrail-document-access 1.0.0 a4c4ce48d5d2`. There is no cryptographic signature in a PP-007 record; integrity is the immutable file, its ID and the binding check. |
+| Supersession workflow | `run_supersession` in `src/patchproof/pack_approval.py`; entry point `python -I -m patchproof.pack_approval_supersede`. Reuses `ApprovalStore`, `ReviewDecision`, `create_approval`, `check_approval` and `supersedes`; no new schema or store. Same interactive gate as the approval command. Refuses: no store (never created), no current approval, any stale binding, a phrase mismatch, a store or binding change before the write. Shows the current record, its rationale and scope, and the full review before any prompt. After the write: every earlier record byte-for-byte and mode-identical, history = earlier history + one record, new record read back and `0400`, new record `APPROVED`, original `APPROVAL_STALE (superseded)`. Exit 0 verified; 2 nothing written; 4 written but not verified (reported, never deleted). |
+| Phrase refusal | Both commands refuse a rationale or scope that contains the confirmation phrase (case and spacing ignored). This also prevents the incident on a first approval. |
+| Tests | Full suite 8272 passed (Docker-free; +24 supersession tests in `test_pack_approval_supersede.py`); mypy strict clean (62 files); Ruff clean on changed files. Mutation check of 9 guards (scratch, not committed): 9 killed. One gap found by the check (the pre-write binding re-check was unreachable with a pinned target) was closed with a dedicated test. |
+
+**Owner command (the owner runs it; never run on the owner's behalf):**
+`cd ~/Desktop/PatchProof && uv run --locked --offline python -I -m patchproof.pack_approval_supersede`
 
 ## PP-008 pre-approval checkpoint (2026-10-13)
 

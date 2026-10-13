@@ -48,6 +48,7 @@ from typing import Final, Protocol
 from platformdirs import user_data_path
 
 from .core.approvals import (
+    MAX_RECORD_BYTES,
     ApprovalError,
     ApprovalStore,
     BindingInputs,
@@ -427,6 +428,19 @@ def _ask(terminal: Terminal, prompt: str) -> str:
     return answer
 
 
+def _folded(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
+def _ask_statement(terminal: Terminal, prompt: str, phrase: str) -> str:
+    """A rationale or scope: required, and never the confirmation phrase (in whole or in part)."""
+    answer = _ask(terminal, prompt)
+    if _folded(phrase) in _folded(answer):
+        raise ApprovalBlocked(f"the answer to {prompt.strip()!r} contains the confirmation phrase; describe the "
+                              "review in your own words and type the phrase only at the confirmation prompt")
+    return answer
+
+
 def run_approval(target: ApprovalTarget, store_root: Path, terminal: Terminal, *,
                  now: Callable[[], datetime]) -> int:
     """The interactive flow. Returns 0 only when a verified approval was written."""
@@ -442,8 +456,8 @@ def run_approval(target: ApprovalTarget, store_root: Path, terminal: Terminal, *
             return 3
         terminal.write(render_review(review, current, store_root))
         identity = _ask(terminal, "Your name (asserted, not verified): ")
-        rationale = _ask(terminal, "Rationale for approving this pack: ")
-        scope = _ask(terminal, "Approval scope: ")
+        rationale = _ask_statement(terminal, "Rationale for approving this pack: ", review.phrase)
+        scope = _ask_statement(terminal, "Approval scope: ", review.phrase)
         terminal.write(f"\nTo approve, type exactly:  {review.phrase}\n")
         typed = terminal.read_line("Confirmation: ")
         if typed != review.phrase:
@@ -487,6 +501,154 @@ def run_approval(target: ApprovalTarget, store_root: Path, terminal: Terminal, *
                    f"{record.reviewer.asserted_identity} (local assertion)\n  This approves the pack only. "
                    "It authorizes no run.\n")
     return 0
+
+
+# ------------------------------------------------------------------ supersession (owner-operated)
+
+
+def _record_bytes(store: ApprovalStore) -> dict[str, tuple[bytes, int]]:
+    """Raw bytes and permission bits of every record file, read through the pinned store directory.
+
+    Used only to prove that existing records are byte-for-byte unchanged by a supersession.
+    The store's own reader has already validated each entry; this adds no parsing.
+    """
+    try:
+        dir_fd = os.open(store.root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError as exc:
+        raise ApprovalBlocked("approval store is missing, not a directory, or a symlink") from exc
+    try:
+        st = os.fstat(dir_fd)
+        if (st.st_dev, st.st_ino) != store.identity:
+            raise ApprovalBlocked("approval store was replaced")
+        found: dict[str, tuple[bytes, int]] = {}
+        for name in sorted(os.listdir(dir_fd)):
+            fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dir_fd)
+            with os.fdopen(fd, "rb") as handle:
+                fst = os.fstat(handle.fileno())
+                if not stat.S_ISREG(fst.st_mode):
+                    raise ApprovalBlocked(f"{name} is not a regular file")
+                found[name] = (handle.read(MAX_RECORD_BYTES + 1), stat.S_IMODE(fst.st_mode))
+        return found
+    finally:
+        os.close(dir_fd)
+
+
+def render_current(record: ApprovalRecord) -> str:
+    return "\n".join([
+        "=" * 78,
+        "SUPERSEDE THE CURRENT APPROVAL: the existing record is kept, unchanged and readable. The new",
+        "record names it in `supersedes`; from then on the new record is the current approval and the",
+        "existing one is history. Nothing is deleted, edited or renamed.",
+        "=" * 78,
+        "",
+        "Current approval (as stored):",
+        f"  approval_id   {record.approval_id}",
+        f"  created_at    {record.created_at}",
+        f"  supersedes    {record.supersedes or 'nothing'}",
+        f"  reviewer      {record.reviewer.asserted_identity} ({record.reviewer.basis})",
+        f"  rationale     {record.rationale!r}",
+        f"  scope         {record.scope!r}",
+        "",
+        "Supersession is allowed only while every binding is unchanged: the new record approves",
+        "exactly the same pack, collection, verifier and profile, with a new rationale and scope.",
+        "",
+    ]) + "\n"
+
+
+def run_supersession(target: ApprovalTarget, store_root: Path, terminal: Terminal, *,
+                     now: Callable[[], datetime]) -> int:
+    """Replace the current approval's reviewer statement by supersession.
+
+    Returns 0 only when the replacement was written and verified, the original records are
+    byte-for-byte unchanged, and the original is superseded. 2: nothing written. 4: a record
+    was written but failed verification (it is reported, never deleted).
+    """
+    written: Path | None = None
+    try:
+        review = assemble_review(target)
+        try:
+            os.lstat(store_root)
+        except OSError:
+            raise ApprovalBlocked("there is no approval store, so there is nothing to supersede") from None
+        store = provision_store(store_root)
+        history = store.records()
+        original_bytes = _record_bytes(store)
+        current = current_approval(history.values(), review.bindings.pack_id)
+        if current is None:
+            raise ApprovalBlocked("this pack has no current approval to supersede")
+        status = check_approval(history.values(), review.inputs, approval_id=current.approval_id)
+        if status.status != "APPROVED":
+            raise ApprovalBlocked(f"the current approval is {status.status} {list(status.stale_fields)}; a stale "
+                                  "approval cannot be superseded with a new statement. Review the changed bindings "
+                                  "and approve them with patchproof.pack_approval instead")
+        terminal.write(render_current(current))
+        terminal.write(render_review(review, current, store_root))
+        identity = _ask(terminal, "Your name (asserted, not verified): ")
+        rationale = _ask_statement(terminal, "Rationale for approving this pack: ", review.phrase)
+        scope = _ask_statement(terminal, "Approval scope: ", review.phrase)
+        terminal.write(f"\nThis supersedes {current.approval_id}. To approve, type exactly:  {review.phrase}\n")
+        typed = terminal.read_line("Confirmation: ")
+        if typed != review.phrase:
+            raise ApprovalBlocked("the confirmation does not match the phrase")
+
+        fresh = assemble_review(target)
+        if fresh.bindings != review.bindings:
+            raise ApprovalBlocked("a binding changed between review and confirmation")
+        if store.records() != history or _record_bytes(store) != original_bytes:
+            raise ApprovalBlocked("the approval store changed during the review")
+        record = create_approval(fresh.bindings, ReviewDecision(identity, rationale, scope, typed),
+                                 supersedes=current, now=now())
+        written = store.save(record)
+
+        after = store.records()
+        after_bytes = _record_bytes(store)
+        problems = []
+        if any(after_bytes.get(name) != value for name, value in original_bytes.items()):
+            problems.append("an existing record is no longer byte-for-byte identical")
+        if set(after) != set(history) | {record.approval_id}:
+            problems.append("the approval history is not exactly the earlier history plus the new record")
+        if after.get(record.approval_id) != record:
+            problems.append("the record read back differs from the record written")
+        if stat.S_IMODE(os.lstat(written).st_mode) != 0o400:
+            problems.append("the record file is not read-only")
+        inputs = assemble_review(target).inputs
+        new_status = check_approval(after.values(), inputs, approval_id=record.approval_id)
+        if new_status.status != "APPROVED":
+            problems.append(f"the replacement is {new_status.status} {list(new_status.stale_fields)}")
+        old_status = check_approval(after.values(), inputs, approval_id=current.approval_id)
+        if (old_status.status, old_status.stale_fields) != ("APPROVAL_STALE", ("superseded",)):
+            problems.append(f"the original is {old_status.status}, not superseded")
+        if record.supersedes != current.approval_id:
+            problems.append("the replacement does not name the original in supersedes")
+        if problems:
+            terminal.write(f"\nFAILED VERIFICATION. A record was written at {written}, but the supersession is NOT "
+                           f"verified: {'; '.join(problems)}. Nothing has been deleted (records are immutable).\n")
+            return 4
+    except (ApprovalBlocked, ApprovalError, RecordError, PolicyViolation, OSError) as exc:
+        if written:
+            terminal.write(f"\nFAILED VERIFICATION: {exc}. A record was written at {written}, but the supersession "
+                           "was not verified. Nothing has been deleted (records are immutable).\n")
+            return 4
+        terminal.write(f"\nNOT SUPERSEDED: {exc}. Nothing was written; the current approval is unchanged.\n")
+        return 2
+    except (EOFError, KeyboardInterrupt):
+        terminal.write("\nNOT SUPERSEDED: input ended. Nothing was written; the current approval is unchanged.\n")
+        return 2
+    terminal.write(f"\nPACK APPROVAL SUPERSEDED.\n  new current approval  {record.approval_id}\n"
+                   f"    record {written}\n  superseded (kept)     {current.approval_id}\n"
+                   f"  reviewer {record.reviewer.asserted_identity} (local assertion)\n"
+                   "  Every binding is unchanged. This approves the pack only. It authorizes no run.\n")
+    return 0
+
+
+def main_supersede() -> int:
+    try:
+        require_interactive(sys.argv, os.environ)
+    except NotInteractive as exc:
+        sys.stderr.write(f"NOT SUPERSEDED: {exc}. Nothing was read or written.\n")
+        return 2
+    return run_supersession(papertrail_target(), approval_store_root(), _ConsoleTerminal(),
+                            now=lambda: datetime.now(UTC))
 
 
 def main() -> int:

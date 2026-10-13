@@ -242,6 +242,8 @@ uv run --locked --offline python -I -m patchproof.pack_approval
   approval of exactly these bindings already exists, nothing written; 4 a record was written but
   failed verification (or an error occurred after the write). It is reported as `FAILED
   VERIFICATION`, never as approved, and is not deleted.
+- **Statements:** the rationale and scope must not contain the confirmation phrase (case
+  and spacing ignored). The phrase is typed only at the confirmation prompt.
 - **Pinned, offline environment:** `--locked --offline` refuses a lockfile that is out of date
   and any network access. Verified 2026-10-13 under a pseudo-terminal: `uv run` keeps Python in
   its own foreground process group, so the foreground check passes, and `uv sync --dry-run`
@@ -255,6 +257,25 @@ uv run --locked --offline python -I -m patchproof.pack_approval
 - **Limit:** the terminal checks are a procedural control, not proof of a human. Software
   running as the same OS account can allocate a pseudo-terminal, and the reviewer identity
   remains `local-assertion-unverified`.
+
+**Correcting a statement by supersession.** A reviewer statement (identity, rationale, scope)
+is never edited. To replace it, the owner runs:
+
+```
+uv run --locked --offline python -I -m patchproof.pack_approval_supersede
+```
+
+- the same interactive gate and fresh binding recomputation as the approval command;
+- refused unless the store exists and the pack has a current approval that is `APPROVED` for
+  the recomputed bindings. A stale approval is re-approved with the approval command, not
+  superseded with a new statement;
+- shows the current record with its rationale and scope, then the full review, and states
+  that the existing record is kept;
+- the new record passes the current approval as `supersedes`;
+- after the write, every earlier record must be byte-for-byte and mode-identical, the
+  history must be the earlier history plus exactly one record, the new record must be
+  `APPROVED` and the original `APPROVAL_STALE (superseded)`;
+- exit codes as above. The original is never deleted, renamed or rewritten.
 
 **No PaperTrail approval exists.** Only the owner can make one, with the command above. A
 test asserts that no `apr-*.json` file exists in the repository.
