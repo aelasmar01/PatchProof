@@ -424,6 +424,11 @@ def run_bounded(
             timed_out = True
             _terminate(proc)
             returncode = proc.wait(timeout=5)
+    except BaseException:
+        # An interrupt (Ctrl-C, or a handled SIGTERM) must not leave the client running in
+        # its own session: stop it before the exception continues to the cleanup code.
+        _terminate(proc)
+        raise
     finally:
         selector.close()
         proc.stdout.close()

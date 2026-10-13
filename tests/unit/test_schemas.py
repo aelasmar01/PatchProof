@@ -45,6 +45,7 @@ RECORD_SCHEMAS = (
     "execution-profile.v1.1",
     "source-manifest",
     "reference-fixture",
+    "run-authorization",
 )
 
 # filename -> (failing keyword, JSON pointer of the failing instance location).
@@ -132,6 +133,18 @@ INVALID_CASES: dict[str, tuple[str, str]] = {
     "reference-fixture--server-version-asserted.json": ("const", "/target/server/version"),
     "reference-fixture--security-check-without-marker.json": ("type", "/checks/1/protected_marker"),
     "reference-fixture--document-read-without-marker.json": ("type", "/checks/4/protected_marker"),
+    "run-authorization--two-pairs.json": ("const", "/plan/repetitions/pairs"),
+    "run-authorization--seeded-fixture.json": ("type", "/plan/fixture/seed"),
+    "run-authorization--automatic-retry.json": ("const", "/plan/repetitions/automatic_retry"),
+    "run-authorization--five-containers.json": ("const", "/plan/containers/max_creations"),
+    "run-authorization--abbreviated-commit.json": ("pattern", "/plan/sources/baseline/commit_id"),
+    "run-authorization--abbreviated-plan-hash.json": ("pattern", "/plan_sha256"),
+    "run-authorization--unknown-field.json": ("additionalProperties", ""),
+    "run-authorization--reusable.json": ("const", "/single_use"),
+    "run-authorization--bridge-network.json": ("const", "/plan/runtime/network_policy"),
+    "run-authorization--verified-reviewer.json": ("const", "/reviewer/basis"),
+    "run-authorization--absolute-evidence-path.json": ("pattern", "/plan/evidence/destination"),
+    "run-authorization--duplicate-key.json": ("duplicate_key", ""),
 }
 
 

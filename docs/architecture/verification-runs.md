@@ -23,7 +23,15 @@ validation)
 | `pack_approval.py` | Owner-operated PaperTrail pack approval (PP-007 functions; see `packs-and-approvals.md`) |
 | `runner/revision.py` | One revision execution: images, inputs, create and gate, readiness, attached verifier, observation, cleanup |
 | `runner/collector.py` | Trusted parser and classifier of one verifier event stream |
-| `runner/comparison.py` | Pairs × sides, post-run checks, verdict input, the unchanged PP-004 engine |
+| `runner/comparison.py` | Pairs × sides, post-run checks, verdict input, the unchanged PP-004 engine; three optional hooks (re-validation before a revision, a stop policy after one, persistence of each result) that default to no effect |
+| `core/records/authorization.py`, `schemas/run-authorization.schema.json` | The run-authorization contract 1.0 and its frozen plan document |
+| `core/run_authorizations.py` | Semantic checks, the confirmation phrases, creation, the private store, supersession of unused records, and the single-use claim |
+| `runner/papertrail_plan.py` | Recomputes the one frozen plan kind `papertrail-authz-r1-r3-one-pair-v1` from the real private artifacts |
+| `runner/run_evidence.py` | Exclusive private evidence directory, write-once files, the Docker operation journal and the four-creation budget, inventory capture and reconciliation by identity |
+| `runner/authorized_run.py` | Executes one claimed authorization: per-revision re-validation, the D2 baseline stop, evidence, inventories; separate evidence, lifecycle and cleanup states |
+| `runner/interrupts.py` | SIGINT, SIGTERM and SIGHUP become one interrupt so cleanup and finalization run; repeats are ignored |
+| `runner/run_recovery.py` | Read-only assessment of one consumed run's containers; exact-ID removal of verified owned ones |
+| `run_authorization.py`, `run_papertrail_once.py`, `recover_run.py` | Owner-operated entry points: authorize once; execute once; status and confirmed cleanup after a hard kill |
 | `verifier/patchproof_verifier/launch.py` | Fixed verifier entry point; opens the event channel before pytest starts |
 | `verifier/patchproof_verifier/plugin.py` | Collection, typed event emission, failure classes, per-test deadline |
 | `verifier/patchproof_verifier/events.py` | Event writer; the verifier-side pack-tree hash |
@@ -202,6 +210,181 @@ and the global stream failures (G1) itself.
 - **Failures:** a failed request raises `TargetRequestError`, which becomes a test error
   (`exception`), never a vulnerability.
 
+## Run authorization and the first PaperTrail comparison (PP-008)
+
+A pack approval never authorizes a run (spec 7.5). The first live comparison, r1
+(vulnerable) against r3 (correct), needs a separate, single-use **run authorization** that
+binds one frozen plan. Nothing here is a general workflow; PP-009 replaces it.
+
+**Plan (`papertrail-authz-r1-r3-one-pair-v1`), recomputed by `assemble_run` from the real
+artifacts, never from a draft:**
+- the run ID and installation ID; the current pack approval, `APPROVED` for freshly
+  recomputed bindings, with an unambiguous history;
+- the pack (ID, version, manifest, tree), the exact collection in order, the plugin version;
+- the profile ID, version and canonical hash; both approved r2 images;
+- for each side: tag, full commit and tree IDs, snapshot directory name, manifest SHA-256 and
+  source-tree SHA-256. The snapshot is found by commit in the private store (exactly one) and
+  re-hashed. The inclusion profile hash and the included paths;
+- **fixed-fixture mode (owner decision D1, 2026-10-13):** `synthetic-documents-v1` with its
+  exact hash in both snapshots and in the pack, no seed, identical data for both sides, a
+  fresh target container per side, exactly one pair. A narrowly scoped v0.1 exception to
+  seeded repetition; a pack declaring more pairs is refused. Seed variation is PP-019;
+- one pair; baseline then candidate; sequential; no automatic retry; at most four container
+  creations, with their exact names;
+- **baseline failure policy (owner decision D2):** `stop-before-candidate-on-execution-failure`;
+- every runtime value (resources, timeouts, logging, result cap, per-case timeout, response
+  cap, network policy, target address) and the evidence destination `evidence/runs/<run-id>`.
+
+The plan hash is the SHA-256 of the plan's canonical JSON. The schema fixes the constant
+parts (one pair, four containers, no seed, no retry, single use); `check_authorization` adds
+what a schema cannot: the hash, the container names and evidence path derived from the run
+ID, placeholder identities, sorted inclusion paths and distinct target and verifier images.
+The reusable contract deliberately allows the baseline and candidate to be the same revision
+(spec 17.2 compares the unchanged vulnerable revision against itself). Only this driver
+restricts revisions: `check_first_run_scope` requires exactly r1 (`68b2bc0e…`) as baseline and
+r3 (`2fb6d093…`) as candidate, tag, commit and tree, against module constants. Both commands
+apply it: `assemble_run` for every recomputed plan, and the execution command to the stored
+plan before anything else.
+
+**Store and claim (`<user data>/run-authorizations/`, 0700).** The PP-007 store discipline:
+owner-checked, no symlinks, stable directory identity, `O_EXCL` read-only records, bounded
+strict reads, unexpected entries refused. A run ID is never reused. An unused authorization
+may be superseded by a new one, never edited; a claimed one can never be superseded.
+Execution starts with a **claim**: `rau-<id>.claim`, created with `O_EXCL`, fsynced with its
+directory, before the first Docker operation. It is never removed. A claim that is empty or
+unreadable (a crash during the claim) is `INDETERMINATE` and counts as consumed. So a crash
+before the claim leaves the authorization usable and nothing has run; a crash after it
+leaves the authorization consumed.
+
+**Owner commands.** Both use the pack-approval interactive gate: no arguments, no
+`PATCHPROOF*` variables, an interactive foreground terminal.
+- `python -I -m patchproof.run_authorization`: freezes a fresh run ID, shows the complete
+  plan, the four containers, the limits, the declared expectations and the limitations,
+  asks for identity, rationale and scope (never containing the phrase), then
+  `AUTHORIZE <run-id> <plan-sha256>`; recomputes everything before writing; reads back and
+  verifies after. Exit 0 verified; 2 nothing written; 4 written but not verified.
+- `python -I -m patchproof.run_papertrail_once`: requires the single unused authorization,
+  a plan recomputed now that equals it exactly, and a typed `EXECUTE <run-id>`; then claims
+  it, creates the evidence directory exclusively and runs. Exit 0 finalized, lifecycle
+  `COMPLETE`, cleanup verified, inventory consistent; 5 finalized but needs attention (a
+  stop, unverified cleanup, any inventory change, a suspected daemon restart); 4 incomplete
+  evidence; 3 consumed but nothing executed; 2 refused, nothing consumed. An exit code is
+  never a verdict.
+- `python -I -m patchproof.recover_run`: see *Hard termination and recovery* below.
+
+**Before each revision** the driver re-validates the pack approval, the authorization record
+and its claim bytes (and that it is not superseded), and the whole plan recomputed from the
+current artifacts. A failure fails the matching precondition (pre-execution before anything
+started, post-execution after). `execute_revision` re-checks images, pack and source bytes
+itself. Before the candidate, the built-in network identities are listed again: a change
+means Docker lost continuity, and the run ends `interrupted`.
+
+**D2 stop.** After the baseline, the candidate is not started if the baseline had a
+precondition failure, fails the engine's own execution-trust rule (readiness, termination,
+exit code, OOM, deadline, runtime errors, stream status, cap), or did not verify removal of
+both containers. The engine's rule is reached through one boundary,
+`authorized_run.engine_execution_trust` (the only use of `verdicts._execution_trusted` and
+`_execution_reasons`, applied to the engine's own parsed record). The engine is unchanged.
+`test_d2_boundary_agrees_with_the_public_engine` pins the boundary to the public `evaluate`
+result for 13 execution faults: D2's trust decision must equal the public
+`pairs_terminated_normally`, and its codes must equal the public execution reasons for that
+baseline. An engine change that moved either would fail that test. The
+run ends `interrupted`, so the engine's verdict is incomplete (`INCONCLUSIVE`) and can never
+be `VERIFIED_FOR_CASES`. A trusted baseline with unexpected semantic outcomes is not an
+execution failure: the candidate runs and the engine classifies it (for example
+`BASELINE_NOT_REPRODUCED`).
+
+**Evidence (`<user data>/evidence/runs/<run-id>/`, 0700; files 0600).** Created exclusively
+(an existing directory refuses the run). Each file is written to a temporary name with
+`O_EXCL`, fsynced, and hard-linked into place, so it is complete or absent and never
+overwritten. Journals are append-only and fsynced per line. Contents: the claim, the
+authorization bytes, the frozen plan, the pack approval and its history, both source
+manifests, the collection, the inventories and their reconciliation, every Docker operation
+(argv, exit, timing, output hash and size; create, inspect and listing output inline; never
+the verifier stream or target logs), the ownership journal, the re-validation log, per side
+the execution record, observation cells, the raw verifier stream (`verifier-stream-…bin`, the
+only event channel) and the untrusted target log (`untrusted-target-log-…log`, never parsed),
+cleanup outcomes, the verdict input and verdict, and `outcome.json`. `manifest.json` is
+written last with the hash of every file: `FINALIZED`, or `INCOMPLETE` after a handled
+failure. No manifest means a crash; the partial files remain. A file above 64 MiB or a
+journal line above 1 MiB is refused (above the schema's 50 MiB result-cap maximum).
+
+**Three separate states (spec 8.2).** `outcome.json` keeps:
+- *evidence status*: `FINALIZED` only when the engine evaluated the run, no exception or
+  signal interrupted it, every evidence file was written, and both inventories are complete;
+- *lifecycle*: `COMPLETE` only with finalized evidence and a normal termination; otherwise
+  `BLOCKED` (the engine's pre-execution `BLOCKED`), `CANCELED` or `INTERRUPTED`;
+- *cleanup status*: `COMPLETE` only when every container this run created is absent from a
+  complete after-inventory, else `FAILED`.
+
+`verdict` is set only with finalized evidence (`verdict_established`). The engine's
+evaluation is always kept as `engine_verdict` and in `verdict.json`: a trusted candidate
+violation is never discarded, and incomplete evidence never establishes any verdict,
+`VERIFIED_FOR_CASES` included. A failed evidence write does not abort the comparison (the
+revision is already cleaned up); after the baseline it stops the run before the candidate.
+An incomplete before-inventory fails `environment_identity` before the baseline, so the
+engine returns `BLOCKED` and no container is created. `outcome.json` also restates the
+fixed-fixture limitation (one pair, no seed, no seed variation).
+
+`run_evidence.verify_evidence` re-checks a directory against its manifest (missing, added,
+changed and partial files) and recomputes the verdict from `verdict-input.json` with the
+engine. Like spec 12.2 says, it detects inconsistency and corruption, not a local adversary
+who rewrites both the manifest and the files.
+
+**Inventory reconciliation by identity.** Images, containers, networks and volumes are listed
+before and after (`SnapshotList`, read-only) and compared by ID (volumes by name), never by
+count. A built-in network (`bridge`, `host`, `none`) with a new ID under the same name and
+driver is classified `DAEMON_MANAGED_BUILTIN_RECREATED`: explained, recorded with both IDs,
+and marked as a suspected daemon restart, so continuity is not claimed. Every other change is
+`UNEXPLAINED_*` and makes the reconciliation `ATTENTION`; so does any container this run
+created that still exists. A failed listing makes it `INCOMPLETE`; before the run, that
+creates nothing. Cleanup touches only recorded exact IDs with freshly re-verified ownership
+labels, and is verified by their absence from a complete after-inventory.
+
+**Daemon continuity is evidence, not proof.** The built-in network IDs are compared before
+the candidate (a change or a failed listing interrupts the run) and after it. A change is
+`daemon_continuity: BROKEN_SUSPECTED` and needs attention (exit 5) even when explained; a
+failed listing is `UNKNOWN`. Unchanged IDs are reported as `NO_CHANGE_OBSERVED`, never as
+proof that the daemon stayed online: a restart that kept the IDs, or a short loss of the
+daemon, would not be seen this way. During a revision, a lost daemon shows up as failed
+operations, which make the execution untrusted and the cleanup `FAILED`, never assumed
+complete.
+
+**Hard termination and recovery.**
+
+| Event | What runs | Result |
+|---|---|---|
+| SIGINT, SIGTERM, SIGHUP | `runner.interrupts` turns the first into `RunTerminated`; the Docker client in progress is stopped; the revision's `finally` removes its containers by exact ID; evidence is finalized `INCOMPLETE`, lifecycle `INTERRUPTED`; repeats are ignored during cleanup | exit 4; no further revision |
+| Unexpected exception (`OSError`, `EvidenceError`, `PolicyViolation`, `ValueError`) | the same cleanup and finalization | exit 4 |
+| Any other exception | the revision's `finally` cleanup only; no manifest | not finalized |
+| SIGKILL, host shutdown or power loss, interpreter crash | **nothing**: no cleanup, no manifest. Containers of the revision in progress remain (a target keeps running until stopped; Docker Desktop does not restart them, their restart policy is `no`) | consumed claim, journals intact |
+| Docker daemon lost mid-revision | operations fail; the execution is untrusted; cleanup is `FAILED` | `INCOMPLETE` or attention |
+
+In every case the claim, fsynced before the first Docker operation, keeps the authorization
+consumed, and nothing retries. The ownership journal records each planned name before
+`create` and each created ID after it, fsynced. The operation journal records each request
+before it is sent. So a hard kill leaves the created IDs on disk.
+
+`python -I -m patchproof.recover_run` (owner-operated, interactive, needs Docker approval
+because even the status check runs `docker inspect`) handles what remains, for one consumed
+run the owner selects by typing its run ID. It is not the general PP-014 recovery:
+- **Read-only first:** the run's journal is read strictly; the four fixed names are resolved
+  through the container listing and inspected only by exact full ID. Each is `ABSENT`,
+  `OWNED` (journal ID, name and owner, installation and run labels agree, and the journal
+  planned it), `FOREIGN`, `AMBIGUOUS` or `UNKNOWN`. Any container with this run's label or
+  name prefix outside those four is also ambiguous.
+- **Ambiguity refuses everything:** any `FOREIGN`, `AMBIGUOUS`, `UNKNOWN`, unreadable journal
+  or failed listing removes nothing.
+- **Explicit confirmation:** the exact IDs are shown and the owner types
+  `CLEANUP <run-id>`. The assessment is repeated and must name the same IDs. Each is then
+  removed with the accepted `remove_owned` (fresh re-inspection of ID, name and labels,
+  graceful stop, exact-ID removal, `--force` only while still running).
+- **Never resumes:** an allowlist permits only `inspect`, listing, `stop`, `remove` and
+  `force-remove`; create, start, attach and logs are refused before Docker.
+- **Separate evidence:** `<user data>/evidence/recoveries/<run-id>/rec-<id>/` (subject, every
+  assessment, operation journals, cleanup results, manifest). The run's own evidence is only
+  read.
+
 ## Docker-free evidence
 
 | Test file | What it shows |
@@ -214,6 +397,9 @@ and the global stream failures (G1) itself.
 | `test_run_images.py` | the proposed recipes match the code: base digest, offline wheel-only installs, locks, the health check, the verifier environment |
 | `test_profiles.py` | the repository profile loads with its pinned hash and matches the JSON schema and the reference scope; refusal of placeholders, unknown fields, other versions, duplicate keys, wrong names, symlinks, FIFOs, oversize and swapped, rejected or unapproved images; each of 18 runtime values refused when it differs; the values reach the container argv; a different source scope fails `source_identity` |
 | `test_pack_approval.py` | refusal of piped stdin, arguments, `PATCHPROOF*` variables and background terminals; acceptance in a foreground pseudo-terminal; every prerequisite failure writes nothing; changes between review and confirmation are detected; the full binding set is shown before the phrase; a synthetic approval is a valid PP-007 record; history is preserved by supersession; the store is never followed through a symlink or repaired; the phrase is refused as rationale or scope |
+| `test_run_authorization_store.py` | the schema example is hash-consistent; semantic rules the schema cannot express; strict loading; the exact phrase; the store's save, claim, supersession and run-ID rules; damaged, loose, symlinked or replaced stores refused; all three entry points refuse piped input, arguments and `PATCHPROOF*` variables, and fail closed in a real foreground pseudo-terminal; the reusable contract accepts a revision against itself while `check_first_run_scope` refuses it, swapped sides, another tree and another tag |
+| `test_authorized_run.py` | the plan binds every full identity and equals the PP-006 record; refusal of a missing or stale approval, a wrong fixture hash, substituted images, a bad installation ID, a missing pack copy, two pairs, ambiguous or modified snapshots, an invalid run ID and a changed runtime policy; the authorization command's display, phrase, statement and change-detection rules, supersession and run-ID reuse, and distinct post-write failure; drift after authorization blocks before the claim with no Docker operation; single use; two competing claimers; crashes before and after the claim; an indeterminate claim; D2 stops for startup failure, crash, OOM, timeout, truncation, abnormal exit, target exit and malformed, truncated, absent, identity-mismatched and over-cap streams; uncertain cleanup; a trusted baseline with unexpected outcomes still runs the candidate; candidate preparation failure; approval, claim, snapshot and policy drift during the baseline; a daemon restart; target-log text never becomes an event; the complete evidence set, its hashes and modes; no overwrite; incomplete evidence after an exception; an incomplete before-inventory is `BLOCKED` with no container; the four-creation budget; reconciliation by identity. Security review additions: the driver refuses a same-revision authorization; the D2 boundary agrees with the public engine for 13 faults; real SIGINT, SIGTERM and SIGHUP clean up, finalize `INCOMPLETE` and ignore a repeat; a real SIGKILL (child process) leaves a consumed claim, journaled IDs and no manifest; evidence-write failures stop before the candidate or keep the engine verdict without establishing it (`NOT_FIXED` and `VERIFIED_FOR_CASES`); a trusted violation survives a cleanup failure; an incomplete after-inventory; file and line bounds; `verify_evidence` and verdict recomputation; the fixed-fixture limitation; candidate timeout, OOM, crash or absent stream is never a regression; a trusted deny-all is; a restart after the candidate, unchanged IDs as no proof, unexplained changes, Docker unavailable before the candidate, and the daemon vanishing during it |
+| `test_run_recovery.py` | confirmed cleanup removes exactly the verified owned containers and never touches others; nothing without the typed phrase; foreign labels, an extra run container, a missing journal or an unreachable daemon refuse all cleanup; a change after confirmation refuses; failed removal is incomplete; nothing to remove after a clean run; no store, no claim, unknown run IDs; never resumes or re-authorizes; an interrupt; the allowlist refuses create, start, attach, logs and wait; recovery after a real SIGKILL |
 | `test_pack_approval_supersede.py` | supersession keeps every earlier record byte-for-byte and links the replacement; the current record and its statement are shown before any prompt; one current approval across repeated supersession; refusal of stale bindings, a wrong phrase, the phrase as rationale or scope, empty or ended input, a missing store or current approval, and store or binding changes before the write; a failed write leaves the original current; a failure after the write is exit 4, never success; non-interactive invocation refused |
 
 ## Not done and not claimed
@@ -221,7 +407,9 @@ and the global stream failures (G1) itself.
 - No real verifier collection, image, container, or HTTP request to PaperTrail.
 - No PaperTrail pack approval. Every approval in the tests is synthetic, in a temporary
   directory. Only the owner can create one, with `patchproof.pack_approval`.
-- No run-authorization record (PP-009).
+- No real run authorization, and no live comparison. Every authorization, claim and evidence
+  directory in the tests is synthetic and temporary. Only the owner can create one, with
+  `patchproof.run_authorization`, and execute it, with `patchproof.run_papertrail_once`.
 - `APPROVED_RUN_IMAGES` holds only the gate-B r2 images.
 - **Docker Desktop specifics are unverified until gate C:** for example, whether
   `Mounts[].Source` is reported as the host path, and the health-state field names. The

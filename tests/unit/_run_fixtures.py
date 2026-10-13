@@ -27,7 +27,7 @@ from patchproof.git.repository import register_repository
 from patchproof.git.snapshot import create_snapshot
 from patchproof.packs.validation import validate_pack
 from patchproof.reference.papertrail import generate_reference_repository
-from patchproof.runner.docker_cli import CommandResult, DockerOp, ImageInspect, Inspect, Logs, Start, Stop
+from patchproof.runner.docker_cli import CommandResult, DockerOp, ImageInspect, Inspect, Logs, SnapshotList, Start, Stop
 from patchproof.runner.inputs import SourceSnapshot, materialize_pack
 from patchproof.runner.policy import ImageId, Ownership
 from patchproof.runner.run_plan import ApprovedRunImage, RunPlan
@@ -195,6 +195,20 @@ def image_inspect(record: ApprovedRunImage) -> bytes:
     return json.dumps([{"Id": record.image.value, "Os": "linux", "Architecture": "amd64", "Config": config}]).encode()
 
 
+def default_listings() -> dict[str, list[dict[str, Any]]]:
+    """A plausible unrelated inventory: one foreign container, the built-in networks, a volume."""
+    return {
+        "images": [{"ID": "sha256:" + "4e" * 32, "Repository": "example/unrelated", "Tag": "1", "Digest": "<none>"}],
+        "containers": [{"ID": "f0" * 32, "Names": "someone-elses-container", "Image": "example/unrelated:1",
+                        "State": "running", "Labels": "com.example.owner=someone-else"}],
+        "networks": [{"ID": "1b" * 32, "Name": "bridge", "Driver": "bridge", "Scope": "local"},
+                     {"ID": "2c" * 32, "Name": "host", "Driver": "host", "Scope": "local"},
+                     {"ID": "3d" * 32, "Name": "none", "Driver": "null", "Scope": "local"},
+                     {"ID": "5f" * 32, "Name": "unrelated-net", "Driver": "bridge", "Scope": "local"}],
+        "volumes": [{"Name": "unrelated-volume", "Driver": "local"}],
+    }
+
+
 @dataclass
 class FakeDocker:
     """Scripted Docker: tracks two containers by role and answers every allowed operation.
@@ -220,6 +234,11 @@ class FakeDocker:
     image_tamper: Callable[[dict[str, Any]], None] | None = None
     foreign_labels_on_cleanup: bool = False
     on_attach: Callable[[str], None] | None = None
+    records: tuple[ApprovedRunImage, ApprovedRunImage] = (TARGET_RECORD, VERIFIER_RECORD)
+    create_fails_side: str | None = None  # "baseline" or "candidate": that side's target create fails
+    listings: dict[str, list[dict[str, Any]]] = field(default_factory=lambda: default_listings())
+    listing_fails: set[str] = field(default_factory=set)
+    down: bool = False  # the daemon is unreachable: every operation fails, nothing is "not found"
     log: list[DockerOp] = field(default_factory=list)
     specs: dict[str, RunContainerSpec] = field(default_factory=dict)
     health: dict[str, list[str]] = field(default_factory=dict)
@@ -235,14 +254,27 @@ class FakeDocker:
 
     def run(self, op: DockerOp) -> CommandResult:
         self.log.append(op)
+        if self.down:
+            return fail(op, b"Cannot connect to the Docker daemon. Is the docker daemon running?")
+        if isinstance(op, SnapshotList):
+            if op.kind in self.listing_fails:
+                return fail(op)
+            rows = list(self.listings.get(op.kind, []))
+            if op.kind == "containers":  # this fake's own live containers are listed too
+                rows += [{"ID": c, "Names": self.specs[c].name, "Image": self.specs[c].image.value,
+                          "State": "exited", "Labels": ""} for c in self.created if c not in self.removed]
+            return ok(op, b"".join(json.dumps(r).encode() + b"\n" for r in rows))
         if isinstance(op, ImageInspect):
-            record = TARGET_RECORD if op.image.value == TARGET_IMAGE else VERIFIER_RECORD
-            data = json.loads(image_inspect(record))
+            matching = [r for r in self.records if r.image.value == op.image.value]
+            if not matching:
+                return fail(op, b"Error: No such image")
+            data = json.loads(image_inspect(matching[0]))
             if self.image_tamper is not None:
                 self.image_tamper(data[0])
             return ok(op, json.dumps(data).encode())
         if isinstance(op, RunCreate):
-            if self.create_fails == op.spec.role.value:
+            if self.create_fails == op.spec.role.value or (
+                    self.create_fails_side == op.spec.side and op.spec.role is RunRole.TARGET):
                 return fail(op)
             cid = self._cid(op.spec.role)
             self.created.append(cid)
@@ -278,7 +310,7 @@ class FakeDocker:
 
     def _inspect(self, cid: str) -> dict[str, Any]:
         spec = self.specs[cid]
-        env = TARGET_ENV if spec.role is RunRole.TARGET else VERIFIER_ENV
+        env = self.records[0].env if spec.role is RunRole.TARGET else self.records[1].env
         removed_or_stopped = cid in self.stopped
         if spec.role is RunRole.TARGET:
             if cid not in self.started:

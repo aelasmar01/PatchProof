@@ -1,0 +1,176 @@
+{
+  "schema_version": "1.0",
+  "kind": "run-authorization",
+  "authorization_id": "rau-0123456789abcdef0123456789abcdef",
+  "created_at": "2026-10-13T12:00:00Z",
+  "supersedes": null,
+  "single_use": false,
+  "plan_sha256": "sha256:1a697ab65eebfe21de3cedad04642359c858ae008f32b49bc22619f05ec48e13",
+  "plan": {
+    "plan_kind": "papertrail-authz-r1-r3-one-pair-v1",
+    "run_id": "run-0123456789abcdef0123456789abcdef",
+    "installation_id": "inst-0123456789abcdef0123456789abcdef",
+    "pack_approval_id": "apr-f4b493f9be53db6b0eff607f79508a65",
+    "pack": {
+      "pack_id": "papertrail-document-access",
+      "pack_version": "1.0.0",
+      "manifest_sha256": "sha256:a4c4ce48d5d2aaa512c746e7ba90d06fd76e879de3a3dea5280079531a8804c8",
+      "pack_tree_sha256": "sha256:529d3cd3ebf307586dcecef43a0df8ab9b55296849182f8f43c4ad7d6a8a6c31",
+      "expected_collection": [
+        {
+          "id": "AUTH-001",
+          "nodeid": "tests/test_documents.py::test_nonowner_cannot_read_private_document"
+        },
+        {
+          "id": "AUTH-002",
+          "nodeid": "tests/test_documents.py::test_unauthenticated_read_is_refused"
+        },
+        {
+          "id": "AUTH-003",
+          "nodeid": "tests/test_documents.py::test_role_grant_does_not_extend_to_other_documents"
+        },
+        {
+          "id": "AUTH-004",
+          "nodeid": "tests/test_documents.py::test_invalid_token_is_refused"
+        },
+        {
+          "id": "FUNC-001",
+          "nodeid": "tests/test_documents.py::test_owner_reads_own_document"
+        },
+        {
+          "id": "FUNC-002",
+          "nodeid": "tests/test_documents.py::test_granted_auditor_reads_listed_document"
+        },
+        {
+          "id": "FUNC-003",
+          "nodeid": "tests/test_documents.py::test_second_owner_reads_own_document"
+        },
+        {
+          "id": "FUNC-004",
+          "nodeid": "tests/test_documents.py::test_caller_reads_own_identity"
+        }
+      ],
+      "verifier_plugin_version": "0.1.0"
+    },
+    "profile": {
+      "profile_id": "papertrail-reference",
+      "profile_version": "1.0.0",
+      "profile_sha256": "sha256:a1c130c2f8b90c2ada2001ef3bc336b0b8ec29886fd92635dbf5928eb8036835"
+    },
+    "images": {
+      "target_image_id": "sha256:98548ec48d8d796fca5adaf4aab3e461bee38210bd1d568281f79190685eac2e",
+      "verifier_image_id": "sha256:e880f609a7c4d292441e22d1d0d5d7c876697dd4e1e657a668b2b6266969fecc"
+    },
+    "sources": {
+      "baseline": {
+        "tag": "refs/tags/authz-r1-vulnerable",
+        "commit_id": "68b2bc0e41cb7e9a074b09f2d97db3e2d2ca288a",
+        "tree_id": "f4a27893dc96e01b42e4b0da27cb2de5977c6063",
+        "snapshot_name": "snapshot-00112233445566778899aabbccddeeff",
+        "source_manifest_sha256": "sha256:1444803c19d7c826f88243850f44c0590008d5c828f755cd43cf48c997b1a3f7",
+        "source_tree_sha256": "sha256:4939eb32f47f9e47ee91a94e36441340491d08f2ee6c80be894b84f8ca88bf40"
+      },
+      "candidate": {
+        "tag": "refs/tags/authz-r3-correct",
+        "commit_id": "2fb6d09378906f1df69ac32b862df4a350e8a56d",
+        "tree_id": "eb22f1bf9e8680971fac0af28c0557b117314803",
+        "snapshot_name": "snapshot-ffeeddccbbaa99887766554433221100",
+        "source_manifest_sha256": "sha256:42d82e22e879969b96b737e42f89b1d7ea65c28e628ec09141e4b33f06604d4f",
+        "source_tree_sha256": "sha256:c1a7d4414471da49e3f58a29a1589b44bf27d9b28339946f3097113baf7566bb"
+      }
+    },
+    "source_inclusion": {
+      "include": [
+        "fixtures/synthetic",
+        "papertrail"
+      ],
+      "inclusion_profile_sha256": "sha256:2224cc8e1f8bfa336246e3a0ddfbc0bca77913482b5930cd83747e5e3e702c50"
+    },
+    "fixture": {
+      "mode": "fixed-fixture-v0.1-exception",
+      "fixture_contract": "synthetic-documents-v1",
+      "fixture_sha256": "sha256:2cbcf118fddb2cd4e38a9af5e8786911e8f85e292e637102799fd60513129eda",
+      "seed": null,
+      "identical_for_both_sides": true,
+      "fresh_target_per_side": true
+    },
+    "repetitions": {
+      "pairs": 1,
+      "order": [
+        "baseline",
+        "candidate"
+      ],
+      "sequential": true,
+      "automatic_retry": false
+    },
+    "baseline_failure_policy": "stop-before-candidate-on-execution-failure",
+    "containers": {
+      "max_creations": 4,
+      "sequence": [
+        {
+          "side": "baseline",
+          "role": "target",
+          "name": "pp-run-0123456789ab-p1-baseline-target"
+        },
+        {
+          "side": "baseline",
+          "role": "verifier",
+          "name": "pp-run-0123456789ab-p1-baseline-verifier"
+        },
+        {
+          "side": "candidate",
+          "role": "target",
+          "name": "pp-run-0123456789ab-p1-candidate-target"
+        },
+        {
+          "side": "candidate",
+          "role": "verifier",
+          "name": "pp-run-0123456789ab-p1-candidate-verifier"
+        }
+      ]
+    },
+    "runtime": {
+      "network_policy": "none-shared-loopback-v1",
+      "target_address": "127.0.0.1:8080",
+      "resources": {
+        "target": {
+          "cpus": 1.0,
+          "memory_bytes": 1073741824,
+          "pids": 128,
+          "scratch_tmpfs_bytes": 268435456,
+          "tmp_tmpfs_bytes": 67108864
+        },
+        "verifier": {
+          "cpus": 1.0,
+          "memory_bytes": 536870912,
+          "pids": 128,
+          "scratch_tmpfs_bytes": 117440512,
+          "tmp_tmpfs_bytes": 16777216
+        }
+      },
+      "timeouts": {
+        "readiness_seconds": 30,
+        "request_connect_seconds": 5.0,
+        "request_read_seconds": 5.0,
+        "revision_deadline_seconds": 180,
+        "cancellation_grace_seconds": 5
+      },
+      "logging": {
+        "max_file_bytes": 5242880,
+        "max_files": 2
+      },
+      "result_cap_bytes": 10485760,
+      "case_timeout_seconds": 20,
+      "max_response_bytes": 262144
+    },
+    "evidence": {
+      "destination": "evidence/runs/run-0123456789abcdef0123456789abcdef"
+    }
+  },
+  "reviewer": {
+    "asserted_identity": "Example Reviewer",
+    "basis": "local-assertion-unverified"
+  },
+  "rationale": "Schema example only. This is not an authorization and authorizes nothing.",
+  "scope": "Documentation of the run-authorization contract; never stored in a run-authorization store."
+}

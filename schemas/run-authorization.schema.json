@@ -1,0 +1,469 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:run-authorization:1.0",
+  "title": "Run authorization record",
+  "description": "PROJECT_SPEC.md 7.5. The owner's explicit, single-use permission to execute exactly one frozen comparison plan. Separate from the pack approval, which never authorizes a run. Records are immutable; an unused authorization may be superseded, never edited. This is workflow accountability, not proof of a separate human reviewer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "authorization_id",
+    "created_at",
+    "supersedes",
+    "single_use",
+    "plan_sha256",
+    "plan",
+    "reviewer",
+    "rationale",
+    "scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion"
+    },
+    "kind": {
+      "const": "run-authorization"
+    },
+    "authorization_id": {
+      "type": "string",
+      "pattern": "^rau-[0-9a-f]{32}$"
+    },
+    "created_at": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/timestamp"
+    },
+    "supersedes": {
+      "description": "An unused authorization this one replaces, or null.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^rau-[0-9a-f]{32}$"
+        }
+      ]
+    },
+    "single_use": {
+      "const": true
+    },
+    "plan_sha256": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+    },
+    "plan": {
+      "description": "The frozen execution plan. plan_sha256 is the SHA-256 of its canonical JSON (sorted keys, no whitespace).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_kind",
+        "run_id",
+        "installation_id",
+        "pack_approval_id",
+        "pack",
+        "profile",
+        "images",
+        "sources",
+        "source_inclusion",
+        "fixture",
+        "repetitions",
+        "baseline_failure_policy",
+        "containers",
+        "runtime",
+        "evidence"
+      ],
+      "properties": {
+        "plan_kind": {
+          "const": "papertrail-authz-r1-r3-one-pair-v1"
+        },
+        "run_id": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/runId"
+        },
+        "installation_id": {
+          "type": "string",
+          "pattern": "^inst-[0-9a-f]{32}$"
+        },
+        "pack_approval_id": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/approvalId"
+        },
+        "pack": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pack_id",
+            "pack_version",
+            "manifest_sha256",
+            "pack_tree_sha256",
+            "expected_collection",
+            "verifier_plugin_version"
+          ],
+          "properties": {
+            "pack_id": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier"
+            },
+            "pack_version": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver"
+            },
+            "manifest_sha256": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+            },
+            "pack_tree_sha256": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+            },
+            "expected_collection": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 200,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "nodeid"
+                ],
+                "properties": {
+                  "id": {
+                    "$ref": "urn:patchproof:schema:common:1.0#/$defs/testId"
+                  },
+                  "nodeid": {
+                    "$ref": "urn:patchproof:schema:common:1.0#/$defs/pytestNodeId"
+                  }
+                }
+              }
+            },
+            "verifier_plugin_version": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver"
+            }
+          }
+        },
+        "profile": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "profile_id",
+            "profile_version",
+            "profile_sha256"
+          ],
+          "properties": {
+            "profile_id": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier"
+            },
+            "profile_version": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/semver"
+            },
+            "profile_sha256": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+            }
+          }
+        },
+        "images": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target_image_id",
+            "verifier_image_id"
+          ],
+          "properties": {
+            "target_image_id": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/imageId"
+            },
+            "verifier_image_id": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/imageId"
+            }
+          }
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "baseline",
+            "candidate"
+          ],
+          "properties": {
+            "baseline": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tag",
+                "commit_id",
+                "tree_id",
+                "snapshot_name",
+                "source_manifest_sha256",
+                "source_tree_sha256"
+              ],
+              "properties": {
+                "tag": {
+                  "description": "Fully qualified annotated tag that resolved to commit_id.",
+                  "type": "string",
+                  "pattern": "^refs/tags/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+                },
+                "commit_id": {
+                  "$ref": "urn:patchproof:schema:common:1.0#/$defs/commitId"
+                },
+                "tree_id": {
+                  "$ref": "urn:patchproof:schema:common:1.0#/$defs/commitId"
+                },
+                "snapshot_name": {
+                  "description": "PP-005 snapshot directory in the private source-snapshots store.",
+                  "type": "string",
+                  "pattern": "^snapshot-[0-9a-f]{32}$"
+                },
+                "source_manifest_sha256": {
+                  "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+                },
+                "source_tree_sha256": {
+                  "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+                }
+              }
+            },
+            "candidate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "tag",
+                "commit_id",
+                "tree_id",
+                "snapshot_name",
+                "source_manifest_sha256",
+                "source_tree_sha256"
+              ],
+              "properties": {
+                "tag": {
+                  "description": "Fully qualified annotated tag that resolved to commit_id.",
+                  "type": "string",
+                  "pattern": "^refs/tags/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$"
+                },
+                "commit_id": {
+                  "$ref": "urn:patchproof:schema:common:1.0#/$defs/commitId"
+                },
+                "tree_id": {
+                  "$ref": "urn:patchproof:schema:common:1.0#/$defs/commitId"
+                },
+                "snapshot_name": {
+                  "description": "PP-005 snapshot directory in the private source-snapshots store.",
+                  "type": "string",
+                  "pattern": "^snapshot-[0-9a-f]{32}$"
+                },
+                "source_manifest_sha256": {
+                  "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+                },
+                "source_tree_sha256": {
+                  "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+                }
+              }
+            }
+          }
+        },
+        "source_inclusion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "include",
+            "inclusion_profile_sha256"
+          ],
+          "properties": {
+            "include": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "urn:patchproof:schema:common:1.0#/$defs/relativePath"
+              }
+            },
+            "inclusion_profile_sha256": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+            }
+          }
+        },
+        "fixture": {
+          "description": "Owner decision D1 (2026-10-13): the fixed synthetic fixture, exact hash, one pair, no seed. A narrowly scoped v0.1 exception to seeded repetition (PP-019).",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "fixture_contract",
+            "fixture_sha256",
+            "seed",
+            "identical_for_both_sides",
+            "fresh_target_per_side"
+          ],
+          "properties": {
+            "mode": {
+              "const": "fixed-fixture-v0.1-exception"
+            },
+            "fixture_contract": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier"
+            },
+            "fixture_sha256": {
+              "$ref": "urn:patchproof:schema:common:1.0#/$defs/sha256"
+            },
+            "seed": {
+              "type": "null"
+            },
+            "identical_for_both_sides": {
+              "const": true
+            },
+            "fresh_target_per_side": {
+              "const": true
+            }
+          }
+        },
+        "repetitions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pairs",
+            "order",
+            "sequential",
+            "automatic_retry"
+          ],
+          "properties": {
+            "pairs": {
+              "const": 1
+            },
+            "order": {
+              "const": [
+                "baseline",
+                "candidate"
+              ]
+            },
+            "sequential": {
+              "const": true
+            },
+            "automatic_retry": {
+              "const": false
+            }
+          }
+        },
+        "baseline_failure_policy": {
+          "description": "Owner decision D2 (2026-10-13): the candidate is not started after a baseline execution-level failure.",
+          "const": "stop-before-candidate-on-execution-failure"
+        },
+        "containers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "max_creations",
+            "sequence"
+          ],
+          "properties": {
+            "max_creations": {
+              "const": 4
+            },
+            "sequence": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "side",
+                  "role",
+                  "name"
+                ],
+                "properties": {
+                  "side": {
+                    "$ref": "urn:patchproof:schema:common:1.0#/$defs/side"
+                  },
+                  "role": {
+                    "enum": [
+                      "target",
+                      "verifier"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "pattern": "^pp-run-[0-9a-f]{12}-p1-(baseline|candidate)-(target|verifier)$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "runtime": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "network_policy",
+            "target_address",
+            "resources",
+            "timeouts",
+            "logging",
+            "result_cap_bytes",
+            "case_timeout_seconds",
+            "max_response_bytes"
+          ],
+          "properties": {
+            "network_policy": {
+              "const": "none-shared-loopback-v1"
+            },
+            "target_address": {
+              "const": "127.0.0.1:8080"
+            },
+            "resources": {
+              "$ref": "urn:patchproof:schema:execution-profile:1.1#/properties/resources"
+            },
+            "timeouts": {
+              "$ref": "urn:patchproof:schema:execution-profile:1.1#/properties/timeouts"
+            },
+            "logging": {
+              "$ref": "urn:patchproof:schema:execution-profile:1.1#/properties/logging"
+            },
+            "result_cap_bytes": {
+              "$ref": "urn:patchproof:schema:execution-profile:1.1#/properties/result_cap_bytes"
+            },
+            "case_timeout_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 120
+            },
+            "max_response_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1048576
+            }
+          }
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "destination"
+          ],
+          "properties": {
+            "destination": {
+              "description": "Relative to the PatchProof user data directory.",
+              "type": "string",
+              "pattern": "^evidence/runs/run-[0-9a-f]{32}$"
+            }
+          }
+        }
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asserted_identity",
+        "basis"
+      ],
+      "properties": {
+        "asserted_identity": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText"
+        },
+        "basis": {
+          "const": "local-assertion-unverified"
+        }
+      }
+    },
+    "rationale": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+    },
+    "scope": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+    }
+  }
+}

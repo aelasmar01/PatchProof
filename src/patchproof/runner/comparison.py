@@ -61,10 +61,39 @@ def build_verdict_input(plan: RunPlan, preconditions: dict[str, Precondition], r
     }, "verdict-input")
 
 
+@dataclass(frozen=True)
+class RevisionGate:
+    """A caller's re-validation result before a revision starts (PP-008 authorized runs).
+
+    `failure` fails the named precondition (pre- or post-execution, as for any other
+    precondition failure). `interrupt` ends the run as `interrupted` without a precondition
+    failure, for example when the container runtime lost continuity.
+    """
+
+    failure: tuple[str, str] | None = None
+    interrupt: bool = False
+    note: str = ""
+
+
+def _no_gate(pair: int, side: str, started: bool) -> RevisionGate | None:
+    return None
+
+
 def run_comparison(executor: Executor, plan: RunPlan, approvals: Iterable[ApprovalRecord],
                    registry: OwnershipRegistry, *, clock: Clock, evaluated_at: str,
                    approved_images: Iterable[ApprovedRunImage] = APPROVED_RUN_IMAGES,
-                   cancel: Callable[[], bool] = lambda: False) -> ComparisonResult:
+                   cancel: Callable[[], bool] = lambda: False,
+                   before_revision: Callable[[int, str, bool], RevisionGate | None] = _no_gate,
+                   continue_after: Callable[[RevisionResult], bool] = lambda result: True,
+                   on_revision: Callable[[RevisionResult], None] = lambda result: None) -> ComparisonResult:
+    """Run preconditions, revisions and the verdict.
+
+    The three optional hooks default to no effect. `before_revision` re-validates inputs
+    immediately before each revision; `continue_after` lets a scheduling policy stop before
+    the next revision (the run then ends `interrupted`, so its evidence is incomplete and can
+    never be `VERIFIED_FOR_CASES`); `on_revision` receives each result as soon as it exists,
+    so it can be persisted before the next revision starts.
+    """
     preconditions = check_preconditions(plan, approvals, approved_images)
     preconditions["result_provenance"] = Precondition(state="PASSED", detected_phase=None, reason_codes=[])
     revisions: list[RevisionResult] = []
@@ -76,8 +105,17 @@ def run_comparison(executor: Executor, plan: RunPlan, approvals: Iterable[Approv
                 if cancel():
                     termination = "canceled"
                     break
+                gate = before_revision(pair, side, started)
+                if gate is not None and gate.interrupt:
+                    termination = "interrupted"
+                    break
+                if gate is not None and gate.failure is not None:
+                    name, code = gate.failure
+                    preconditions[name] = _failed("post_execution" if started else "pre_execution", code)
+                    break
                 result = execute_revision(executor, plan, pair, side, registry, clock=clock, cancel=cancel)
                 revisions.append(result)
+                on_revision(result)
                 started = started or result.execution.started
                 if result.execution.canceled:
                     termination = "canceled"
@@ -85,7 +123,10 @@ def run_comparison(executor: Executor, plan: RunPlan, approvals: Iterable[Approv
                     name, code = result.precondition_failure
                     preconditions[name] = _failed("post_execution" if started else "pre_execution", code)
                     break
-            if termination == "canceled" or any(p.state != "PASSED" for p in preconditions.values()):
+                if termination == "normal" and not continue_after(result):
+                    termination = "interrupted"
+                    break
+            if termination != "normal" or any(p.state != "PASSED" for p in preconditions.values()):
                 break
         if started:
             try:

@@ -3,8 +3,11 @@
 **Updated:** 2026-10-13 (**PP-008 `IN_PROGRESS`**: the profile and approval-infrastructure blockers are
 resolved (versioned profile `profiles/papertrail-reference-1.0.0.json`, strict loader, profile/runtime
 equality, owner-operated `patchproof.pack_approval`); the owner approved the PaperTrail pack
-(`apr-f30bd94302802ad9aa8b394be066d1fa`), whose rationale and scope hold the confirmation phrase; an
-owner-operated supersession workflow is ready for the owner's correction. Gate A done; gate B COMPLETE; **gate C collection and protocol validation COMPLETED
+(`apr-f30bd94302802ad9aa8b394be066d1fa`), whose rationale and scope held the confirmation phrase; the
+owner superseded it (current `apr-f4b493f9be53db6b0eff607f79508a65`). Single-use run authorization, the
+PaperTrail driver and evidence capture are implemented Docker-free; the final run-authorization security review
+added signal-safe interruption and a limited recovery command (local checkpoint commit; not pushed); no run is authorized.
+Gate A done; gate B COMPLETE; **gate C collection and protocol validation COMPLETED
 with a documented C1b exception**: C1a PASS; C1b FAIL, owner-adjudicated ACCEPTED_FOR_C2_PROGRESSION; C2 PASS.
 PP-007 is `ACCEPTED` and pushed, `origin/main` = `d85b6db`)
 **Specification:** `PROJECT_SPEC.md` v1.0
@@ -59,6 +62,110 @@ execute; loading and outcomes are unaffected.
 1. the owner's PaperTrail pack approval decision (PP-007 workflow);
 2. the first live baseline/candidate comparison (separate approval; plan in `run-images.md` §7);
 3. host pytest 9.0.3 remediation (delta prepared in `environment.lock.md`; not executed).
+
+## PP-008 final run-authorization security review (2026-10-13) — READY_FOR_REVIEW; local checkpoint
+
+Owner-authorized final review and one local checkpoint commit. Still no real run
+authorization, no claim, no run or recovery evidence, no Docker operation, PaperTrail not
+executed. Not pushed, not tagged. PP-008 stays `IN_PROGRESS`.
+
+**Findings and fixes:**
+1. **SIGTERM/SIGHUP skipped all cleanup** (Python's default action ends the process at once).
+   `runner/interrupts.py` now turns SIGINT, SIGTERM and SIGHUP into one interrupt; the revision
+   in progress is cleaned up by exact ID, evidence is finalized `INCOMPLETE`/`INTERRUPTED`, and
+   a repeated signal is ignored so it cannot abort cleanup. `run_bounded` now stops the Docker
+   client (started in its own session, so Ctrl-C never reached it) on any interrupt.
+2. **Hard kill had no recovery path.** SIGKILL, a host shutdown or a crash runs nothing: the
+   containers of the revision in progress remain. New limited `patchproof.recover_run`
+   (`runner/run_recovery.py`): read-only assessment by exact ID against the run's journal,
+   any ambiguity refuses everything, a typed `CLEANUP <run-id>`, a repeated assessment that
+   must match, exact-ID removal through the accepted `remove_owned`, an allowlist that cannot
+   create or start, separate `evidence/recoveries/<run-id>/rec-<id>/` evidence. Not PP-014.
+3. **The reusable contract refused a revision against itself**, which spec 17.2 requires. The
+   rule moved to the driver: `check_first_run_scope` pins r1 `68b2bc0e…` against r3 `2fb6d093…`
+   (tag, commit, tree) from module constants, in plan assembly and on the stored plan.
+4. **A failed evidence write aborted the comparison and lost the verdict** (including a trusted
+   candidate violation). It is now recorded, stops the run before the candidate, and the
+   engine's evaluation is kept as `engine_verdict` while `verdict` is only set with finalized
+   evidence, so incomplete evidence never establishes `VERIFIED_FOR_CASES`.
+5. **A suspected Docker restart exited 0.** Any inventory change, including an explained
+   built-in network recreation, now needs attention (exit 5); `daemon_continuity` is
+   `BROKEN_SUSPECTED`, `UNKNOWN` or `NO_CHANGE_OBSERVED`, never "proven".
+6. **States were conflated.** `outcome.json` now separates evidence status, lifecycle
+   (`COMPLETE`/`BLOCKED`/`CANCELED`/`INTERRUPTED`) and cleanup status. `FINALIZED` also requires
+   both inventories complete. An incomplete before-inventory now yields the engine's
+   pre-execution `BLOCKED` with no container.
+7. **Smaller:** per-file (64 MiB) and journal-line (1 MiB) bounds; `verify_evidence` re-hashes
+   against the manifest and recomputes the verdict; the fixed-fixture limitation is restated
+   in `outcome.json`; the D2 engine dependency is one boundary function pinned to the public
+   engine by a contract test. The verdict engine is unchanged (`git diff` empty).
+
+| Item | Result |
+|---|---|
+| Tests | 8463 passed, Docker-free (was 8396: +37 `test_authorized_run.py` (106), +5 `test_run_authorization_store.py` (31), +25 new `test_run_recovery.py`); includes a real SIGKILL of a child driver and real SIGINT/SIGTERM/SIGHUP delivery |
+| mypy strict | clean, 72 files |
+| Ruff | changed files clean except 2 pre-existing E501 in `test_schemas.py`; repository total unchanged at 11 |
+| Mutation check | 60 mutants (scratch harness, not committed): the 30 earlier ones re-applied to the changed code plus 30 for the review's controls (signals, client stop, evidence states and bounds, verification, continuity exit, first-run scope, recovery ambiguity, confirmation, re-assessment, allowlist, separate evidence). **60/60 killed**; sources restored byte-identical |
+| Durable repository (D3) | re-verified read-only: byte-identical to the scratch generation; four tags, commits, trees and tag objects match; `git fsck --strict --full` clean; both snapshot manifests re-derive byte-for-byte (`1444803c…`, `42d82e22…`); unchanged by verification |
+| Approval chain | current `apr-f4b493f9…` (`06f89515…`), superseded `apr-f30bd943…` (`3b6354eb…`); both 0400, unchanged |
+| Real stores | no `run-authorizations/`, no `evidence/runs/`, no `evidence/recoveries/` |
+
+**Limitations that remain:** SIGKILL, power loss and crashes leave containers until the owner
+runs `recover_run`; unchanged network IDs do not prove daemon continuity; the recovery
+command itself needs Docker approval (even its status check runs `docker inspect`); terminal
+gating is procedural, not proof of a human; the `source-snapshots/` mount has never been used
+by Docker Desktop.
+
+## PP-008 single-use run authorization and evidence capture — implemented Docker-free (2026-10-13); READY_FOR_REVIEW
+
+Owner-authorized Docker-free implementation, narrowly scoped to the first synthetic
+PaperTrail comparison (r1 against r3). No real run authorization, no claim, no evidence
+directory, no Docker operation, PaperTrail not executed or imported. Not committed.
+
+**Owner decisions applied:**
+- **D1, fixed fixture:** `synthetic-documents-v1` `sha256:2cbcf118…9eda`, one pair, no seed, identical
+  data for both sides, a fresh target per side. A v0.1 exception; more than one pair is refused. Seed
+  variation stays PP-019.
+- **D2, baseline stop:** after a baseline execution-level failure the candidate is not started. The
+  run ends `interrupted`, so it is `INCONCLUSIVE`, never `VERIFIED_FOR_CASES`.
+- **D3, durable reference repository:** generated with the accepted PP-006 generator at
+  `<user data>/reference-repos/papertrail-authz` (parent `reference-repos/`, 0700). Byte-identical to
+  the scratch generation; all four tags, commits, trees and tag objects equal the PP-006 record;
+  `git fsck --strict --full` clean; unchanged by verification. Both existing snapshots re-verified,
+  and their manifests re-derived from the durable repository byte-for-byte (`1444803c…`, `42d82e22…`).
+  The scratch repository was not modified.
+
+| Item | Result |
+|---|---|
+| Record | `schemas/run-authorization.schema.json` 1.0 and `core/records/authorization.py`, in parity with each other (corpus and sampled mutations); 1 valid and 12 invalid examples |
+| Store and claim | `core/run_authorizations.py`; `<user data>/run-authorizations/` (0700, not created). `O_EXCL` 0400 records; a run ID is never reused; an unused authorization may be superseded, a claimed one never; the claim is an `O_EXCL` fsynced file, never removed; an unreadable claim counts as consumed |
+| Plan | `runner/papertrail_plan.py`: recomputed from the real artifacts; plan hash over canonical JSON |
+| Owner commands | `patchproof.run_authorization` (authorize once) and `patchproof.run_papertrail_once` (execute once); interactive foreground terminal only |
+| Driver | `runner/authorized_run.py`: per-revision re-validation, D2, Docker-continuity check before the candidate; `comparison.py` gained three optional hooks with no-effect defaults; verdict engine unchanged |
+| Evidence | `runner/run_evidence.py`: `<user data>/evidence/runs/<run-id>/`, exclusive, write-once 0600 files, journals, manifest written last |
+| Inventory | images, containers, networks, volumes compared by identity; built-in network recreation explained as daemon-managed and flagged; everything else needs attention |
+| Tests | 8396 passed (Docker-free; was 8272: +69 `test_authorized_run.py`, +26 `test_run_authorization_store.py`, +29 schema and parity cases for the new contract); mypy strict clean (69 files); Ruff clean on changed files (11 pre-existing E501 elsewhere) |
+| Mutation check | 30 guards (scratch harness, not committed): first pass 18 killed, 12 survived; the survivors were covered by overlapping checks or unreached paths, and targeted tests were added; one mutant was corrected (M22b). Final: **30/30 killed** |
+| DRAFT | private `evidence/pp-008-live-plan/run-authorization-DRAFT.json`, assembled from the real artifacts under run ID `run-c82590b4f16239641cea77a2031e2035`, plan `sha256:dd13c0bc…1ece4`; labeled DRAFT, not a record, not stored |
+
+**Owner commands (the owner runs them; never run on the owner's behalf):**
+- `cd ~/Desktop/PatchProof && uv run --locked --offline python -I -m patchproof.run_authorization`
+- after a separate Docker execution approval:
+  `cd ~/Desktop/PatchProof && uv run --locked --offline python -I -m patchproof.run_papertrail_once`
+
+## PP-008 first live comparison — PLANNING ONLY (2026-10-13); blocked on run authorization
+
+Owner-authorized planning. No Docker operation, no container, PaperTrail not executed or
+imported, no approval or authorization record written, no repository code changed.
+
+| Item | Result |
+|---|---|
+| Pack approval | current `apr-f4b493f9be53db6b0eff607f79508a65` (supersedes `apr-f30bd943…`; original byte-identical, SHA-256 `3b6354eb…8735`); exactly one current; `check_approval` APPROVED against recomputed bindings; original `APPROVAL_STALE (superseded)`; both records `0400` and schema-valid |
+| Reference repository | the PP-006 generation in the session scratchpad (`pp006/final-a`, byte-identical to three other generations); registered through PP-005; all four tags resolve to the accepted commits; no worktree files; repository content, modes, mtimes and inodes unchanged by snapshotting |
+| Source snapshots (PP-005, private `source-snapshots/`, `0700`) | baseline r1 `68b2bc0e…` tree `f4a27893…`, manifest `sha256:1444803c19d7c826f88243850f44c0590008d5c828f755cd43cf48c997b1a3f7`; candidate r3 `2fb6d093…` tree `eb22f1bf…`, manifest `sha256:42d82e22e879969b96b737e42f89b1d7ea65c28e628ec09141e4b33f06604d4f`; scope exactly `fixtures/synthetic`, `papertrail`; inclusion profile `sha256:2224cc8e…`; 5 files each, `README.md` excluded `OUTSIDE_SOURCE_SCOPE`; only `papertrail/authz.py` differs; `uncommitted_changes_included: false` |
+| One-pair plan (proposed, private) | built from the accepted runner code; all four pre-execution preconditions PASSED Docker-free; 4 containers, sequential, no retry |
+| Blocker | **No run-authorization record or mechanism exists** (spec 7.5; deferred to PP-009). No committed live-execution driver or evidence-bundle writer exists either. A minimal proposal awaits the owner |
+| Tests | 8272 passed (Docker-free); mypy strict clean; Ruff unchanged (11 pre-existing E501) |
 
 ## PP-008 approval statement correction by supersession (2026-10-13) — workflow ready, owner action pending
 
