@@ -98,6 +98,8 @@ class ReviewDecision:
 
 def create_approval(bindings: ApprovalBindings, decision: ReviewDecision, *, supersedes: ApprovalRecord | None,
                     now: datetime) -> ApprovalRecord:
+    if bindings.pack_id == "verifier-selftest":
+        raise ApprovalError("the synthetic verifier self-test pack can never be approved")
     if decision.typed_confirmation != confirmation_phrase(bindings):
         raise ApprovalError("the typed confirmation does not match these bindings; nothing was approved")
     if supersedes is not None and supersedes.bindings.pack_id != bindings.pack_id:
@@ -134,6 +136,11 @@ class ApprovalStore:
             self._identity = (st.st_dev, st.st_ino)
         finally:
             os.close(fd)
+
+    @property
+    def identity(self) -> tuple[int, int]:
+        """(device, inode) of the directory pinned at construction."""
+        return self._identity
 
     def _open_root(self, identity: tuple[int, int] | None) -> int:
         try:

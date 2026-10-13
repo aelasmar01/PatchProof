@@ -3,9 +3,9 @@
 Collection runs **only in the verifier environment**, never in this process: pack modules
 are untrusted until approved, and importing them would execute their code. This module:
 1. builds the fixed collection invocation the runner executes inside the verifier container
-   (PP-008). It uses explicit test paths, PatchProof's own `pytest.ini`, no plugin
-   autoloading, no inherited environment and no `conftest.py`, and it is bounded in time
-   and output;
+   (PP-008), through `patchproof_verifier.launch`, which runs pytest with PatchProof's own
+   `pytest.ini`. It uses explicit test paths, no plugin autoloading, no inherited
+   environment and no `conftest.py`, and it is bounded in time and output;
 2. strictly parses the `collected` payload that the approved plugin emits;
 3. checks that the collection matches the manifest exactly. At review time the collection
    becomes the approval's expected collection. In a run, the collection must equal that
@@ -54,8 +54,10 @@ class CollectionPlan:
 
 def collection_plan(pack: ValidatedPack) -> CollectionPlan:
     paths = tuple(f"{PACK_MOUNT}/{rel}" for rel in pack.test_files)
-    argv = (VERIFIER_PYTHON, "-I", "-B", "-m", "pytest", "-c", VERIFIER_PYTEST_INI, "--rootdir", PACK_MOUNT,
-            "--collect-only", "-q", "--patchproof-pack", PACK_MOUNT, "--", *paths)
+    # PP-008: pytest is started through the PatchProof launcher, which opens the private event
+    # channel before pytest starts (pytest keeps its own copy of stdout from startup onwards).
+    argv = (VERIFIER_PYTHON, "-I", "-B", "-m", "patchproof_verifier.launch", "collect", "--pack", PACK_MOUNT,
+            "--", *paths)
     env = (("PATH", "/usr/local/bin:/usr/bin:/bin"), ("LC_ALL", "C.UTF-8"), ("HOME", "/nonexistent"),
            ("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1"), ("PYTHONDONTWRITEBYTECODE", "1"), ("PYTHONHASHSEED", "0"))
     return CollectionPlan(argv=argv, env=env, cwd=PACK_MOUNT, timeout_seconds=COLLECTION_TIMEOUT_SECONDS,

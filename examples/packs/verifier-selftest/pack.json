@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0",
+  "pack_id": "verifier-selftest",
+  "pack_version": "1.0.0",
+  "title": "SYNTHETIC verifier self-test (event protocol only; never approvable)",
+  "expectation": "Synthetic. Exercises each verifier outcome class and the event channel; it asserts nothing about any application.",
+  "adapter": "python-asgi-http-v1",
+  "fixture_contract": "synthetic-documents-v1",
+  "tests": [
+    {
+      "id": "SEC-001",
+      "nodeid": "tests/test_selftest.py::test_violation",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "SEC-002",
+      "nodeid": "tests/test_selftest.py::test_secure",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "SEC-003",
+      "nodeid": "tests/test_selftest.py::test_inconclusive",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "SEC-004",
+      "nodeid": "tests/test_selftest.py::test_generic_assertion",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "SEC-005",
+      "nodeid": "tests/test_selftest.py::test_suppressed",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "SEC-006",
+      "nodeid": "tests/test_selftest.py::test_twice",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "SEC-007",
+      "nodeid": "tests/test_selftest.py::test_timeout",
+      "kind": "security",
+      "baseline_expected": "VIOLATION_CONFIRMED",
+      "candidate_expected": "SECURE"
+    },
+    {
+      "id": "FUN-008",
+      "nodeid": "tests/test_selftest.py::test_pass",
+      "kind": "functional",
+      "baseline_expected": "PASS",
+      "candidate_expected": "PASS"
+    },
+    {
+      "id": "FUN-009",
+      "nodeid": "tests/test_selftest.py::test_fail",
+      "kind": "functional",
+      "baseline_expected": "PASS",
+      "candidate_expected": "PASS"
+    },
+    {
+      "id": "FUN-010",
+      "nodeid": "tests/test_selftest.py::test_crash",
+      "kind": "functional",
+      "baseline_expected": "PASS",
+      "candidate_expected": "PASS"
+    },
+    {
+      "id": "FUN-011",
+      "nodeid": "tests/test_selftest.py::test_skipped",
+      "kind": "functional",
+      "baseline_expected": "PASS",
+      "candidate_expected": "PASS"
+    }
+  ],
+  "repetitions": {
+    "pairs": 1,
+    "fixture_seed_policy": "same-within-pair-different-between-pairs"
+  },
+  "limits": {
+    "max_response_bytes": 1024,
+    "case_timeout_seconds": 1
+  }
+}

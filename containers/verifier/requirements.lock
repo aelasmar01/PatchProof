@@ -1,0 +1,15 @@
+# PatchProof verifier image dependencies (PP-008). PROPOSED; requires owner approval (gate B).
+# Wheel-only, exact pins, SHA-256 from PyPI (reviewed 2026-10-12).
+# pytest 9.0.3 is proposed instead of 8.4.2 because 8.4.2 is affected by CVE-2025-71176
+# (GHSA-6w46-j5rx-g56g, fixed in 9.0.3). Owner decision required; see docs/architecture/run-images.md.
+# No HTTP client library: the verifier transport uses the standard library (http.client).
+pytest==9.0.3 \
+    --hash=sha256:2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9
+iniconfig==2.3.0 \
+    --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
+packaging==26.3 \
+    --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
+pluggy==1.6.0 \
+    --hash=sha256:e920276dd6813095e9377c0bc5566d94c932c33b27a3e3945d8389c374dd4746
+pygments==2.21.0 \
+    --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9

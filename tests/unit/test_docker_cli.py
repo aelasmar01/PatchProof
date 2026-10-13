@@ -139,8 +139,9 @@ def test_snapshot_listings_are_read_only_and_fixed() -> None:
 
 def test_allowlist_contains_no_bulk_or_exec_operation() -> None:
     names = {t.__name__ for t in dc.ALLOWED_OP_TYPES}
+    # PP-008 gate C (owner-approved 2026-10-13) adds exactly RunCreate and StartAttached.
     assert names == {"ContextInspect", "Version", "ImageInspect", "Create", "Inspect", "Start", "Wait", "Logs",
-                     "Stop", "Remove", "ForceRemove", "SnapshotList"}
+                     "Stop", "Remove", "ForceRemove", "SnapshotList", "RunCreate", "StartAttached"}
     assert not [n for n in dir(dc) if n.lower() in ("prune", "pull", "exec", "build", "kill", "run_raw")]
 
 

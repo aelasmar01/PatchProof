@@ -124,12 +124,17 @@ Collection happens **only in the verifier environment**. `collection_plan` produ
 invocation the PP-008 runner executes in the verifier container:
 
 ```
-/usr/local/bin/python3 -I -B -m pytest -c /opt/patchproof/verifier/pytest.ini --rootdir /pack
-  --collect-only -q --patchproof-pack /pack -- /pack/tests/test_documents.py
+/usr/local/bin/python3 -I -B -m patchproof_verifier.launch collect --pack /pack -- /pack/tests/test_documents.py
+  (the launcher runs pytest -c /opt/patchproof/verifier/pytest.ini --rootdir /pack --collect-only ...)
 env: PATH, LC_ALL=C.UTF-8, HOME=/nonexistent, PYTEST_DISABLE_PLUGIN_AUTOLOAD=1,
      PYTHONDONTWRITEBYTECODE=1, PYTHONHASHSEED=0       (built from scratch, nothing inherited)
 bounds: 30 s, 256 KiB output
 ```
+
+**Changed in PP-008:** the original `-m pytest ...` form was replaced by the PatchProof
+launcher. An end-to-end run under real pytest showed that pytest's own output otherwise
+reaches standard output, the event channel. The `--` before the test paths was confirmed with
+pytest 8.4.2 on synthetic packs.
 
 **What the invocation guarantees:**
 - `-I` ignores `PYTHONPATH` and user site-packages.
@@ -173,7 +178,8 @@ An approval (`approval-record` 1.0) binds:
 - **Explicit action:** `create_approval` requires the reviewer to type
   `APPROVE <pack_id> <pack_version> <first 12 hex digits of the manifest hash>`. A
   `ReviewDecision` has no default fields; reviewer, rationale and scope are validated text.
-  Nothing in PatchProof calls `create_approval` yet; the PP-009 CLI will prompt for it.
+  The only caller is the PP-008 owner-operated entry point below; the general PP-009 CLI
+  will reuse the same functions.
 - **Staleness:** `check_approval` recomputes every binding from current inputs. Any
   difference is `APPROVAL_STALE` and names the fields. The tests change each binding in turn:
   - test content;
@@ -202,9 +208,56 @@ An approval (`approval-record` 1.0) binds:
 
   No approval in this module authorizes a run.
 
-**No PaperTrail approval exists.** One cannot honestly be made until PP-008 provides the
-verifier image, a final profile and a real collection. A test asserts that no `apr-*.json`
-file exists in the repository.
+### Owner-operated entry point (PP-008)
+
+`src/patchproof/pack_approval.py` approves exactly one pack, `papertrail-document-access`,
+through the functions above. It adds no record format, phrase or store of its own. It is not
+the PP-009 CLI. The owner runs it in their own terminal, from the project directory:
+
+```
+uv run --locked --offline python -I -m patchproof.pack_approval
+```
+
+- **Interactive only:** it refuses any argument, any `PATCHPROOF*` environment variable,
+  standard input or output that is not a terminal, and a process that is not in the
+  foreground process group of its controlling terminal. A piped confirmation is never read.
+- **Fresh bindings:** every binding is recomputed from its source, never from a draft:
+  - the pack directory (static validation; nothing is imported);
+  - `profiles/papertrail-reference-1.0.0.json` (strict loader, pinned canonical hash);
+  - the private gate C2 collection evidence (pinned file hashes; exactly the manifest's eight
+    tests, in order; same image, pack tree and manifest; exit 0);
+  - the approved r2 verifier image;
+  - `PLUGIN_VERSION`, read from the verifier source with `ast`.
+- **Review screen:** before any prompt, it shows every binding, the expected collection, the
+  security claim, what each check witnesses, the functional controls, the full profile and
+  the limits. It states that this is a pack approval, not a run authorization, and that no
+  vulnerability has been reproduced.
+- **Prompts:** asserted identity, rationale, scope, then the exact PP-007 phrase.
+- **Before writing:** all bindings are recomputed and the store is re-read. Any difference
+  aborts with nothing written. Re-running with unchanged bindings writes nothing.
+- **After writing:** the record is read back; the earlier history must be intact and the file
+  `0400`; `check_approval` must report it as the pack's current approval for the recomputed
+  bindings. A failure is reported as a failure, never as an approval.
+- **Exit codes:** 0 a verified approval was written; 2 not approved, nothing written; 3 an
+  approval of exactly these bindings already exists, nothing written; 4 a record was written but
+  failed verification (or an error occurred after the write). It is reported as `FAILED
+  VERIFICATION`, never as approved, and is not deleted.
+- **Pinned, offline environment:** `--locked --offline` refuses a lockfile that is out of date
+  and any network access. Verified 2026-10-13 under a pseudo-terminal: `uv run` keeps Python in
+  its own foreground process group, so the foreground check passes, and `uv sync --dry-run`
+  reports no environment change.
+- **Store:** `<platformdirs user data>/PatchProof/approvals/` (macOS:
+  `~/Library/Application Support/PatchProof/approvals/`). It is created once with `mkdir(0700)`
+  relative to the parent's descriptor; the parent must be owned and not writable by others.
+  An existing store must already be exactly `0700`; it is never chmod-repaired. The opened
+  `ApprovalStore` must have the same device and inode. Approval records never live in the
+  repository.
+- **Limit:** the terminal checks are a procedural control, not proof of a human. Software
+  running as the same OS account can allocate a pseudo-terminal, and the reviewer identity
+  remains `local-assertion-unverified`.
+
+**No PaperTrail approval exists.** Only the owner can make one, with the command above. A
+test asserts that no `apr-*.json` file exists in the repository.
 
 ## Per-test outcomes (verdict specification §3.2–3.3)
 
@@ -289,9 +342,10 @@ That validates the witness logic. It is **not** an observation of PaperTrail run
   `session_end`.
 - **Collector:** enforce the event grammar, then call `derive_outcome`.
 - **First collection:** run `collection_plan` in the verifier container, check the result
-  with `review_collection`, and only then let the owner approve the pack (PP-009 CLI).
+  with `review_collection`, and only then let the owner approve the pack (done: gate C2;
+  owner entry point `patchproof.pack_approval`).
 - **Run time:** call `check_run_collection` against the approved list.
-- **Bytes approved are bytes run:** validation hashes the pack directory as it was read.
+- **Bytes approved are bytes run (R2, closed in PP-008 by `runner/inputs.py`):** validation hashes the pack directory as it was read.
   The runner must mount a copy made from exactly those bytes, or re-hash what it mounts
   and refuse a mismatch with the approval's `pack_tree_sha256`. It must never mount the
   live directory unchecked.

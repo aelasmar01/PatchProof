@@ -100,6 +100,49 @@ built-in `uv_build` backend; no build backend was downloaded.
 | **pydantic** | **2.13.5** | Runtime: strict record models required by ADR-008 (PP-007; owner-approved 2026-10-12) | github.com/pydantic/pydantic (MIT); PyPI Trusted Publishing attestation from `pydantic/pydantic` `ci.yml` |
 | pydantic-core 2.46.5, annotated-types 0.8.0, typing-inspection 0.4.4 | — | Runtime dependencies of pydantic (pydantic pins pydantic-core exactly). typing-extensions 4.16.0, already locked, is now also a runtime dependency | PyPI (MIT). Attestation found for typing-inspection; none found for pydantic-core or annotated-types, so the lockfile hash is their only integrity check |
 
+**Advisory on the dev pytest (found during PP-008 review, 2026-10-12):** pytest 8.4.2,
+the pinned dev test runner, is affected by CVE-2025-71176 (GHSA-6w46-j5rx-g56g, moderate,
+local: `/tmp/pytest-of-{user}` handling); it is fixed in 9.0.3.
+- **Exposure on this host:** single-user macOS, where pytest's temporary root is under the
+  per-user `$TMPDIR`, not a shared `/tmp`.
+- **Still open (2026-10-13):** the host development environment still uses pytest 8.4.2,
+  and CVE-2025-71176 remains an open remediation item. Gate B upgraded only the verifier image
+  (9.0.3).
+
+**Proposed host remediation** (not executed; needs separate approval):
+1. **Change:** `pyproject.toml` dev group `pytest==8.4.2` → `pytest==9.0.3` (published
+   2026-04-07, within the unchanged cooldown).
+   - **Hash:** `2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9`.
+   - **Provenance:** a Trusted Publishing attestation from `pytest-dev/pytest`.
+   - **No advisories** for 9.0.3.
+   - **Prepared delta (2026-10-13, read from the local wheel's metadata; not executed).**
+     `pyproject.toml`: `"pytest==8.4.2"` → `"pytest==9.0.3"`. In `uv.lock`, only the
+     `name = "pytest"` entry changes:
+     - `version` → `"9.0.3"`;
+     - wheel `pytest-9.0.3-py3-none-any.whl`, hash
+       `sha256:2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9`, size
+       375,249 B;
+     - the sdist URL and hash come from the index during `uv lock` and are **not yet known
+       locally**.
+
+     Its dependency list under Python 3.13 is unchanged: colorama (win32 only), iniconfig,
+     packaging, pluggy and pygments. exceptiongroup and tomli apply only below 3.11, so they
+     are excluded.
+2. **Transitive dependencies:** pytest 9.0.3 requires iniconfig ≥1.0.1, packaging ≥22,
+   pluggy ≥1.5,<2 and pygments ≥2.7.2. The already-locked iniconfig 2.3.0, packaging 26.3,
+   pluggy 1.6.0 and pygments 2.21.0 satisfy them, so the expected `uv.lock` change is the pytest
+   entry only (version, sdist and wheel hashes). `uv lock --upgrade-package pytest` must show
+   no other change, otherwise stop.
+3. **Install:** `uv sync --frozen` (hash-verified).
+4. **Regression:**
+   - the full unit suite, which must still give 8163 passed (the count after the gate C code changes, 2026-10-13), 0 failed;
+   - mypy and Ruff;
+   - the PP-007 and PP-008 plugin end-to-end tests, which then exercise the plugin under the
+     same pytest as the verifier image;
+   - review of the pytest 9 changelog (removals and deprecations) against `tests/` and
+     `verifier/`.
+5. **Records:** update this section and `STATUS.md`.
+
 **Pydantic addition (PP-007, owner-approved 2026-10-12).**
 - **Review:** done read-only on 2026-10-12, against the PyPI JSON API, OSV, and PyPI
   provenance.

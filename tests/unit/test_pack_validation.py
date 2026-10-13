@@ -311,12 +311,11 @@ def test_collection_plan_is_explicit_and_isolated(pack: ValidatedPack) -> None:
     assert not FORBIDDEN_ENV & set(env)
     assert set(env) == {"PATH", "LC_ALL", "HOME", "PYTEST_DISABLE_PLUGIN_AUTOLOAD", "PYTHONDONTWRITEBYTECODE",
                         "PYTHONHASHSEED"}
-    argv = list(plan.argv)
-    assert argv[:5] == ["/usr/local/bin/python3", "-I", "-B", "-m", "pytest"]
-    assert argv[argv.index("-c") + 1] == "/opt/patchproof/verifier/pytest.ini"
-    assert "--collect-only" in argv and argv[argv.index("--") + 1:] == ["/pack/tests/test_documents.py"]
+    # PP-008: collection starts through the PatchProof launcher, which opens the event channel
+    # before pytest starts and runs pytest with -c /opt/patchproof/verifier/pytest.ini.
+    assert list(plan.argv) == ["/usr/local/bin/python3", "-I", "-B", "-m", "patchproof_verifier.launch", "collect",
+                               "--pack", "/pack", "--", "/pack/tests/test_documents.py"]
     assert plan.timeout_seconds == 30 and plan.output_cap_bytes == COLLECTION_OUTPUT_CAP
-    assert all(a.startswith(("/", "-")) or a == "pytest" for a in argv)
 
 
 def test_owned_pytest_configuration_disables_discovery_paths() -> None:

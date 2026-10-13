@@ -45,6 +45,7 @@ from .policy import (
     ImageId,
     PolicyViolation,
 )
+from .run_policy import RunCreate, StartAttached, assert_run_create_shape, run_create_argv_tail
 
 DEFAULT_STDOUT_CAP: Final = 1024 * 1024
 DEFAULT_STDERR_CAP: Final = 64 * 1024
@@ -268,6 +269,9 @@ SNAPSHOT_KINDS: Final = ("images", "containers", "volumes", "networks", "system-
 ALLOWED_OP_TYPES: Final = (
     ContextInspect, Version, ImageInspect, Create, Inspect, Start, Wait, Logs, Stop, Remove,
     ForceRemove, SnapshotList,
+    # PP-008 gate C (owner-approved 2026-10-13): verification-run operations, each checked
+    # against its single fixed shape in assert_no_forbidden_tokens.
+    RunCreate, StartAttached,
 )
 
 # Docker subcommands that must never appear in any argv this module builds.
@@ -494,6 +498,18 @@ class DockerCli:
 def assert_no_forbidden_tokens(op: DockerOp) -> None:
     """Defense in depth: the Docker-parsed portion of any argv has no forbidden token."""
     tail = op.argv_tail()
+    if isinstance(op, RunCreate):
+        # The only operation that may carry --mount: exactly one read-only bind, built only by
+        # run_policy.run_create_argv_tail from a validated RunContainerSpec.
+        if type(op) is not RunCreate or tail != run_create_argv_tail(op.spec):
+            raise PolicyViolation("run-create argv deviates from its fixed shape")
+        assert_run_create_shape(tail)
+        return
+    if isinstance(op, StartAttached):
+        if (type(op) is not StartAttached or tail != ["container", "start", "--attach", "--", op.container.value]
+                or not 1 <= op.timeout_seconds <= 900 or not 1 <= op.stdout_cap <= 52428801):
+            raise PolicyViolation("start-attached argv or bounds deviate from the fixed shape")
+        return
     if isinstance(op, ForceRemove):
         if type(op) is not ForceRemove or tail != ["container", "rm", "--force", "--", op.container.value]:
             raise PolicyViolation("force-remove argv deviates from its fixed shape")

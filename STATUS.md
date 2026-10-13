@@ -1,7 +1,11 @@
 # STATUS
 
-**Updated:** 2026-10-12 (**PP-007 implementation `ACCEPTED` by owner**, commit `698e78d`, local
-only; PP-006 `ACCEPTED` and pushed, `origin/main` = `22c43dd`; next issue PP-008, **not started**)
+**Updated:** 2026-10-13 (**PP-008 `IN_PROGRESS`**: the profile and approval-infrastructure blockers are
+resolved (versioned profile `profiles/papertrail-reference-1.0.0.json`, strict loader, profile/runtime
+equality, owner-operated `patchproof.pack_approval`); the PaperTrail pack is **NOT_APPROVED** and awaits the
+owner's own typed decision. Gate A done; gate B COMPLETE; **gate C collection and protocol validation COMPLETED
+with a documented C1b exception**: C1a PASS; C1b FAIL, owner-adjudicated ACCEPTED_FOR_C2_PROGRESSION; C2 PASS.
+PP-007 is `ACCEPTED` and pushed, `origin/main` = `d85b6db`)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -9,17 +13,253 @@ only; PP-006 `ACCEPTED` and pushed, `origin/main` = `22c43dd`; next issue PP-008
 ## Current release and issue
 
 **Release:** v0.1 — Useful CLI verification
-**Issue:** PP-007 — Pack validation, collection, and approval records
-**State:** implementation `ACCEPTED` by owner, 2026-10-12. Committed locally (`698e78d`); not
-pushed or tagged. This acceptance covers the implementation only. It does **not** approve the
-PaperTrail pack, certify its tests, or authorize container execution. **No pack is
-approved, and no real verifier collection has been performed.**
-**Next issue:** PP-008, `NOT_STARTED`. It needs separate owner authorization.
-**Previous issue:** PP-006, `ACCEPTED` and pushed (`aa3a0a3..22c43dd`, ordinary
+**Issue:** PP-008 — Target/verifier runner and typed event transport
+**State:** `IN_PROGRESS` (started 2026-10-12). Gates A and B are complete; gate C collection
+and protocol validation is complete with the documented C1b exception; the profile and
+approval infrastructure is implemented. The implementation is recorded in a local,
+owner-authorized **checkpoint commit** (2026-10-13, not pushed, not tagged). That commit is
+not issue acceptance. The PaperTrail pack is **NOT_APPROVED**: no approval record exists, and
+the approval store has not been created. PaperTrail has not been executed. No live comparison
+has been authorized.
+**Previous issue:** PP-007, implementation `ACCEPTED` and pushed (`22c43dd..d85b6db`, ordinary
 fast-forward, 2026-10-12).
 **Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 and PP-006
 are libraries and fixtures with no CLI workflow yet (PP-009). PaperTrail has **not been
 executed**; its expected behavior is declared and checked statically only.
+
+## PP-008 gate C — collection and protocol validation COMPLETED with a documented C1b exception (2026-10-13); evidence `docs/evidence/pp-008-gate-c.md`
+
+This is **not** three unconditional PASS results.
+
+| Step | Recorded result | Owner adjudication |
+|---|---|---|
+| Gate C code changes | done, Docker-free tested: wrapper admits exactly `RunCreate` and `StartAttached` in fixed shapes; `STANDALONE` verifier role (`--network=none`); `runner/standalone.py`; r2 `APPROVED_RUN_IMAGES`; r1 rejected; SYNTHETIC self-test pack (never approvable) | — |
+| C1a SYNTHETIC collection (pytest 9.0.3) | **PASS**: 11/11 in manifest order; exit 0; gate 59/59 | — |
+| C1b SYNTHETIC event protocol | **FAIL**: an erroneous auxiliary assertion (it expected a passing test's captured fake event on stderr) | **ACCEPTED_FOR_C2_PROGRESSION**, recorded separately and bound to the original result hash; the FAIL is kept |
+| Correction (no Docker) | the driver now checks the real invariant (no test text and no non-event object on the event channel); new unit test proves the fake write executes and never enters the channel; image and pack identities unchanged | — |
+| C2 PaperTrail **collection only** | **PASS**: AUTH-001…004 and FUNC-001…004, node IDs and order exactly the PP-007 manifest; exit 0; 746 B; 1.88 s; gate 59/59; pack `529d3cd3…` verified before and after; no test executed | — |
+| PaperTrail pack | **NOT_APPROVED**; a private unapproved collection record awaits owner review | — |
+| PaperTrail test execution and live comparison | **NOT_AUTHORIZED** | — |
+
+**Containers:** 3 of 3 used, one after the other; all removed by exact ID after an ownership
+check. Counts are unchanged (14 images, 7 containers, 5 networks, 10 volumes), and no image,
+container, volume or user network changed. **Correction:** Docker's built-in `bridge` network was
+recreated (new ID) by a Docker Desktop idle VM restart between C1b and C2, shown in Docker
+Desktop's log. It was not a PatchProof operation; the earlier "listing unchanged" claim was wrong.
+The target image was never started.
+
+**Observation G-C1** (pre-existing; the same under pytest 8.4.2): a `PytestAssertRewriteWarning`
+for `patchproof_verifier.plugin`, because the package `__init__` imports it. The asserts still
+execute; loading and outcomes are unaffected.
+
+**Remaining PP-008 work:**
+1. the owner's PaperTrail pack approval decision (PP-007 workflow);
+2. the first live baseline/candidate comparison (separate approval; plan in `run-images.md` §7);
+3. host pytest 9.0.3 remediation (delta prepared in `environment.lock.md`; not executed).
+
+## PP-008 pre-approval checkpoint (2026-10-13)
+
+Owner-authorized: one local checkpoint commit of the reviewed PP-008 implementation, before
+the owner's own pack approval. **Not** issue acceptance, pack approval or run permission.
+Nothing was pushed or tagged; no Docker operation; PaperTrail was not run.
+
+| Item | Result |
+|---|---|
+| Final source review | One defect fixed: an error *after* the record write returned exit 2 ("nothing written") although a record existed. It now returns 4 and reports `FAILED VERIFICATION`, never approval. Two new tests cover a failed final `check_approval` and an error during post-write revalidation. No other change. |
+| Approval identity, recomputed read-only | pack `papertrail-document-access` 1.0.0; manifest `sha256:a4c4ce48d5d2aaa512c746e7ba90d06fd76e879de3a3dea5280079531a8804c8` (equal to the raw `pack.json` SHA-256); tree `sha256:529d3cd3ebf307586dcecef43a0df8ab9b55296849182f8f43c4ad7d6a8a6c31`; fixture `sha256:2cbcf118fddb2cd4e38a9af5e8786911e8f85e292e637102799fd60513129eda` (pack copy and reference template copy); profile `sha256:a1c130c2f8b90c2ada2001ef3bc336b0b8ec29886fd92635dbf5928eb8036835` with no runtime difference; verifier `sha256:e880f609a7c4d292441e22d1d0d5d7c876697dd4e1e657a668b2b6266969fecc`; plugin 0.1.0; C2 `stdout.bin` and `result.json` equal their pinned hashes, and the collection is the manifest's eight node IDs in order. The pack and the reference are unchanged since `d85b6db`. |
+| Approval command | `uv run --locked --offline python -I -m patchproof.pack_approval`. Verified under a pseudo-terminal with a probe (not the approval flow): `uv run` keeps Python in its foreground process group, so the interactive gate passes, and no `PATCHPROOF*` variable is set. `uv sync --locked --offline --dry-run`: no change. |
+| Tests | 8248 passed (Docker-free; +2 approval-entry tests); mypy strict clean (61 files); Ruff: no new finding in the committed files (2 pre-existing E501 in `test_docker_cli.py`; 11 in the whole repository) |
+| Approval state | No approval record exists; the store directory does not exist. |
+
+## PP-008 profile and approval-infrastructure blockers — resolved, awaiting owner review (2026-10-13)
+
+Owner-authorized within PP-008. This does **not** approve the pack or the profile, create an
+approval record, authorize a live comparison or begin PP-009. No Docker operation, no
+PaperTrail execution, no collection, no image build or pull, no approval record.
+
+| Item | Result |
+|---|---|
+| Versioned profile | `profiles/papertrail-reference-1.0.0.json` (contract 1.1; r2 images; `papertrail.app:app`; `synthetic-documents-v1`; `none-shared-loopback-v1`; scope `papertrail`, `fixtures/synthetic`). The readiness-review draft was reused unchanged. Canonical hash **re-verified** `sha256:a1c130c2f8b90c2ada2001ef3bc336b0b8ec29886fd92635dbf5928eb8036835` (unchanged: every value already equalled the enforced runtime). File SHA-256 `2abf6ab6…1554` (evidence only). **PROPOSED**, not owner-approved. |
+| Loader | `runner/profiles.load_profile`: canonical path in `profiles/`, no symlinks or special files, ≤ 16 KiB, strict JSON + model + PP-003 check, name = ID-version, no placeholders, only approved r2 images in their roles, hash must equal the expected binding; never writes |
+| Profile/runtime consistency | `run_plan.FIXED_PROFILE_RUNTIME`: resources, readiness, connect/read, revision deadline, cancellation grace, logging, result cap and network policy must **equal** the enforced values (stricter values are refused too). `RunPlan` refuses an inconsistent profile. G-P1 (logging) and G-P2 (cancellation grace) are closed by equality; G-P3 (store and loader) is closed. `limits_from_profile` no longer clamps the deadline silently; above the ceiling is refused. Each source snapshot must record exactly the profile's `source_scope.include` (`source_identity`). |
+| Approval entry point | `src/patchproof/pack_approval.py`, reusing PP-007 `BindingInputs`, `create_approval`, `ApprovalStore`, `check_approval`. Interactive foreground terminal only; no arguments, no `PATCHPROOF*` variables, no piped input. Bindings recomputed from the pack, profile, pinned C2 evidence (`stdout.bin` `c9e54895…`, `result.json` `9b721cda…`), r2 verifier image and plugin source. Full review screen; recompute and store re-read before writing; read-back verification after. A procedural control, not proof of a human. |
+| Approval store | `<platformdirs user data>/PatchProof/approvals/` (macOS `~/Library/Application Support/PatchProof/approvals/`), `mkdir(0700)` via the parent descriptor; never followed, never repaired. **Not yet created**: the owner's first run creates it. |
+| Tests | 8246 passed at the time (Docker-free; +47 profile, +35 approval-entry tests; one run-execution test now changes `profile_version` to make its approval stale, and asserts that the earlier readiness change is refused at plan construction); mypy strict clean (61 files); Ruff on changed files clean (11 pre-existing E501 elsewhere) |
+| Evidence handling | C1a, C1b, C2 and the C1b adjudication unchanged. Inventory correction kept; future reconciliation compares resource identities and accounts for daemon restarts. The old `0644` ledger is kept as-is; future private ledgers and raw evidence use `0600`. |
+
+**Owner command (the owner runs it; never run on the owner's behalf):**
+`cd ~/Desktop/PatchProof && uv run --locked --offline python -I -m patchproof.pack_approval`
+
+## PP-008 PaperTrail pack approval readiness review (2026-10-13) — approval was BLOCKED (since resolved, see above)
+
+This was a read-only review. No approval record, no Docker operation, and no pytest run. The
+full packet is private: `APPROVAL-REVIEW-DRAFT.md`, plus the proposed profile and draft
+bindings, in a 0700 directory outside the repository.
+
+| Item | Result |
+|---|---|
+| C2 evidence integrity | **consistent**: record, standard output, result, create argv, journal and ledger agree; 8/8 in order; exit 0; 1.88 s; 746/990 B; no test executed; gate 59/59; pack verified before and after; 3/3 containers removed. One correction: the bridge recreation above. |
+| Pack identity, recomputed independently | `papertrail-document-access` 1.0.0; manifest `a4c4ce48…`; tree `529d3cd3…`; fixture `2cbcf118…`; all equal to the PP-007 records; unchanged since `698e78d` |
+| Source review of the 8 checks | violation only on the protected marker plus a fixture-proven non-permission; secure needs the reviewed denial, no marker and no content; everything else inconclusive; request errors are never witnesses; functional controls check content and identity |
+| Execution profile | **no final profile exists**; the corpus example has placeholder image IDs. **Proposed** `papertrail-reference` 1.0.0 (r2 images, ceilings, fixed timeouts and logs) validates on schema, model and code checks; `canonical_sha256` = `a1c130c2…6835`. **Awaiting owner review.** |
+| Approval entry point | **missing**: nothing calls `create_approval` (PP-009 CLI), the typed confirmation is not tied to a terminal, and no store location is defined. A smallest reviewable remedy is proposed. |
+| Profile gaps | G-P1: profile `logging` is bounded but not applied (fixed 5m × 2). G-P2: `cancellation_grace_seconds` is unused (fixed 5 s). G-P3: no profile store or loader. |
+| Existing approvals | none; no supersession needed; approval tests 36/36 |
+
+**Next owner decisions:**
+1. Review and accept (or amend) the proposed profile, and where it is stored.
+2. Authorize the minimal approval entry point, or defer to PP-009.
+3. Only then, perform the typed approval yourself.
+
+## PP-008 gate B — COMPLETE (r2, 2026-10-13); evidence `docs/evidence/pp-008-gate-b-images.md`
+
+| Gate | State |
+|---|---|
+| A: Docker-free implementation | done |
+| B: image preparation | **COMPLETE** (r2 corrective rebuild) |
+| C: live execution | **NOT_AUTHORIZED**; proposal in `docs/architecture/run-images.md` §6 |
+| PaperTrail pack | **NOT_APPROVED** |
+| Actual verifier collection | **NOT_PERFORMED** |
+| Live PaperTrail security verification | **NOT_PERFORMED** |
+
+**Approved run-image candidates (r2):**
+- target `sha256:98548ec48d8d796fca5adaf4aab3e461bee38210bd1d568281f79190685eac2e`;
+- verifier `sha256:e880f609a7c4d292441e22d1d0d5d7c876697dd4e1e657a668b2b6266969fecc`.
+
+They do not become approved execution identities until the gate-C review.
+
+**The r1 images** (`e5d1ad51…` target, and `e57f61f8…`, the defective verifier) are kept as
+evidence and **rejected** by `run_plan.REJECTED_RUN_IMAGE_IDS` (tested).
+
+**Gate B history:**
+1. **r1 builds (2026-10-13):**
+   - a recipe fix removed `# syntax=docker/dockerfile:1`, which would have pulled an
+     unapproved frontend image;
+   - **G-B1:** the verifier's directories were `0644`, untraversable for UID 10001;
+   - **G-B2:** the build left bytecode in both images.
+2. **r2 corrective rebuild** (owner-approved, exactly two builds):
+   - recipe: `python3 -B -m pip --no-compile`, plus pre-created `0755` directories, plus
+     ownership and mode enforcement **after the final COPY**;
+   - static audit of the **final merged filesystem**: verifier access PASS (9 directories
+     `0755`, 11 files `0644`, root-owned, byte-identical to the staged sources);
+   - 0 `.pyc` in the base and 0 in either final image;
+   - only approved distributions; no unapproved content;
+   - configuration as reviewed;
+   - inventory: +2 images and +8 build-cache entries; the r1 images, the 10 pre-existing
+     images, 7 containers, 5 networks and 10 volumes are unchanged; no container was created.
+3. **Open host remediation:** the dev pytest 8.4.2 is affected by CVE-2025-71176 and was not
+   changed. The minimal upgrade plan is in `environment.lock.md` §3.1, not executed.
+
+**Requested next approval: gate C**, as proposed in `run-images.md` §6:
+1. the reviewed code changes: wrapper allowlist, the collection-only verifier spec, the
+   self-test pack, and the r2 `ApprovedRunImage` entries;
+2. C1a/C1b: pytest 9.0.3 compatibility on a synthetic self-test pack (2 containers, no
+   network);
+3. C2: the first real PaperTrail collection (1 container, no network; no approval implied).
+
+At most 3 containers in total. The first live comparison is a later, separate request.
+
+## PP-008 — `IN_PROGRESS` (state A complete; stopped at gate B, 2026-10-12)
+
+**Owner authorization (2026-10-12):**
+- publish PP-007;
+- begin the **Docker-free** PP-008 implementation and the image and dependency planning.
+- **Not authorized:** pulls, builds, containers, new dependency installs, or a live run.
+
+**State A: built and validated without Docker.** Details are in
+`docs/architecture/verification-runs.md`.
+- **New `src/patchproof/runner/` modules:**
+  - `run_policy.py`: fixed run policy and typed read-only inputs;
+  - `run_gate.py`: the inspect gate for run containers;
+  - `inputs.py`: content-addressed pack snapshots and source re-verification, which closes
+    PP-007 R2;
+  - `collector.py`: the trusted event collector;
+  - `run_plan.py`: the plan and recomputed preconditions. The approved run-image registry is
+    **empty**.
+  - `revision.py`: one target and one verifier per revision;
+  - `comparison.py`: feeds the unchanged PP-004 engine.
+- **New `verifier/patchproof_verifier/` modules:**
+  - `launch.py`: the event channel opened before pytest starts;
+  - `events.py`;
+  - `transport.py`: a fixed standard-library HTTP client;
+  - `plugin.py` (rewritten): run mode, failure classes, per-test deadline.
+- **`verifier/pytest.ini`:** `-p no:tmpdir` added.
+- **Proposed, unbuilt recipes:** `containers/target-python/` and `containers/verifier/`.
+
+**Findings during PP-008:**
+- **P1 (fixed): pytest output in the event channel.** Under real pytest 8.4.2, pytest's own
+  output reached standard output, the event channel, because pytest keeps a copy of stdout
+  from startup. A real run would have been MALFORMED every time. The fix is the launcher,
+  which redirects descriptor 1 before pytest is imported. The PP-007 collection command
+  changed accordingly (`-m patchproof_verifier.launch collect ... --`), and its accepted test
+  now pins the new exact argv.
+- **P2 (owner decision): pytest advisory.** pytest 8.4.2 is affected by CVE-2025-71176
+  (GHSA-6w46-j5rx-g56g); the fix is 9.0.3. The verifier recipe proposes 9.0.3. `-p no:tmpdir`
+  mitigates either way.
+- **P3 (owner decision): HTTP client.** The verifier transport uses `http.client`, not HTTPX
+  (§3.1); this is recommended, and the HTTPX set is reviewed in the plan.
+- **P4 (gate C): wrapper change.** The accepted Docker wrapper forbids `--mount` and has no
+  attached start. `RunCreate` and `StartAttached` are therefore separate operations that the
+  real `DockerCli` refuses (tested). Admitting them is a reviewed wrapper change before any
+  live run.
+
+**Validation (pinned environment, 2026-10-12):**
+- **Full unit suite:** **8145 passed**, 0 failed, 0 skipped. That is 7964 + 181 PP-008 tests:
+  policy, gate and inputs 64; collector 35; execution and comparison 38; transport 15;
+  plugin end-to-end 23; recipes 6.
+- **mypy `--strict`:** clean (58 files). **Ruff:** clean on new and changed code. `ruff check .`
+  still reports the 11 pre-existing E501 lines, none in PP-008 files.
+- **Lockfile:** `pyproject.toml` and `uv.lock` unchanged, and `uv lock --check` consistent.
+  No dependency was installed.
+- **Plugin under real pytest 8.4.2** (subprocess, synthetic packs only):
+  - the event channel carries only events, even with prints and raw writes to descriptor 1;
+  - the host collector accepts the stream as COMPLETE and derives all 11 outcome classes
+    exactly;
+  - the `launch collect ... -- <path>` command works, and its output passes
+    `review_collection`;
+  - skip and xfail markers, extra tests, autoloading, and running without the launcher are
+    each refused;
+  - an early stop yields TRUNCATED with no `session_end`.
+- **Comparisons:** all four PP-006 comparisons compose end to end through the fake Docker
+  with **synthetic** streams: NOT_FIXED, NOT_FIXED, VERIFIED_FOR_CASES and
+  REGRESSION_DETECTED. **These are not application-security results.**
+- **Mutation check** (scratch, not committed; logs `scratchpad/pp008/mut.log` and
+  `mut-survivors.log`): 31 weakenings of the new boundaries.
+  - The first run caught 26.
+  - Four real test gaps were closed: the role-input swap, the plan manifest identity, a pack
+    tampered with mid-run, and `session_end` after an early stop. Each is now caught in
+    isolation.
+  - **P15** (the collector's observation-window check) is equivalent: 0 differences over
+    3,072 streams with an observation inserted at every position, because PP-007's
+    `derive_outcome` rejects the same streams.
+  - **Final: 30/31, with one equivalent mutant.** The baseline passed under the identical
+    command, and the sources were hash-verified after each run.
+
+**Not executed and not claimed:**
+- no image pulled or built;
+- no container, real collection or PaperTrail execution;
+- no pack approval (test approvals are synthetic and in temporary directories);
+- no run-authorization record (PP-009).
+
+**Required owner decisions (gate B; details in `docs/architecture/run-images.md`):**
+1. **Base image:** approve `python:3.13-slim@sha256:70729b46…` for the target and verifier
+   roles. It is already local, so no pull is needed, and it is identical to Docker Hub
+   today.
+2. **Target dependencies:** uvicorn 0.54.0, click 8.5.0, h11 0.16.0 (hashes in
+   `containers/target-python/requirements.lock`).
+3. **Verifier pytest:** **9.0.3 (recommended, fixes CVE-2025-71176)** or 8.4.2 with
+   mitigations. If 9.0.3, also decide on the host dev pin.
+4. **HTTP client:** the standard-library transport (recommended) or HTTPX 0.28.1 and its six
+   dependencies.
+5. **Preparation steps:** wheel download from `files.pythonhosted.org` with hash verification,
+   then two `docker build --network=none --pull=false` builds. This creates two local images
+   and build cache, and nothing else.
+
+**Then gate C (separate approval):**
+- the wrapper change admitting `RunCreate` and `StartAttached`;
+- the first real collection;
+- the first live run plan;
+- only after that, the owner's PaperTrail pack approval.
 
 ## PP-007 — implementation `ACCEPTED` by owner (2026-10-12)
 
@@ -1277,13 +1517,13 @@ gate checklist `docs/evidence/v0.0-release-gate.md`; C4 run
 | **v0.0 release** | **2026-10-12** | `docs/evidence/v0.0-release-gate.md` |
 | PP-005 | 2026-10-12 | commit `c8128a7`; acceptance `aa3a0a3` (pushed); 7337 unit tests |
 | PP-006 | 2026-10-12 | commit `4b8f288`; acceptance `22c43dd` (pushed); 7439 unit tests; `docs/architecture/papertrail-reference.md` |
-| PP-007 (implementation) | 2026-10-12 | commit `698e78d` (local); 7964 unit tests; parity 160/160 and 223,815 mutations; mutation check 34/35 (M26 equivalent); no pack approved; `docs/architecture/packs-and-approvals.md` |
+| PP-007 (implementation) | 2026-10-12 | commit `698e78d`; acceptance `d85b6db` (pushed); 7964 unit tests; parity 160/160 and 223,815 mutations; mutation check 34/35 (M26 equivalent); no pack approved; `docs/architecture/packs-and-approvals.md` |
 
 ## Next permitted issue
 
-**PP-007 implementation is `ACCEPTED`** (`698e78d`, local). **PP-008 is next and `NOT_STARTED`.**
-It needs separate owner authorization, and its verifier image and HTTP client need
-dependency approval. Pushing the PP-007 commits also needs owner approval.
+**PP-008 is `IN_PROGRESS`.** State A is complete; it is stopped at gate B (image and
+dependency approval). Then gate C (wrapper change, real collection, first live run) needs
+separate approval. PP-009 has not started.
 
 ## Failed tests, risks, and blockers
 

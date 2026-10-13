@@ -285,3 +285,29 @@ def validate_pack(root: Path) -> ValidatedPack:
     files = tuple(PackFile(rel, len(data), _sha256(data)) for rel, data in sorted(contents.items()))
     return ValidatedPack(root=root, manifest=manifest, manifest_sha256=_sha256(raw_manifest),
                          pack_tree_sha256=pack_tree_sha256(files), files=files)
+
+
+SELFTEST_PACK_ID: Final = "verifier-selftest"
+
+
+def load_selftest_pack(root: Path) -> ValidatedPack:
+    """Load the SYNTHETIC verifier self-test pack (PP-008 gate C).
+
+    The self-test deliberately uses patterns the static policy forbids, to exercise harness
+    errors, so the module rules are not applied. The path, layout, size and strict-manifest
+    rules are. It is accepted only under its fixed pack ID, and approvals refuse that ID.
+    """
+    raw_root = str(root)
+    if not os.path.isabs(raw_root) or os.path.realpath(raw_root) != raw_root:
+        raise PackError("PACK_PATH_INVALID", "pack root must be an absolute canonical path")
+    contents = _read_tree(root)
+    try:
+        manifest = load_record(PackManifest, contents["pack.json"], contract="pack-manifest",
+                               max_bytes=MAX_MANIFEST_BYTES)
+    except (KeyError, RecordError) as exc:
+        raise PackError("PACK_MANIFEST_INVALID", "self-test manifest is missing or invalid") from exc
+    if manifest.pack_id != SELFTEST_PACK_ID:
+        raise PackError("PACK_MANIFEST_INVALID", "only the verifier self-test pack may be loaded this way")
+    files = tuple(PackFile(rel, len(data), _sha256(data)) for rel, data in sorted(contents.items()))
+    return ValidatedPack(root=root, manifest=manifest, manifest_sha256=_sha256(contents["pack.json"]),
+                         pack_tree_sha256=pack_tree_sha256(files), files=files)

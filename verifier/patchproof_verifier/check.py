@@ -25,6 +25,7 @@ FactValue = str | int | bool | None
 
 MAX_FACTS: Final = 32
 MAX_TEXT: Final = 200
+MAX_SUMMARY: Final = 4000  # longText bound of the observation event
 _KEY_RE: Final = re.compile(r"[a-z][a-z0-9_]{0,39}")
 _TEXT_RE: Final = re.compile(r"[^\x00-\x1f\x7f]*")
 
@@ -64,6 +65,8 @@ class Evidence:
                 _text(value, f"fact {key}")
             elif value is not None and not isinstance(value, (bool, int)):
                 raise HelperMisuse(f"fact {key} must be text, an integer, a boolean or null")
+        if len(self.summary()) > MAX_SUMMARY:
+            raise HelperMisuse(f"evidence summary exceeds {MAX_SUMMARY} characters")
 
     def summary(self) -> str:
         rendered = "; ".join(f"{k}={'null' if v is None else str(v).lower() if isinstance(v, bool) else v}"
