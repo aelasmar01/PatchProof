@@ -1,23 +1,11 @@
 # STATUS
 
-**Updated:** 2026-10-13 (**PP-008 `IN_PROGRESS`**: the profile and approval-infrastructure blockers are
-resolved (versioned profile `profiles/papertrail-reference-1.0.0.json`, strict loader, profile/runtime
-equality, owner-operated `patchproof.pack_approval`); the owner approved the PaperTrail pack
-(`apr-f30bd94302802ad9aa8b394be066d1fa`), whose rationale and scope held the confirmation phrase; the
-owner superseded it (current `apr-f4b493f9be53db6b0eff607f79508a65`). Single-use run authorization, the
-PaperTrail driver and evidence capture are implemented Docker-free; the final run-authorization security review
-added signal-safe interruption and a limited recovery command (local checkpoint commit `b2cdedd`; not pushed). The owner
-then ran the first live comparison (`run-036553ef…`): independently audited read-only, `VERIFIED_FOR_CASES` (V-09)
-reproduced; a live deliberately interrupted run is still outstanding. Evidence hardening (target-log and
-console routing, metadata-only operation journal, real `evaluated_at`) and a deterministic interruption-test
-mechanism are implemented Docker-free. The owner then authorized the separate interruption-test contract:
-implemented Docker-free (contract, store, owner command, controller, child, driver); after the final
-interruption security review (explicit child environment, exact subprocess allowlist, private baseline-only
-engine adapter, nonterminating-child handling) both are in one local checkpoint commit (not pushed);
-READY_FOR_REVIEW; no real interruption authorization exists and nothing ran.
-Gate A done; gate B COMPLETE; **gate C collection and protocol validation COMPLETED
-with a documented C1b exception**: C1a PASS; C1b FAIL, owner-adjudicated ACCEPTED_FOR_C2_PROGRESSION; C2 PASS.
-PP-007 is `ACCEPTED` and pushed, `origin/main` = `d85b6db`)
+**Updated:** 2026-10-14 (**PP-008 `ACCEPTED` by owner, 2026-10-14.** Implementation checkpoints `98b5cf8`,
+`e25f106`, `b2cdedd`, `48e2d8e`; evidence closeout commit `c33d580`; acceptance gate
+`docs/evidence/pp-008-acceptance-gate.md` (15 requirements, all PASS; accepted limitations L1–L12). Live
+evidence: successful comparison `run-036553ef…` (`VERIFIED_FOR_CASES`, V-09) and deliberate interruption
+`run-6cee8893…` (`INCONCLUSIVE`, V-05, lifecycle exit 20). **PP-009 `NOT_STARTED`. v0.1 release NOT YET
+ACCEPTED.** Local commits are not pushed; `origin/main` = `d85b6db`)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -25,21 +13,15 @@ PP-007 is `ACCEPTED` and pushed, `origin/main` = `d85b6db`)
 ## Current release and issue
 
 **Release:** v0.1 — Useful CLI verification
-**Issue:** PP-008 — Target/verifier runner and typed event transport
-**State:** `IN_PROGRESS` (started 2026-10-12). Gates A and B are complete; gate C collection
-and protocol validation is complete with the documented C1b exception; the profile and
-approval infrastructure is implemented. The implementation is recorded in a local,
-owner-authorized **checkpoint commit** (2026-10-13, not pushed, not tagged). That commit is
-not issue acceptance. The owner then approved the PaperTrail pack personally
-(`apr-f30bd94302802ad9aa8b394be066d1fa`, 2026-10-13T05:24:44Z). Its rationale and scope both
-hold the confirmation phrase, an audit-quality deficiency the owner will correct by
-supersession (see below). PaperTrail has not been executed. No live comparison has been
-authorized.
-**Previous issue:** PP-007, implementation `ACCEPTED` and pushed (`22c43dd..d85b6db`, ordinary
-fast-forward, 2026-10-12).
-**Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 and PP-006
-are libraries and fixtures with no CLI workflow yet (PP-009). PaperTrail has **not been
-executed**; its expected behavior is declared and checked statically only.
+**Issue:** none in progress. PP-008 is `ACCEPTED` (owner, 2026-10-14); PP-009 (CLI workflow and
+JSON/Markdown evidence) is `NOT_STARTED` and needs the owner's go-ahead.
+**Release state:** v0.1 is NOT YET ACCEPTED (PP-009 and PP-010 remain).
+**Previous issue:** PP-008, `ACCEPTED` 2026-10-14 (local commits `98b5cf8`, `e25f106`, `b2cdedd`, `48e2d8e`,
+evidence `c33d580`, acceptance commit recorded in Git history; not pushed).
+**Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 to PP-008 are
+libraries, fixtures and owner-operated integration utilities with no general CLI workflow yet (PP-009).
+PaperTrail was executed twice under owner authorization (one comparison, one deliberate interruption);
+the claims are limited to those two audited runs.
 
 ## PP-008 gate C — collection and protocol validation COMPLETED with a documented C1b exception (2026-10-13); evidence `docs/evidence/pp-008-gate-c.md`
 
@@ -1718,6 +1700,60 @@ unverified" below.
 
 ## Accepted issues
 
+### PP-008 — `ACCEPTED` by owner, 2026-10-14
+
+**Scope:** the target/verifier runner and typed event transport, with:
+- gated execution and pack approval (including supersession);
+- the single-use run authorization;
+- evidence persistence and inventory reconciliation;
+- the limited recovery command;
+- evidence hardening (`docker-ops-v2`, separate untrusted output artifacts, real `evaluated_at`);
+- the separate interruption-test contract, controller, child and baseline-only driver.
+
+**Commits:** implementation checkpoints `98b5cf8`, `e25f106`, `b2cdedd`, `48e2d8e`; evidence closeout
+`c33d580`; this acceptance commit. All local, not pushed, not tagged.
+
+**Live evidence** (owner-executed, each independently audited read-only):
+- `run-036553ef7b032f59955cc4a790409931`: r1 against r3, `COMPLETE`/`FINALIZED`, `VERIFIED_FOR_CASES` (V-09),
+  16/16 trusted cells, 4 containers created and removed (`docs/evidence/pp-008-first-live-comparison.md`;
+  audit 164/164 checks).
+- `run-6cee8893b1a0a58690be96bf23fa56b1`: one SIGTERM at `baseline-target-ready`, `INTERRUPTED`/`INCOMPLETE`,
+  cleanup `COMPLETE`, `INCONCLUSIVE` (V-05), lifecycle exit 20, controller `EXPECTED_OUTCOME_OBSERVED`, 2
+  containers created and removed, verifier and candidate never executed
+  (`docs/evidence/pp-008-interruption-demonstration.md`; audit 159/159 checks).
+
+**Gate** (`docs/evidence/pp-008-acceptance-gate.md`): 15 requirements, all PASS.
+- At the gate, the accepted `verify_evidence` re-reported both runs and the controller record
+  `CONSISTENT`.
+- All private evidence, authorization, claim and approval files were identical to the audit
+  snapshots.
+- Both authorizations are consumed. The current approval `apr-f4b493f9…` is `APPROVED`; the
+  superseded `apr-f30bd943…` is unchanged.
+
+**Validation (2026-10-14):**
+- 8,667 Docker-free unit tests passed, 0 failed;
+- `mypy --strict src`: no issues in 70 files;
+- the documented Ruff gate (`--select E,F,W,B,UP --line-length 120 src containers`): clean;
+- `ruff check src tests` with project defaults: only the 11 pre-existing E501 findings in unchanged
+  test files.
+
+The committed tree was validated separately (see the PP-008 acceptance commit's report).
+
+**Accepted limitations (L1–L12 in the gate report):**
+- non-substantive interruption-authorization rationale and scope; the record is kept and no
+  signed note is required;
+- configuration evidence, not kernel proof;
+- structured witnesses without raw responses;
+- locally asserted reviewer identity;
+- no wall-clock time for the checkpoint;
+- journal v1 for the successful run, and the hardened verifier-console path not yet live-demonstrated;
+- shell exit codes not captured;
+- the preflight's one FAILED auxiliary diagnostic (exit code 1 hidden by `tee`) is preserved;
+- network-identity attribution relies on Docker Desktop's external log;
+- the deprecated `--time` stop flag is unchanged;
+- the host pytest advisory remains separate;
+- the claim covers one pair, one fixed fixture and 8 checks.
+
 ### PP-002 — `ACCEPTED` by owner, 2026-10-11
 
 Accepted scope:
@@ -1839,12 +1875,21 @@ gate checklist `docs/evidence/v0.0-release-gate.md`; C4 run
 | PP-005 | 2026-10-12 | commit `c8128a7`; acceptance `aa3a0a3` (pushed); 7337 unit tests |
 | PP-006 | 2026-10-12 | commit `4b8f288`; acceptance `22c43dd` (pushed); 7439 unit tests; `docs/architecture/papertrail-reference.md` |
 | PP-007 (implementation) | 2026-10-12 | commit `698e78d`; acceptance `d85b6db` (pushed); 7964 unit tests; parity 160/160 and 223,815 mutations; mutation check 34/35 (M26 equivalent); no pack approved; `docs/architecture/packs-and-approvals.md` |
+| PP-008 | 2026-10-14 | checkpoints `98b5cf8`, `e25f106`, `b2cdedd`, `48e2d8e`; evidence `c33d580` (local, not pushed); runs `run-036553ef…` (V-09) and `run-6cee8893…` (V-05); 8,667 unit tests; `docs/evidence/pp-008-acceptance-gate.md` |
 
 ## Next permitted issue
 
-**PP-008 is `IN_PROGRESS`.** State A is complete; it is stopped at gate B (image and
-dependency approval). Then gate C (wrapper change, real collection, first live run) needs
-separate approval. PP-009 has not started.
+**PP-009 — CLI workflow and JSON/Markdown evidence: `NOT_STARTED`.** It may begin only on the
+owner's explicit go-ahead. Handoff obligations from PP-008 (recorded, not implemented):
+1. general CLI workflow and safe JSON/Markdown reports;
+2. meaningful owner-entered rationale and scope validation for run, interruption and approval authorizations;
+3. fail-closed preflight reporting: command exit codes kept through `tee` and other pipelines, mandatory gates
+   distinguished from optional diagnostics;
+4. a controlled end-to-end check of the hardened verifier-console and operation-journal capture in a live
+   verifier execution (separate owner approval);
+5. safe handling of the accepted response-retention and export limitations.
+Open separate obligations: host pytest advisory remediation; the deprecated Docker stop flag `--time`
+(reviewed policy change). v0.1 is NOT YET ACCEPTED.
 
 ## Failed tests, risks, and blockers
 
