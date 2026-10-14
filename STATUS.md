@@ -71,6 +71,41 @@ execute; loading and outcomes are unaffected.
 2. the first live baseline/candidate comparison (separate approval; plan in `run-images.md` §7);
 3. host pytest 9.0.3 remediation (delta prepared in `environment.lock.md`; not executed).
 
+## PP-008 live interruption demonstration and independent audit (2026-10-14); READY_FOR_REVIEW; evidence `docs/evidence/pp-008-interruption-demonstration.md`
+
+The owner authorized and ran one deliberately interrupted baseline run themselves, after a read-only
+preflight: `run-6cee8893b1a0a58690be96bf23fa56b1`, authorization
+`iau-92e4f72c5e2b9c251845c13f3e7dde6a`, plan `sha256:faa4245d…`. A read-only audit followed: no
+Docker command, nothing re-executed, all private evidence byte-, mode-, mtime- and inode-identical
+before and after; 159/159 checks.
+
+| Item | Result |
+|---|---|
+| Integrity | accepted `verify_evidence`: child `CONSISTENT`/`INCOMPLETE`, controller `CONSISTENT`/`FINALIZED`; independent manifest re-check agrees; authorization and claim byte-identical to the store; consumed once, none executable; plan recomputes unchanged; approvals unchanged |
+| Containers | 2 created, 1 started (target), 1 stop, 2 removals by full ID, both confirmed absent; verifier never started (Docker `created`, start time zero); no candidate; only owned IDs touched |
+| Signal | checkpoint `baseline-target-ready` (target healthy, verifier created and inspected); one SIGTERM to the reported child PID, 25.0 s before send-by; observed once by the child |
+| Recomputed | verdict input rebuilt from records equals the stored one; the accepted engine reproduces `verdict.json` exactly: `INCONCLUSIVE` V-05; lifecycle `INTERRUPTED`, evidence `INCOMPLETE`, cleanup `COMPLETE`, exit 20; controller `EXPECTED_OUTCOME_OBSERVED` (harness 0, separate). Shell exit codes not captured |
+| Isolation | create argv equals policy; accepted gate re-run passes; independent field check agrees |
+| Inventory | before = after by identity (14/7/5/10); seven unrelated stopped containers untouched; `bridge` ID changed since the preflight, attributed to a Docker Desktop idle VM stop at 04:04:44Z and restart by the run's first listing, from Docker Desktop's host log (outside the saved evidence) |
+| Hardening | `docker-ops-v2` descriptors only; separate target stdout/stderr artifacts; verifier console `NOT_ATTEMPTED`; real `evaluated_at` |
+
+**Findings:** (1) the authorization's rationale ("testing for implementation") and scope ("idk")
+are not substantive. The record is kept as is. An unsigned draft post-run note and proposed
+field validation are in the evidence report; nothing is implemented. (2) Docker 29.8.2 reports the
+stop flag `--time` as deprecated (low; accepted-policy change needs owner review). (3) The
+checkpoint has only monotonic times (info).
+**Preflight correction:** the preflight's one failed check (empty-daemon assertion) was an auxiliary
+diagnostic, stricter than the requirement. The script exited 1 (masked by `tee`). The overall
+result should have read "PASS on every mandatory check; one auxiliary diagnostic FAILED". The
+check stays FAILED.
+**PP-008 assessment:** every requirement PASS on the two live runs.
+**Owner decisions (2026-10-14):** ACCEPT PP-008, conditional on the final documentation review and
+committed-tree validation. No signed post-run note is required; finding 1 is accepted as audit-quality
+limitation L1, not a runtime-policy failure. Rationale and scope validation and fail-closed preflight
+reporting (exit codes kept through pipelines; mandatory gates distinguished from diagnostics) are
+carried forward to PP-009. The acceptance gate is `docs/evidence/pp-008-acceptance-gate.md`: 15
+requirements, all PASS, limitations L1–L12.
+
 ## PP-008 final interruption security review and checkpoint (2026-10-13); READY_FOR_REVIEW
 
 Owner-approved architecture and narrow subprocess exception; one local checkpoint commit
