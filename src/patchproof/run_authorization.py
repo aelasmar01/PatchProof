@@ -177,12 +177,21 @@ def render_plan(run: AssembledRun, replaces: StoredAuthorization | None, store_r
 
 
 def run_authorization(env: RunEnvironment, terminal: Terminal, *, now: Callable[[], datetime],
-                      new_run_id: Callable[[], str] = lambda: "run-" + secrets.token_hex(16)) -> int:
-    """The interactive flow. Returns 0 only when a verified authorization was written."""
+                      new_run_id: Callable[[], str] = lambda: "run-" + secrets.token_hex(16),
+                      expected_plan_sha256: str | None = None) -> int:
+    """The interactive flow. Returns 0 only when a verified authorization was written.
+
+    `expected_plan_sha256` (the `patchproof plan approve` path) binds the review to a plan the
+    operator already inspected: if the plan recomputed now has any other hash, nothing is shown
+    for confirmation and nothing is written.
+    """
     written: Path | None = None
     try:
         run_id = new_run_id()
         run = assemble_run(env, run_id)
+        if expected_plan_sha256 is not None and run.sha256 != expected_plan_sha256:
+            raise ApprovalBlocked("the plan recomputed now from the current inputs differs from the selected plan; "
+                                  "create and inspect a new plan")
         store = provision_authorization_store(env.authorization_store)
         before = store.scan()
         replaces = store.executable()
@@ -190,14 +199,15 @@ def run_authorization(env: RunEnvironment, terminal: Terminal, *, now: Callable[
         phrase = authorization_phrase(run.document)
         identity = _ask(terminal, "Your name (asserted, not verified): ")
         rationale = _ask_statement(terminal, "Rationale for authorizing this run: ", phrase)
-        scope = _ask_statement(terminal, "Authorization scope: ", phrase)
+        scope = _ask_statement(terminal, "Authorization scope: ", phrase, differs_from=rationale)
         terminal.write(f"\nTo authorize, type exactly:  {phrase}\n")
         typed = terminal.read_line("Confirmation: ")
         if typed != phrase:
             raise ApprovalBlocked("the confirmation does not match the phrase")
 
         fresh = assemble_run(env, run_id)
-        if fresh.document != run.document or fresh.sha256 != run.sha256:
+        if fresh.document != run.document or fresh.sha256 != run.sha256 or (
+                expected_plan_sha256 is not None and fresh.sha256 != expected_plan_sha256):
             raise ApprovalBlocked("an input changed between review and confirmation")
         if store.scan() != before:
             raise ApprovalBlocked("the run-authorization store changed during the review")

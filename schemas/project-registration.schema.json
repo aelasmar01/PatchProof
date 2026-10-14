@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:patchproof:schema:project-registration:1.0",
+  "title": "Project registration record",
+  "description": "PROJECT_SPEC.md 6, 9.1 and 13.1. One explicitly selected canonical local Git repository registered by the owner with `patchproof project add`. Holds no repository content and approves no pack, plan or run. The project ID is derived from the canonical path and the confirmation names it; those cross-field rules are checked by workflow.projects. Records are immutable. This is workflow accountability, not proof of a separate human reviewer.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "kind",
+    "project_id",
+    "created_at",
+    "canonical_path",
+    "object_format",
+    "supported_profiles",
+    "reviewer",
+    "rationale",
+    "scope",
+    "confirmation"
+  ],
+  "properties": {
+    "schema_version": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/schemaVersion"
+    },
+    "kind": {
+      "const": "project-registration"
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^prj-[0-9a-f]{16}$"
+    },
+    "created_at": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/timestamp"
+    },
+    "canonical_path": {
+      "description": "The exact canonical absolute repository root the owner selected (private; never shown in reports).",
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 1024,
+      "pattern": "^/[^\\u0000-\\u001F\\u007F]*[^/]$"
+    },
+    "object_format": {
+      "enum": [
+        "sha1",
+        "sha256"
+      ]
+    },
+    "supported_profiles": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "urn:patchproof:schema:common:1.0#/$defs/identifier"
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asserted_identity",
+        "basis"
+      ],
+      "properties": {
+        "asserted_identity": {
+          "$ref": "urn:patchproof:schema:common:1.0#/$defs/shortText"
+        },
+        "basis": {
+          "const": "local-assertion-unverified"
+        }
+      }
+    },
+    "rationale": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+    },
+    "scope": {
+      "$ref": "urn:patchproof:schema:common:1.0#/$defs/longText"
+    },
+    "confirmation": {
+      "description": "The phrase the owner typed: REGISTER <project_id>.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^REGISTER prj-[0-9a-f]{16}$"
+    }
+  }
+}

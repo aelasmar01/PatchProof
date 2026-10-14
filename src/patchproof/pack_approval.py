@@ -37,6 +37,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import os
+import re
 import stat
 import sys
 from collections.abc import Callable, Mapping, Sequence
@@ -85,6 +86,17 @@ C2_STDOUT_SHA256: Final = "sha256:c9e5489569a02050345f935bd20c61a604ccd824af26fc
 C2_RESULT_SHA256: Final = "sha256:9b721cda80fe6b98285204d92fe377a2252b661d21ec9f5b352e8debe67264ff"
 MAX_RESULT_BYTES: Final = 65536
 MAX_TEXT_INPUT: Final = 4000
+# Owner follow-up from PP-008 (2026-10-14): a rationale or scope must say something. These
+# rules check effort, not truth; they apply when a statement is typed, never to stored records.
+MIN_STATEMENT_CHARS: Final = 20
+MIN_STATEMENT_WORDS: Final = 4
+PLACEHOLDER_WORDS: Final = frozenset({
+    "idk", "test", "tests", "testing", "todo", "tbd", "na", "n/a", "none", "nothing", "asdf", "qwerty", "ok",
+    "okay", "yes", "no", "foo", "bar", "baz", "placeholder", "whatever", "stuff", "something", "x", "xx", "xxx",
+    "lorem", "ipsum", "blah", "etc", "dunno", "sure", "fine", "same",
+})
+_WORD_RE: Final = re.compile(r"[a-z0-9][a-z0-9'/_-]*")
+_LONG_HEX_RE: Final = re.compile(r"[0-9a-f]{40,}")
 
 # What each check witnesses (pack README, reviewed in the PP-008 readiness review).
 CHECK_SUMMARIES: Final = {
@@ -160,6 +172,11 @@ def require_interactive(argv: Sequence[str], environ: Mapping[str, str], *, stdi
                         stdout_fd: int = 1) -> None:
     if len(argv) > 1:
         raise NotInteractive("this command takes no arguments; every answer is typed at the terminal")
+    require_terminal(environ, stdin_fd=stdin_fd, stdout_fd=stdout_fd)
+
+
+def require_terminal(environ: Mapping[str, str], *, stdin_fd: int = 0, stdout_fd: int = 1) -> None:
+    """The terminal part of the gate, for `patchproof` subcommands whose arguments only select an object."""
     if any(name.upper().startswith("PATCHPROOF") for name in environ):
         raise NotInteractive("PATCHPROOF* environment variables are not accepted; unset them and retry")
     if not (os.isatty(stdin_fd) and os.isatty(stdout_fd)):
@@ -432,12 +449,31 @@ def _folded(text: str) -> str:
     return " ".join(text.split()).casefold()
 
 
-def _ask_statement(terminal: Terminal, prompt: str, phrase: str) -> str:
-    """A rationale or scope: required, and never the confirmation phrase (in whole or in part)."""
+def statement_problem(answer: str, phrase: str, *, differs_from: str | None = None) -> str | None:
+    """Why a typed rationale or scope is not acceptable, or None. Pure."""
+    folded = _folded(answer)
+    copied = [t for t in _LONG_HEX_RE.findall(_folded(phrase)) if t in folded]
+    if _folded(phrase) in folded or copied:
+        return ("contains the confirmation phrase or its hash; describe the review in your own words and type "
+                "the phrase only at the confirmation prompt")
+    words = set(_WORD_RE.findall(folded))
+    meaningful = {w for w in words if len(w) > 1 and w not in PLACEHOLDER_WORDS}
+    if (len(folded) < MIN_STATEMENT_CHARS or len(words) < MIN_STATEMENT_WORDS
+            or len(meaningful) < MIN_STATEMENT_WORDS - 1):
+        return (f"is not a substantive statement; write at least {MIN_STATEMENT_CHARS} characters and "
+                f"{MIN_STATEMENT_WORDS} different words saying what you reviewed and why (placeholders such as "
+                "'idk' or 'test' are refused)")
+    if differs_from is not None and folded == _folded(differs_from):
+        return "repeats the rationale; state the scope separately"
+    return None
+
+
+def _ask_statement(terminal: Terminal, prompt: str, phrase: str, *, differs_from: str | None = None) -> str:
+    """A rationale or scope: substantive, never the confirmation phrase, and a scope is not the rationale."""
     answer = _ask(terminal, prompt)
-    if _folded(phrase) in _folded(answer):
-        raise ApprovalBlocked(f"the answer to {prompt.strip()!r} contains the confirmation phrase; describe the "
-                              "review in your own words and type the phrase only at the confirmation prompt")
+    problem = statement_problem(answer, phrase, differs_from=differs_from)
+    if problem:
+        raise ApprovalBlocked(f"the answer to {prompt.strip()!r} {problem}")
     return answer
 
 
@@ -457,7 +493,7 @@ def run_approval(target: ApprovalTarget, store_root: Path, terminal: Terminal, *
         terminal.write(render_review(review, current, store_root))
         identity = _ask(terminal, "Your name (asserted, not verified): ")
         rationale = _ask_statement(terminal, "Rationale for approving this pack: ", review.phrase)
-        scope = _ask_statement(terminal, "Approval scope: ", review.phrase)
+        scope = _ask_statement(terminal, "Approval scope: ", review.phrase, differs_from=rationale)
         terminal.write(f"\nTo approve, type exactly:  {review.phrase}\n")
         typed = terminal.read_line("Confirmation: ")
         if typed != review.phrase:
@@ -585,7 +621,7 @@ def run_supersession(target: ApprovalTarget, store_root: Path, terminal: Termina
         terminal.write(render_review(review, current, store_root))
         identity = _ask(terminal, "Your name (asserted, not verified): ")
         rationale = _ask_statement(terminal, "Rationale for approving this pack: ", review.phrase)
-        scope = _ask_statement(terminal, "Approval scope: ", review.phrase)
+        scope = _ask_statement(terminal, "Approval scope: ", review.phrase, differs_from=rationale)
         terminal.write(f"\nThis supersedes {current.approval_id}. To approve, type exactly:  {review.phrase}\n")
         typed = terminal.read_line("Confirmation: ")
         if typed != review.phrase:

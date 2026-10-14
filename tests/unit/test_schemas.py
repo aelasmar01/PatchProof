@@ -47,11 +47,19 @@ RECORD_SCHEMAS = (
     "reference-fixture",
     "run-authorization",
     "interruption-test-authorization",
+    "project-registration",
 )
 
 # filename -> (failing keyword, JSON pointer of the failing instance location).
 # "duplicate_key" marks a rejection by the strict loader rather than the schema.
 INVALID_CASES: dict[str, tuple[str, str]] = {
+    "project-registration--relative-path.json": ("pattern", "/canonical_path"),
+    "project-registration--trailing-slash.json": ("pattern", "/canonical_path"),
+    "project-registration--control-character-path.json": ("pattern", "/canonical_path"),
+    "project-registration--verified-reviewer.json": ("const", "/reviewer/basis"),
+    "project-registration--wrong-confirmation.json": ("pattern", "/confirmation"),
+    "project-registration--unknown-field.json": ("additionalProperties", ""),
+    "project-registration--no-profiles.json": ("minItems", "/supported_profiles"),
     "pack-manifest--unknown-field-command.json": ("additionalProperties", ""),
     "pack-manifest--unsupported-schema-version.json": ("const", "/schema_version"),
     "pack-manifest--nodeid-path-traversal.json": ("pattern", "/tests/0/nodeid"),

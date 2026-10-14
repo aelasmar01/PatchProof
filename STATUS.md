@@ -1,11 +1,10 @@
 # STATUS
 
-**Updated:** 2026-10-14 (**PP-008 `ACCEPTED` by owner, 2026-10-14.** Implementation checkpoints `98b5cf8`,
-`e25f106`, `b2cdedd`, `48e2d8e`; evidence closeout commit `c33d580`; acceptance gate
-`docs/evidence/pp-008-acceptance-gate.md` (15 requirements, all PASS; accepted limitations L1–L12). Live
-evidence: successful comparison `run-036553ef…` (`VERIFIED_FOR_CASES`, V-09) and deliberate interruption
-`run-6cee8893…` (`INCONCLUSIVE`, V-05, lifecycle exit 20). **PP-009 `NOT_STARTED`. v0.1 release NOT YET
-ACCEPTED.** Local commits are not pushed; `origin/main` = `d85b6db`)
+**Updated:** 2026-10-14 (**PP-009 `IN_PROGRESS`, READY_FOR_REVIEW** (uncommitted; not accepted): the v0.1 CLI
+workflow (`project add`, `profile prepare`, `pack validate|approve`, `plan create|show|approve`, `run`, `report`)
+delegating to the accepted PP-005 to PP-008 modules; safe verified JSON/Markdown reports; PROJECT_SPEC.md 13.2
+exit codes; 8,869 Docker-free tests; final security review F1–F8 corrected. **PP-008 `ACCEPTED`** (2026-10-14) and **published**: `origin/main` =
+`0d7d42d` (ordinary fast-forward of six commits). v0.1 release NOT YET ACCEPTED; PP-010 not started)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -13,15 +12,99 @@ ACCEPTED.** Local commits are not pushed; `origin/main` = `d85b6db`)
 ## Current release and issue
 
 **Release:** v0.1 — Useful CLI verification
-**Issue:** none in progress. PP-008 is `ACCEPTED` (owner, 2026-10-14); PP-009 (CLI workflow and
-JSON/Markdown evidence) is `NOT_STARTED` and needs the owner's go-ahead.
-**Release state:** v0.1 is NOT YET ACCEPTED (PP-009 and PP-010 remain).
-**Previous issue:** PP-008, `ACCEPTED` 2026-10-14 (local commits `98b5cf8`, `e25f106`, `b2cdedd`, `48e2d8e`,
-evidence `c33d580`, acceptance commit recorded in Git history; not pushed).
+**Issue:** PP-009 — CLI workflow and JSON/Markdown evidence. **State:** `IN_PROGRESS`, READY_FOR_REVIEW
+(started 2026-10-14 on the owner's authorization; implementation uncommitted; nothing executed live).
+**Release state:** v0.1 is NOT YET ACCEPTED (PP-009 review and PP-010 remain).
+**Previous issue:** PP-008, `ACCEPTED` 2026-10-14 and published (`d85b6db..0d7d42d`, six commits, ordinary
+fast-forward, 2026-10-14).
 **Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 to PP-008 are
 libraries, fixtures and owner-operated integration utilities with no general CLI workflow yet (PP-009).
 PaperTrail was executed twice under owner authorization (one comparison, one deliberate interruption);
 the claims are limited to those two audited runs.
+
+## PP-009 CLI workflow and safe reports (2026-10-14); READY_FOR_REVIEW; design `docs/architecture/cli-workflow.md`
+
+The owner authorized publishing PP-008 and implementing PP-009 only. PP-008 was published first: Git root and
+HEAD `0d7d42d` verified, remote `aelasmar01/PatchProof` `main` at `d85b6db`, an ancestor; `git rev-list --count
+origin/main..main` = **6** (all PP-008: `98b5cf8`, `e25f106`, `b2cdedd`, `48e2d8e`, `c33d580`, `0d7d42d`; the
+earlier report's "five commits ahead" was a miscount, "all six" was right); the outgoing diff holds no ADR-010
+file, approval record, private evidence or secret (the only path- and ID-shaped strings are synthetic test values
+and generic documentation); one ordinary `git push origin main` (`d85b6db..0d7d42d`); remote verified.
+
+| Area | Result |
+|---|---|
+| Commands | `project add\|list`, `profile prepare [--check-images]`, `pack validate\|approve`, `plan create\|show\|approve`, `run`, `report`; `doctor` and `doctor --probe-isolation` unchanged. No Docker option, mount, environment, shell command, reviewer name, `--yes` or `--force` anywhere (test-scanned) |
+| Delegation | registration: `register_repository`; snapshots: `create_snapshot` after typed `SNAPSHOT <project>`; plans: `assemble_run`; approval: `run_approval`; authorization: `run_authorization(expected_plan_sha256)`; execution: `execute_once(expected_plan_sha256)`; reports: `verify_evidence`, `evaluate`, `collect_stream` |
+| Scope | executable contract unchanged: PaperTrail r1 -> r3, one pair. Other revisions refused before a plan is written (widening needs owner review) |
+| New records | `project-registration` 1.0 (schema, model, 1 valid + 7 invalid examples, parity); plans stored as the canonical accepted `RunPlanDocument`. Private 0700 stores, 0400 write-once records |
+| Reports | verified before rendering (accepted verifier, strict records, engine recomputation, stream re-derivation, execution/observation cross-checks, engine trust rules); allowlisted fields and witness facts (marker withheld); entity/escape rendering; size, secret and path guards; 20 when evidence does not verify. Both accepted PP-008 runs report verified, read-only: `run-036553ef…` exit 0 (`VERIFIED_FOR_CASES`, V-09, journal v1), `run-6cee8893…` exit 20 (`INTERRUPTED`/`INCOMPLETE`/`INCONCLUSIVE`, V-05, `docker-ops-v2`) |
+| Exit codes | PROJECT_SPEC.md 13.2, lifecycle first; JSON keeps the semantic verdict; the interruption controller's harness code is never a run code |
+| PP-008 follow-ups | substantive rationale/scope for all owner commands (no placeholder, phrase or hash copy, scope != rationale); MANDATORY/DIAGNOSTIC preflight; exit codes through pipelines documented, `report --output`; both journal formats; witness/response-retention limits documented; live verifier-console check planned, not run |
+| Changes to accepted modules | `pack_approval` (`require_terminal` split out, `statement_problem`), `run_authorization` (`expected_plan_sha256`), `run_papertrail_once` (`execute_once`/`OnceResult`, `expected_plan_sha256`; utility exit codes unchanged), `interruption_authorization` (scope differs from rationale). One test fixture rationale lengthened |
+| Flaky PP-008 test fixed | `test_the_controller_sends_nothing_unless_the_report_is_exact` gave a real child 1 s to report; failed 1/15 here and 4/15 on the clean committed tree `0d7d42d`. The 1 s bound now applies only to the `silent` case it tests; 15/15 and 10/10 under 14 CPU-bound processes |
+
+**Validation after the final security review (2026-10-14):**
+- **Unit tests:** 8,869 passed, 0 failed (`tests/unit/test_cli_workflow.py`: 182). The earlier pass, before the
+  review corrections, was 8,818.
+- **Strict typing:** `mypy --strict src` clean, 81 files.
+- **Ruff, documented gate** (`--select E,F,W,B,UP --line-length 120 src containers`): clean.
+- **Ruff on every changed file:** clean, except the two pre-existing E501 in `tests/unit/test_schemas.py`
+  (moved by the inserted lines, not changed).
+- **Mutation check** (49 mutants: exit codes, report integrity, witness allowlist, escaping, plan/run
+  authorization states, plan and claim guards, statement rules, terminal gate, stores, project semantics, CLI
+  gates, preflight):
+  - First pass: 40 killed, 9 survived. All 9 were closed by new tests and killed on re-run.
+  - R11 was first a malformed mutant (it left one clause of the condition intact). Corrected, it was killed.
+  - R5 was equivalent in effect: the marker was still withheld by the generic allowlist rule. The test now
+    pins the explicit rule.
+  - Every source and test file was byte-identical to the backup after each pass.
+- **Final-review mutation check** (64 mutants: the 49 above, two adapted to the changed code, and 15 for
+  F1–F7):
+  - First pass: 60 killed, 4 survived: R11, the COMPLETE-run rule, the manifest/outcome status rule and the
+    duplicate-directory refusal. The new COMPLETE-run check now overlapped R11's old killing test.
+  - Each survivor was closed by a test that reaches only that rule: an evaluated interrupted run with its
+    verdict files removed; a COMPLETE outcome without its established verdict; a relabelled manifest status;
+    and a directory registered under a second identity.
+  - One new test first failed on unmutated code (wrong precondition). It was corrected, and the survivors
+    were re-run against a clean passing baseline: 4/4 killed, one failure each.
+  - Every source file was byte-identical after every pass.
+
+**Preservation:** both accepted PP-008 runs' evidence, the controller record, both approval records and both
+authorization stores are byte-identical to the PP-008 audit snapshot. No real project, plan, approval,
+authorization or run was created. No Docker command was run. ADR-010 is unchanged (`8f1fc685…`, `dd5cad81…`).
+The home repository and the dropped stash object are untouched.
+
+**Final security review (owner request, 2026-10-14).** The whole PP-009 diff was re-read against PROJECT_SPEC.md
+7, 10, 12, 13, 15.2 and 16. Findings and corrections:
+
+| # | Finding | Correction |
+|---|---|---|
+| F1 | `project add` checked only the object format of an existing record with the same derived ID; a conflicting identity (a different stored path) or the same directory under another path was not refused explicitly | refuses an ID whose stored path differs; refuses a directory already registered under another path (same device and inode). PP-005 already refuses case-variant and firmlinked spellings (checked on this host) |
+| F2 | `run --json` printed the JSON after the interactive conversation on the same standard output, so stdout was not valid JSON | with `--json` the conversation goes to standard error, which must be the foreground terminal (same gate); stdout carries only the JSON document |
+| F3 | the `run --json` document omitted cleanup, reconciliation, daemon continuity and stop reason, so a 0 exit with a failed cleanup was indistinguishable | the document carries these as separate fields and names the exit-code contract; cleanup never changes the code |
+| F4 | `report` did not check that the established verdict (outcome) equals the recomputed engine verdict, or that the manifest status equals the outcome's evidence status | both are integrity checks; a `COMPLETE` run must have finalized evidence and an established verdict equal to the recomputed one |
+| F5 | `--output` wrote the file in place (a failure could leave a partial file), raised a raw `OSError`, and chose the exit code by matching message text | atomic write: hidden temporary file, fsync, hard link (never overwrites, never follows a dangling symlink), temporary always removed; the directory is opened once and re-checked; typed `RunNotFound`/`OutputError` map to 2 |
+| F6 | `profile prepare` showed "local image presence not checked" as a passing diagnostic, and the image check did not say it was a Docker interaction | an unperformed check renders `NOTE`, never `PASS`; the image check is labelled `DOCKER INTERACTION (read-only docker image inspect, never pulled)` |
+| F7 | the PP-008 utility's operational exit codes (0 for any finalized clean run, `NOT_FIXED` included) could be mistaken for verdict codes | documented in the utility and in `docs/architecture/cli-workflow.md`; a test pins utility 0 with a `NOT_FIXED` record to CLI 10 |
+| F8 | the 15.2 release-gate evidence this scope cannot produce, and what PP-010 would need, were not written down | documented, with a proposed separate work item (not started) |
+
+New tests cover every finding, plus:
+- every reachable verdict through `run` and `report` (0, 10, 11, 12) and every 13.2 code from synthetic
+  engine outcomes (0, 10, 11, 12, 20, 21, 22);
+- five bound-input drifts (approval, snapshot, image, runtime policy, fixture) after `plan create`, which
+  block approval, and after `plan approve`, which block the run before any claim or Docker operation;
+- a moved tag (same name, another commit) refused;
+- Markdown fences, reference images, autolinks, comments, HTML, invalid UTF-8, huge values and hostile
+  filenames;
+- a static transitive-import check that no interruption controller or harness module is reachable from the CLI.
+
+**Owner gates still open:**
+1. Review and acceptance of PP-009.
+2. Approval to commit it.
+3. A live run through the CLI (new plan, authorization and Docker approval).
+4. The live check of the hardened verifier-console capture (plan in `docs/architecture/cli-workflow.md`).
+5. Widening the plan contract for r2/r4 comparisons, which the PP-010 exit gate needs: a security-contract
+   decision.
 
 ## PP-008 gate C — collection and protocol validation COMPLETED with a documented C1b exception (2026-10-13); evidence `docs/evidence/pp-008-gate-c.md`
 
@@ -1879,15 +1962,16 @@ gate checklist `docs/evidence/v0.0-release-gate.md`; C4 run
 
 ## Next permitted issue
 
-**PP-009 — CLI workflow and JSON/Markdown evidence: `NOT_STARTED`.** It may begin only on the
-owner's explicit go-ahead. Handoff obligations from PP-008 (recorded, not implemented):
-1. general CLI workflow and safe JSON/Markdown reports;
-2. meaningful owner-entered rationale and scope validation for run, interruption and approval authorizations;
-3. fail-closed preflight reporting: command exit codes kept through `tee` and other pipelines, mandatory gates
-   distinguished from optional diagnostics;
+**PP-009 — CLI workflow and JSON/Markdown evidence: `IN_PROGRESS`, READY_FOR_REVIEW** (2026-10-14; see the
+PP-009 section above). PP-010 has not started. The PP-008 handoff obligations, and where they now stand:
+1. general CLI workflow and safe JSON/Markdown reports: implemented (Docker-free; live CLI run still owed);
+2. meaningful owner-entered rationale and scope validation for run, interruption and approval authorizations:
+   implemented for every owner command (stored records untouched);
+3. fail-closed preflight reporting: MANDATORY/DIAGNOSTIC `Preflight` implemented; pipeline exit codes
+   documented (`set -o pipefail` or `PIPESTATUS`) and `report --output` avoids `tee`;
 4. a controlled end-to-end check of the hardened verifier-console and operation-journal capture in a live
-   verifier execution (separate owner approval);
-5. safe handling of the accepted response-retention and export limitations.
+   verifier execution: planned in `docs/architecture/cli-workflow.md`, NOT executed (separate owner approval);
+5. safe handling of the accepted response-retention and export limitations: allowlisted reports, documented.
 Open separate obligations: host pytest advisory remediation; the deprecated Docker stop flag `--time`
 (reviewed policy change). v0.1 is NOT YET ACCEPTED.
 

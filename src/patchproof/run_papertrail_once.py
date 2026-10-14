@@ -37,6 +37,10 @@ inventory consistent; 5 finalized but needs attention (a stop, a cleanup failure
 inventory change including a suspected daemon restart); 4 incomplete evidence after the
 claim; 3 claimed but nothing executed; 2 refused, nothing consumed. The verdict, whatever
 it is, is in the evidence and on screen; an exit code is never a verdict.
+
+These are NOT the PROJECT_SPEC.md 13.2 codes (a finalized `NOT_FIXED` run exits 0 here).
+`patchproof run <plan-id>` calls `execute_once` and applies 13.2 to the run's own record;
+use it, not this utility's exit code, wherever a verdict-bearing exit code is needed.
 """
 
 from __future__ import annotations
@@ -45,8 +49,10 @@ import os
 import sys
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 
 from .core.run_authorizations import RunAuthorizationError, RunAuthorizationStore, execution_phrase, is_superseded
 from .pack_approval import ApprovalBlocked, NotInteractive, Terminal, _ConsoleTerminal, require_interactive
@@ -90,8 +96,29 @@ def _render(outcome: RunOutcome) -> str:
             f"  evidence         {outcome.evidence_dir}\n")
 
 
+@dataclass(frozen=True)
+class OnceResult:
+    """What `execute_once` did. `code` is this utility's own exit code (module docstring).
+
+    `stage`: `REFUSED` (nothing claimed, no Docker operation), `CLAIMED_NOT_EXECUTED` (the
+    authorization is consumed, no Docker operation), `INCOMPLETE` (execution started, no
+    finalized evidence), `FINISHED` (`outcome` holds the finalized or incomplete record).
+    """
+
+    code: int
+    stage: Literal["REFUSED", "CLAIMED_NOT_EXECUTED", "INCOMPLETE", "FINISHED"]
+    outcome: RunOutcome | None = None
+
+
 def run_once(env: RunEnvironment, terminal: Terminal, executor_factory: Callable[[], Executor], *, clock: Clock,
              now: Callable[[], datetime]) -> int:
+    return execute_once(env, terminal, executor_factory, clock=clock, now=now).code
+
+
+def execute_once(env: RunEnvironment, terminal: Terminal, executor_factory: Callable[[], Executor], *,
+                 clock: Clock, now: Callable[[], datetime], expected_plan_sha256: str | None = None) -> OnceResult:
+    """The execution flow. `expected_plan_sha256` (the `patchproof run <plan-id>` path) refuses,
+    before anything is claimed, unless the single unused authorization binds exactly that plan."""
     try:
         try:
             store = RunAuthorizationStore(env.authorization_store)
@@ -100,6 +127,9 @@ def run_once(env: RunEnvironment, terminal: Terminal, executor_factory: Callable
             raise ApprovalBlocked(f"run-authorization store: {exc}") from None
         if stored is None:
             raise ApprovalBlocked("there is no unused run authorization")
+        if expected_plan_sha256 is not None and stored.record.plan_sha256 != expected_plan_sha256:
+            raise ApprovalBlocked("the unused run authorization binds a different plan; approve the selected plan "
+                                  "first (a consumed authorization never runs again)")
         plan = stored.record.plan
         check_first_run_scope(plan)
         run = assemble_run(env, plan.run_id)
@@ -120,20 +150,22 @@ def run_once(env: RunEnvironment, terminal: Terminal, executor_factory: Callable
             raise ApprovalBlocked("an input or the authorization changed before the claim")
     except (ApprovalBlocked, PlanError, PolicyViolation, OSError) as exc:
         terminal.write(f"\nNOT EXECUTED: {exc}. Nothing was claimed and no Docker operation ran.\n")
-        return 2
+        return OnceResult(2, "REFUSED")
     except (EOFError, KeyboardInterrupt):
         terminal.write("\nNOT EXECUTED: input ended. Nothing was claimed.\n")
-        return 2
+        return OnceResult(2, "REFUSED")
 
     try:
         claim_raw = store.claim(stored.record.authorization_id, run_id=plan.run_id, now=now())
     except (RunAuthorizationError, OSError) as exc:
         terminal.write(f"\nNOT EXECUTED: {exc}. No Docker operation ran.\n")
-        return 2 if isinstance(exc, RunAuthorizationError) else 3
+        if isinstance(exc, RunAuthorizationError):
+            return OnceResult(2, "REFUSED")
+        return OnceResult(3, "CLAIMED_NOT_EXECUTED")
     except KeyboardInterrupt:
         terminal.write("\nNOT EXECUTED: interrupted during the claim. The authorization counts as consumed; "
                        "no Docker operation ran.\n")
-        return 3
+        return OnceResult(3, "CLAIMED_NOT_EXECUTED")
     try:
         records, claims = store.scan()
         if is_superseded(records, stored.record.authorization_id) or claims[stored.record.authorization_id].raw \
@@ -142,11 +174,11 @@ def run_once(env: RunEnvironment, terminal: Terminal, executor_factory: Callable
         evidence = RunEvidence.claim(env.evidence_root, plan.run_id)
     except (ApprovalBlocked, RunAuthorizationError, EvidenceError, OSError, KeyError) as exc:
         terminal.write(f"\nNOT EXECUTED: {exc}. The authorization is consumed; no Docker operation ran.\n")
-        return 3
+        return OnceResult(3, "CLAIMED_NOT_EXECUTED")
     except KeyboardInterrupt:
         terminal.write("\nNOT EXECUTED: interrupted after the claim. The authorization is consumed; no Docker "
                        "operation ran.\n")
-        return 3
+        return OnceResult(3, "CLAIMED_NOT_EXECUTED")
 
     try:
         outcome = execute_authorized_run(env, stored.record, stored.raw, claim_raw, run, evidence, executor,
@@ -155,13 +187,13 @@ def run_once(env: RunEnvironment, terminal: Terminal, executor_factory: Callable
         terminal.write(f"\nRUN INCOMPLETE: {type(exc).__name__}: {exc}. The authorization is consumed. Partial "
                        f"evidence is in {evidence.directory} (no manifest). Check for remaining containers with "
                        "`python -I -m patchproof.recover_run`.\n")
-        return 4
+        return OnceResult(4, "INCOMPLETE")
     terminal.write(_render(outcome))
     if outcome.status != "FINALIZED":
-        return 4
+        return OnceResult(4, "FINISHED", outcome)
     attention = (outcome.stop_reason is not None or not outcome.cleanup_complete or outcome.lifecycle != "COMPLETE"
                  or outcome.reconciliation != "CONSISTENT" or outcome.daemon_continuity != "NO_CHANGE_OBSERVED")
-    return 5 if attention else 0
+    return OnceResult(5 if attention else 0, "FINISHED", outcome)
 
 
 def main() -> int:

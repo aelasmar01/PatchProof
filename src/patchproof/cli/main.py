@@ -1,4 +1,9 @@
-"""`patchproof` entry point: `doctor` and `doctor --probe-isolation` (PROJECT_SPEC.md 13.1).
+"""`patchproof` entry point (PROJECT_SPEC.md 13.1): `doctor`, `doctor --probe-isolation` and the v0.1 workflow.
+
+The v0.1 workflow commands (PP-009) are thin: each one delegates to the accepted module that
+owns the step (see `patchproof.workflow`). No command accepts a Docker option, image, mount,
+environment variable, shell command, reviewer name or a `--yes`. Every approval and every
+execution is typed at an interactive foreground terminal; plan creation never approves or runs.
 
 `doctor` is read-only. `doctor --probe-isolation` is a thin wrapper over the accepted
 PP-003 `run` path (`patchproof.probes.cli`). It adds no Docker option, image, path, or
@@ -20,6 +25,7 @@ from ..doctor.assessment import Overall, assess, render_text, report_document
 from ..doctor.environment import ReadOnlyHost, collect, evidence_root
 from ..probes import cli as probe_cli
 from ..runner.policy import APPROVED_PROBE_IMAGE_ID
+from . import workflow_commands
 
 EXIT_OK = 0
 EXIT_BLOCKED = 21  # PROJECT_SPEC.md 13.2: blocked by approval, policy, or preflight
@@ -44,6 +50,9 @@ app = typer.Typer(
 @app.callback()
 def _root() -> None:
     """PatchProof: local application security fix-verification workbench."""
+
+
+workflow_commands.register(app)
 
 
 @app.command()

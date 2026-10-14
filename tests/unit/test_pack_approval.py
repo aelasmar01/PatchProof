@@ -128,7 +128,8 @@ class FakeTerminal:
 
 
 def answers(phrase: str) -> dict[str, str]:
-    return {"Your name": "Synthetic Reviewer", "Rationale": "Synthetic unit-test approval.",
+    return {"Your name": "Synthetic Reviewer",
+            "Rationale": "Synthetic unit-test approval of the reviewed checks and their bindings.",
             "Approval scope": "Unit tests only; not a PaperTrail approval.", "Confirmation": phrase}
 
 

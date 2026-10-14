@@ -699,7 +699,10 @@ def test_the_controller_signals_its_own_child_once_at_the_checkpoint() -> None:
 def test_the_controller_sends_nothing_unless_the_report_is_exact(mode: str, run_id: str, reason: str,
                                                                  child_says: str) -> None:
     child, r = _spawn(mode, RUN_ID)
-    delivery = deliver_at_checkpoint(child, r, run_id=run_id, report_timeout_seconds=1)
+    # Only the silent child tests the report timeout itself. Every other child does report, so it gets
+    # time to start a Python interpreter under load; a 1 s bound made those cases race (PP-009 finding).
+    timeout = 1 if mode == "silent" else 20
+    delivery = deliver_at_checkpoint(child, r, run_id=run_id, report_timeout_seconds=timeout)
     assert not delivery.delivered and delivery.reason == reason and delivery.signals_sent == 0
     assert child_says in _finish(child)
 

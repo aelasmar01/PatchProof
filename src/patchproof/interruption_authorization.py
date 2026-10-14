@@ -199,7 +199,7 @@ def run_interruption_authorization(env: RunEnvironment, terminal: Terminal, *, n
         phrase = interruption_authorization_phrase(run.document)
         identity = _ask(terminal, "Your name (asserted, not verified): ")
         rationale = _ask_statement(terminal, "Rationale for authorizing this interruption test: ", phrase)
-        scope = _ask_statement(terminal, "Authorization scope: ", phrase)
+        scope = _ask_statement(terminal, "Authorization scope: ", phrase, differs_from=rationale)
         terminal.write(f"\nTo authorize, type exactly:  {phrase}\n")
         typed = terminal.read_line("Confirmation: ")
         if typed != phrase:
