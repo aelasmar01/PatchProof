@@ -1,10 +1,10 @@
 # STATUS
 
-**Updated:** 2026-10-14 (**PP-009 `IN_PROGRESS`, READY_FOR_REVIEW** (local checkpoints `9bc4268` and a reporting-remediation commit; first live CLI run audited; acceptance gate prepared; not accepted): the v0.1 CLI
-workflow (`project add`, `profile prepare`, `pack validate|approve`, `plan create|show|approve`, `run`, `report`)
-delegating to the accepted PP-005 to PP-008 modules; safe verified JSON/Markdown reports; PROJECT_SPEC.md 13.2
-exit codes; 8,869 Docker-free tests; final security review F1–F8 corrected. **PP-008 `ACCEPTED`** (2026-10-14) and **published**: `origin/main` =
-`0d7d42d` (ordinary fast-forward of six commits). v0.1 release NOT YET ACCEPTED; PP-010 not started)
+**Updated:** 2026-10-14 (**PP-009 `ACCEPTED` by owner, 2026-10-14.** Implementation `9bc4268`; reporting
+remediation and evidence `daffed0`; acceptance gate `docs/evidence/pp-009-acceptance-gate.md` (16 requirements,
+all PASS; accepted limitations L1–L9). Live CLI comparison `run-dd93a78f…` (`VERIFIED_FOR_CASES`, V-09).
+**PP-008 `ACCEPTED`** and published (`origin/main` = `0d7d42d`). **PP-010 `NOT_STARTED`. v0.1 release NOT YET
+ACCEPTED.** The PP-009 commits are local and not pushed)
 **Specification:** `PROJECT_SPEC.md` v1.0
 
 ---
@@ -12,19 +12,113 @@ exit codes; 8,869 Docker-free tests; final security review F1–F8 corrected. **
 ## Current release and issue
 
 **Release:** v0.1 — Useful CLI verification
-**Issue:** PP-009 — CLI workflow and JSON/Markdown evidence. **State:** `IN_PROGRESS`, READY_FOR_REVIEW
-(started 2026-10-14 on the owner's authorization; local checkpoint `9bc4268`; one owner-executed live CLI run,
-independently audited; reporting findings U1–U7 corrected Docker-free; acceptance gate
-`docs/evidence/pp-009-acceptance-gate.md`).
-**Release state:** v0.1 is NOT YET ACCEPTED (PP-009 review and PP-010 remain).
-**Previous issue:** PP-008, `ACCEPTED` 2026-10-14 and published (`d85b6db..0d7d42d`, six commits, ordinary
-fast-forward, 2026-10-14).
+**Issue:** PP-010 — Core acceptance demo and tag. **State:** `NOT_STARTED` (needs owner authorization; see
+the PP-010 handoff in the PP-009 section).
+**Release state:** v0.1 is NOT YET ACCEPTED (PP-010 remains).
+**Previous issue:** PP-009, `ACCEPTED` 2026-10-14 (local commits `9bc4268`, `daffed0` and the acceptance
+record; not pushed). Before it: PP-008, `ACCEPTED` 2026-10-14 and published (`d85b6db..0d7d42d`).
 **Safe to demonstrate with synthetic fixtures:** the v0.0 foundation, yes. PP-005 to PP-008 are
-libraries, fixtures and owner-operated integration utilities with no general CLI workflow yet (PP-009).
-PaperTrail was executed twice under owner authorization (one comparison, one deliberate interruption);
-the claims are limited to those two audited runs.
+libraries, fixtures and owner-operated integration utilities; PP-009 adds the v0.1 CLI workflow for the one
+supported comparison (PaperTrail r1 -> r3). PaperTrail was executed three times under owner authorization
+(two comparisons, one deliberate interruption); the claims are limited to those three audited runs.
 
-## PP-009 CLI workflow and safe reports (2026-10-14); READY_FOR_REVIEW; design `docs/architecture/cli-workflow.md`
+## PP-009 CLI workflow and safe reports — ACCEPTED by owner (2026-10-14); gate `docs/evidence/pp-009-acceptance-gate.md`
+
+**Owner acceptance (2026-10-14, America/New_York).** PP-009: **ACCEPTED** by owner on 2026-10-14, after the
+closeout checks below passed.
+
+| Item | Reference |
+|---|---|
+| Implementation | `9bc4268f0f360edd339ed3b11f7b27e92d3f15ba` |
+| Remediation and evidence | `daffed0bb076593a88ae82f7f338ccdb24233056` |
+| Live comparison | `run-dd93a78f930812bddca76e025eef5d31` (`plan-89e25ceb…`, `rau-a76fa4d8…`) |
+| Decision | `VERIFIED_FOR_CASES`, V-09 |
+| Acceptance gate | `docs/evidence/pp-009-acceptance-gate.md`: 16 requirements, all PASS, each traced to tests or saved audit results |
+| Live audit | `docs/evidence/pp-009-first-live-cli-comparison.md` |
+
+**Closeout checks (all read-only, no Docker):**
+- **Git:** `daffed0` (parent `9bc4268`, parent `0d7d42d` = `origin/main`). Neither commit contains ADR-010,
+  private evidence, credentials or authorization records. Nothing was staged; only the four ADR-010 files
+  remain outside history.
+- **Live run re-verified:** the independent audit scripts were re-run, 110 of 110 checks:
+  - evidence `CONSISTENT`/`FINALIZED`, lifecycle `COMPLETE`, cleanup `COMPLETE`;
+  - five preconditions `PASSED`, 16/16 trusted cells, both 31-event streams `COMPLETE`;
+  - matrix: AUTH-001/003 `VIOLATION_CONFIRMED` then `SECURE`, AUTH-002/004 `SECURE` both, FUNC-001–004
+    `PASS` both;
+  - four owned containers removed, reconciliation `CONSISTENT`;
+  - consoles 5,327 B and 569 B, `CAPTURED`, untruncated, hashes equal across artifact, revision record and
+    `docker-ops-v2` journal; no console bytes in the journal or the event streams.
+- **Reports, read-only, each format rendered twice and byte-identical:**
+
+  | Run | `report` exit codes |
+  |---|---|
+  | `run-dd93a78f…` | 0 / 0 |
+  | `run-036553ef…` (journal v1) | 0 / 0 |
+  | `run-6cee8893…` (interrupted) | 20 / 20 |
+
+  Stored verdicts equal the recomputed ones (V-09, V-09, V-05). The Markdown parses to 13 headings and 5
+  tables, with no links, images, HTML or control bytes. No leaks (paths, installation IDs, tokens, markers,
+  console text). Fixed-fixture wording is correct. "Fix verified" is no for the interrupted run.
+- **U1–U7 present in `daffed0`:** pinned invocation, no false history claim, fixture label from evidence,
+  inert fixed wording with escaped values, separate integrity and fix wording, relative path = 2, plan-create
+  disclosure. The leading-space fix has a regression test.
+- **Validation, actual results:**
+  - Unit tests: 8,986 passed, 0 failed, 0 skipped. This includes PP-009 CLI and reports (299), PP-008
+    runner, authorization and evidence (538), PP-007 packs and approval (170), PP-005/006 Git, snapshots and
+    reference (408), PP-004 verdicts (6,166), and schemas and records (609).
+  - `mypy --strict`: clean on 82 files. Ruff gate: clean.
+- **Remediation mutation check:** 31 targeted mutants. The first pass killed 30; U5b survived and was killed
+  after a new test. Sources were byte-identical after every mutant.
+- **Preservation:** the private data directory is identical before and after (390 entries: hash, mode,
+  size, mtime, inode): all three runs' evidence, both approvals, both run authorizations and claims, and
+  the interruption authorization and claim.
+
+**Accepted limitations** (gate L1–L9, plus one carried in every report):
+- one supported comparison (PaperTrail r1 -> r3, one pair, one fixed synthetic fixture, eight checks): no
+  general application-security claim;
+- the §15.2 negative cases still need evidence for PP-010;
+- raw HTTP responses are not retained;
+- container inspection is configuration evidence;
+- reviewer identity is a local assertion;
+- `NO_CHANGE_OBSERVED` is not proof of daemon continuity;
+- the live `run` shell exit status was not captured;
+- the baseline verifier console holds the synthetic tokens and markers (private, untrusted, never exported);
+- `--output` needs hard links;
+- evidence integrity does not resist a local adversary who rewrites both evidence and manifest.
+
+**PP-010 handoff (record only; not started; any execution needs fresh, scoped owner authorization).**
+
+| §15.2 exit-gate item | Evidence today | Gap |
+|---|---|---|
+| Vulnerable revision gives a semantic witness | **live:** `run-036553ef…`, `run-dd93a78f…` (AUTH-001/003, protected marker returned to callers who are not permitted) | none |
+| Real fix blocks it, owner access kept | **live:** both runs (r3 `SECURE`, FUNC-001–004 `PASS`) | none |
+| Unchanged fix (r1 -> r1) not verified | engine truth table; CLI with fake Docker (`NOT_FIXED` 10) | no live comparison; contract refuses r1 -> r1 |
+| Inadequate fix (r2) not verified | engine; CLI with fake Docker | no live comparison; r2 snapshot and contract widening needed |
+| All-deny (r4) is `REGRESSION_DETECTED` | engine; CLI with fake Docker (11) | no live comparison; r4 snapshot and contract widening needed |
+| Startup failure, no tests or missing observation never verified | engine rules; runner tests with fake Docker (OOM, baseline failure, absent stream); **live:** the interrupted run reports `INCONCLUSIVE` with incomplete evidence | no live startup-failure or no-tests case. Provoking one would change the image, profile or pack: a security-contract decision |
+| Original repository and uncommitted edits unchanged | PP-005 snapshot tests; reference repository unchanged across all runs (preflight hashes, `fsck`) | the reference repository has no working tree, so there is no end-to-end evidence with a dirty worktree |
+| Report gives exact inputs, one-pair scope, limitations | **live:** PP-009 reports (U1–U7) | none |
+
+**Proposed minimum evidence (for owner review):**
+1. Two live comparisons under a reviewed widening of the plan contract: r1 -> r2 (expected `NOT_FIXED`)
+   and r1 -> r4 (expected `REGRESSION_DETECTED`).
+   - Each comparison is named exactly, with pinned commits and trees.
+   - The r2 and r4 snapshots are created by `plan create --create-snapshots`.
+   - Each run gets its own single-use authorization and Docker approval, with the same four-container scope
+     and no retry.
+   - The expected-verdict table for each comparison is reviewed as a controlled input.
+2. **r1 -> r1:** either a third live run, or a clearly labelled replay that evaluates the recorded live r1
+   observations on both sides with the accepted engine. Not a live result; owner's choice.
+3. **Startup failure, no tests, missing observation:** keep the engine and runner evidence. Add one
+   Docker-free end-to-end test through the real runner with fake Docker for each case. No live provocation
+   unless the owner approves a profile or fixture variant.
+4. **Uncommitted edits:** one Docker-free end-to-end CLI test on a temporary copy of the reference
+   repository with a dirty worktree (`project add`, `plan create --create-snapshots`). It would prove the
+   snapshot excludes the edits and that the repository bytes are unchanged.
+5. The PP-010 gate report, cross-referencing items 1–4 with the existing live evidence.
+
+### PP-009 history (READY_FOR_REVIEW stages, kept for the record)
+
 
 The owner authorized publishing PP-008 and implementing PP-009 only. PP-008 was published first: Git root and
 HEAD `0d7d42d` verified, remote `aelasmar01/PatchProof` `main` at `d85b6db`, an ancestor; `git rev-list --count
@@ -135,11 +229,9 @@ changed. No evidence was modified; the three recorded runs re-report with exit c
   verified verdict) was closed by a new test and killed on re-run. Sources were byte-identical after every
   mutant.
 
-**Owner gates still open:**
-1. Formal review and acceptance of PP-009 (acceptance gate `docs/evidence/pp-009-acceptance-gate.md`).
-2. Approval to push.
-3. Widening the plan contract for r2/r4 comparisons, which the PP-010 exit gate needs: a security-contract
-   decision.
+**Owner gates remaining after acceptance:**
+1. Approval to push the PP-009 commits.
+2. PP-010 authorization, including the plan-contract decision for the negative cases.
 
 ## PP-008 gate C — collection and protocol validation COMPLETED with a documented C1b exception (2026-10-13); evidence `docs/evidence/pp-008-gate-c.md`
 
