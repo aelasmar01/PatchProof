@@ -48,7 +48,8 @@ from ..core.verdicts import EvaluationError, _cell_semantic_if_trusted, _executi
 from ..runner.collector import StreamIdentity, collect_stream
 from ..runner.run_evidence import journal_format, verify_evidence
 from . import exit_codes
-from .safe_text import code, contains_secret, md, plain
+from .invocation import command
+from .safe_text import UnsafeProse, code, contains_secret, md, plain, prose
 
 REPORT_FORMAT: Final = "patchproof-review-report-v1"
 RUN_ID_RE: Final = re.compile(r"run-[0-9a-f]{32}")
@@ -87,9 +88,17 @@ REMEDIATION: Final[Mapping[str, str]] = {
                     "plan; do not read this result as a pass or a fail.",
     "BLOCKED": "Verification was not permitted (approval, policy or preflight). Nothing about the fix was observed.",
 }
+# The claim label for each fixture mode a validated plan can carry (the plan contracts allow only
+# the v0.1 exception today). An unknown mode has no label and fails the report closed.
+FIXTURE_LABELS: Final[Mapping[str, str]] = {
+    "fixed-fixture-v0.1-exception": "Synthetic PaperTrail reference application, one fixed synthetic fixture with no "
+                                    "variable seed (the narrow v0.1 fixed-fixture exception)",
+}
+CLAIM_SCOPE: Final = ("The claim covers only the selected checks on this fixture and makes no statement about "
+                      "untested inputs or the application's overall security.")
 BASE_LIMITATIONS: Final = (
-    "Seeded synthetic reference application (PaperTrail) with a fixed synthetic fixture: not a finding in a real "
-    "project.",
+    "Synthetic reference application (PaperTrail) with one fixed synthetic fixture and no variable seed: not a "
+    "finding in a real project.",
     "The claim covers only the selected checks, the planned number of pairs and the fixed fixture.",
     "Security witnesses are structured facts recorded by the reviewed verifier helpers; raw HTTP responses are not "
     "retained and cannot be re-examined.",
@@ -234,6 +243,9 @@ def build_report(data_root: Path, run_id: str, *, home: Path | None = None) -> R
     code_ = exit_codes.run_exit_code(result.get("lifecycle"), result.get("verdict"), result.get("evidence_status"))
     if not all_ok:
         code_ = exit_codes.INCONCLUSIVE
+    if "result" in doc:
+        result["fix_verified_for_selected_cases"] = (all_ok and code_ == exit_codes.OK
+                                                     and result.get("verdict") == "VERIFIED_FOR_CASES")
     headline = _headline(result, all_ok)
     document: dict[str, Any] = {
         "report_format": REPORT_FORMAT,
@@ -252,15 +264,23 @@ def build_report(data_root: Path, run_id: str, *, home: Path | None = None) -> R
     return Report(document, code_)
 
 
+HEADLINE_NOT_VERIFIED: Final = "EVIDENCE NOT VERIFIED: no result is reported as established (exit 20)."
+HEADLINE_VERIFIED: Final = "Verified for the selected cases."
+HEADLINE_NOT_A_RESULT: Final = "Not a verification result, whatever the cleanup status."
+INTEGRITY_NOTE: Final = ("These checks show only that the saved evidence is consistent with its manifest and with "
+                         "itself. Completeness, lifecycle, cleanup and the comparison verdict are reported "
+                         "separately, and a passing integrity check never means a fix was verified.")
+
+
 def _headline(result: Mapping[str, Any], verified: bool) -> str:
     if not verified:
-        return "EVIDENCE NOT VERIFIED: no result is reported as established (exit 20)."
+        return HEADLINE_NOT_VERIFIED
     lifecycle, status, verdict = result.get("lifecycle"), result.get("evidence_status"), result.get("verdict")
     if lifecycle == "COMPLETE" and status == "FINALIZED" and verdict == "VERIFIED_FOR_CASES":
-        return "Verified for the selected cases."
+        return HEADLINE_VERIFIED
     if lifecycle != "COMPLETE" or status != "FINALIZED":
-        return (f"{lifecycle}: evidence {status}; verdict {verdict} ({result.get('decision_rule')}). Not a "
-                "verification result, whatever the cleanup status.")
+        return (f"{lifecycle}: evidence {status}; verdict {verdict} ({result.get('decision_rule')}). "
+                f"{HEADLINE_NOT_A_RESULT}")
     return f"{verdict} ({result.get('decision_rule')})."
 
 
@@ -395,7 +415,8 @@ def _assemble(directory: Path, kind: Kind, run_id: str, checks: list[dict[str, A
         "profile": {"profile_id": p.profile.profile_id, "profile_version": p.profile.profile_version,
                     "profile_sha256": p.profile.profile_sha256},
         "images": {"target_image_id": p.images.target_image_id, "verifier_image_id": p.images.verifier_image_id},
-        "fixture": {"contract": p.fixture.fixture_contract, "sha256": p.fixture.fixture_sha256, "seed": None},
+        "fixture": {"contract": p.fixture.fixture_contract, "sha256": p.fixture.fixture_sha256,
+                    "mode": p.fixture.mode, "seed": p.fixture.seed},
         "pack_approval": {"approval_id": approval.approval_id, "created_at": approval.created_at,
                           "reviewer_basis": approval.reviewer.basis, "scope": plain(approval.scope, 600)},
     }
@@ -422,7 +443,8 @@ def _assemble(directory: Path, kind: Kind, run_id: str, checks: list[dict[str, A
                 "authorization_kind": authorization.get("kind"),
                 "evaluated_at": recomputed["evaluated_at"] if recomputed else None},
         "result": result,
-        "claim": {"label": "seeded synthetic example (PaperTrail reference)", "selected_checks": n_tests,
+        "claim": {"label": FIXTURE_LABELS[p.fixture.mode], "fixture_mode": p.fixture.mode,
+                  "fixture_seed": p.fixture.seed, "scope": CLAIM_SCOPE, "selected_checks": n_tests,
                   "security_checks": n_security, "functional_controls": n_tests - n_security,
                   "pairs_planned": 1,
                   "security_claim": "Each security check expects the baseline outcome shown (a violation where "
@@ -459,7 +481,7 @@ def _assemble(directory: Path, kind: Kind, run_id: str, checks: list[dict[str, A
             "Local copies of both images with exactly the IDs above (never pulled during a run).",
             "Source snapshots of the commits above whose manifests have the hashes above.",
             "A new plan and a new single-use run authorization; a consumed authorization never runs again.",
-            "A Docker environment that passes `patchproof doctor`.",
+            f"A Docker environment that passes the read-only doctor check ({command('doctor')}).",
         ],
     }
 
@@ -511,98 +533,139 @@ def _row(cells: Sequence[object]) -> str:
     return "| " + " | ".join(str(c) for c in cells) + " |"
 
 
+def _num(value: object) -> str:
+    """A count: plain digits are inert inline; anything else is a value and is escaped."""
+    return str(value) if type(value) is int else code(value)
+
+
+def _headline_markdown(d: Mapping[str, Any]) -> str:
+    """The headline with every evidence-derived value in a code span and the fixed wording literal.
+    Mirrors `_headline` (the JSON text); a test pins that the two agree."""
+    result = d.get("result", {})
+    if not d["integrity"]["verified"]:
+        return prose(HEADLINE_NOT_VERIFIED)
+    lifecycle, status, verdict = result.get("lifecycle"), result.get("evidence_status"), result.get("verdict")
+    if lifecycle == "COMPLETE" and status == "FINALIZED" and verdict == "VERIFIED_FOR_CASES":
+        return prose(HEADLINE_VERIFIED)
+    rule = code(result.get("decision_rule"))
+    if lifecycle != "COMPLETE" or status != "FINALIZED":
+        return (f"{code(lifecycle)}: evidence {code(status)}; verdict {code(verdict)} ({rule}). "
+                f"{prose(HEADLINE_NOT_A_RESULT)}")
+    return f"{code(verdict)} ({rule})."
+
+
 def render_markdown(report: Report) -> str:
-    d = report.document
+    """Markdown with a fixed structure. PatchProof's own wording is literal (`prose` proves it inert);
+    every value from evidence, records or the target is a code span (`code`) or escaped (`md`)."""
+    try:
+        return _bounded(_markdown(report.document))
+    except UnsafeProse as exc:
+        raise ReportError(str(exc)) from None
+
+
+def _markdown(d: Mapping[str, Any]) -> str:
     run, result = d.get("run", {}), d.get("result", {})
+    integrity = d["integrity"]
     out = [f"# PatchProof review report: {code(run.get('run_id'))}", "",
-           f"**{md(d['headline'])}**", "", md(d["notice"], 400), "",
+           f"**{_headline_markdown(d)}**", "", prose(d["notice"]), "",
            "## Result", "",
            _row(["Field", "Value"]), _row(["---", "---"])]
     for key in ("lifecycle", "evidence_status", "verdict", "engine_verdict", "decision_rule", "run_termination",
                 "execution_started"):
-        out.append(_row([md(key), code(result.get(key))]))
-    out.append(_row([md("CLI exit code (PROJECT_SPEC.md 13.2)"), code(d["exit_code"])]))
-    out.append(_row(["reason codes", md(", ".join(result.get("reason_codes", [])) or "none")]))
+        out.append(_row([code(key), code(result.get(key))]))
+    out.append(_row([prose("Fix verified for the selected cases"),
+                     "yes" if result.get("fix_verified_for_selected_cases") else "no"]))
+    out.append(_row([prose("CLI exit code (PROJECT_SPEC.md 13.2)"), code(d["exit_code"])]))
+    out.append(_row(["reason codes", ", ".join(code(r) for r in result.get("reason_codes", [])) or "none"]))
     out += ["", "## Evidence integrity", "",
-            f"Verified: **{md('yes' if d['integrity']['verified'] else 'NO')}**; manifest "
-            f"{code(d['integrity']['manifest_status'])}; operation journal {code(d['integrity']['journal_format'])}.",
-            "", _row(["Check", "Passed", "Detail"]), _row(["---", "---", "---"])]
-    out += [_row([md(c["name"], 200), md("yes" if c["passed"] else "NO"), md(c["detail"])])
-            for c in d["integrity"]["checks"]]
-    for p in d["integrity"]["problems"]:
+            f"Evidence integrity checks passed: **{'yes' if integrity['verified'] else 'NO'}**. "
+            f"Evidence completeness (manifest status): {code(integrity['manifest_status'])}. Operation journal: "
+            f"{code(integrity['journal_format'])}.", "",
+            prose(INTEGRITY_NOTE), "",
+            _row(["Check", "Passed", "Detail"]), _row(["---", "---", "---"])]
+    out += [_row([prose(c["name"]), "yes" if c["passed"] else "NO", md(c["detail"])]) for c in integrity["checks"]]
+    for p in integrity["problems"]:
         out.append(f"- Problem: {md(p)}")
     if "inputs" in d:
         i = d["inputs"]
+        fixture = i["fixture"]
+        seed = prose("no variable seed") if fixture.get("seed") is None else f"seed {code(fixture['seed'])}"
         out += ["", "## Run and inputs", "", _row(["Item", "Value"]), _row(["---", "---"]),
-                _row(["kind", md(run.get("kind"))]), _row(["plan", code(run.get("plan_sha256"))]),
+                _row(["kind", code(run.get("kind"))]), _row(["plan", code(run.get("plan_sha256"))]),
                 _row(["authorization", code(run.get("authorization_id"))]),
                 _row(["evaluated at", code(run.get("evaluated_at"))])]
         for side, s in i["sources"].items():
-            out.append(_row([md(f"{side} source"), f"{code(s['tag'])} commit {code(s['commit_id'])} tree "
-                                                    f"{code(s['tree_id'])} snapshot manifest "
-                                                    f"{code(s['snapshot_manifest_sha256'])}"]))
-        out += [_row(["source inclusion", md(", ".join(i["source_inclusion"]["include"]))]),
+            out.append(_row([f"{code(side)} source", f"{code(s['tag'])} commit {code(s['commit_id'])} tree "
+                                                     f"{code(s['tree_id'])} snapshot manifest "
+                                                     f"{code(s['snapshot_manifest_sha256'])}"]))
+        out += [_row(["source inclusion", ", ".join(code(x) for x in i["source_inclusion"]["include"])]),
                 _row(["pack", f"{code(i['pack']['pack_id'])} {code(i['pack']['pack_version'])} tree "
                               f"{code(i['pack']['pack_tree_sha256'])}"]),
                 _row(["verifier plugin", code(i["pack"]["verifier_plugin_version"])]),
                 _row(["profile", f"{code(i['profile']['profile_id'])} {code(i['profile']['profile_sha256'])}"]),
                 _row(["target image", code(i["images"]["target_image_id"])]),
                 _row(["verifier image", code(i["images"]["verifier_image_id"])]),
-                _row(["fixture", f"{code(i['fixture']['contract'])} {code(i['fixture']['sha256'])}, no seed"]),
+                _row(["fixture", f"{code(fixture['contract'])} {code(fixture['sha256'])}, mode "
+                                 f"{code(fixture.get('mode'))}, {seed}"]),
                 _row(["pack approval", f"{code(i['pack_approval']['approval_id'])} "
-                                       f"({md(i['pack_approval']['reviewer_basis'])})"]),
+                                       f"({code(i['pack_approval']['reviewer_basis'])})"]),
                 _row(["approval scope", md(i["pack_approval"]["scope"], 600)])]
         c = d["claim"]
         out += ["", "## Claim", "",
-                f"{md(c['label'])}: {md(c['selected_checks'])} selected checks ({md(c['security_checks'])} security, "
-                f"{md(c['functional_controls'])} functional controls), {md(c['pairs_planned'])} pair(s). "
-                f"Repetitions terminated normally: {md(d['repetitions']['pairs_terminated_normally'])}; with trusted "
-                f"evidence: {md(d['repetitions']['pairs_with_trusted_evidence'])}.", "",
-                f"Security claim: {md(c['security_claim'], 400)}", "",
-                f"Legitimate behavior: {md(c['legitimate_behavior'], 400)}", "",
+                f"{prose(c['label'])}: {_num(c['selected_checks'])} selected checks ({_num(c['security_checks'])} "
+                f"security, {_num(c['functional_controls'])} functional controls), {_num(c['pairs_planned'])} "
+                f"pair. Repetitions terminated normally: {_num(d['repetitions']['pairs_terminated_normally'])}; "
+                f"with trusted evidence: {_num(d['repetitions']['pairs_with_trusted_evidence'])}.", "",
+                prose(c["scope"]), "",
+                f"Security claim: {prose(c['security_claim'])}", "",
+                f"Legitimate behavior: {prose(c['legitimate_behavior'])}", "",
                 "## Required tests and observations", "",
-                f"Trusted cells: {md(d['observations']['trusted_cells'])} of "
-                f"{md(d['observations']['required_cells'])}.", ""]
+                f"Trusted cells: {_num(d['observations']['trusted_cells'])} of "
+                f"{_num(d['observations']['required_cells'])}.", ""]
         sides = list(i["sources"])
-        out += [_row(["Test", "Kind", *[f"{s} expected" for s in sides], *[f"{s} observed" for s in sides]]),
+        out += [_row(["Test", "Kind", *[f"{code(s)} expected" for s in sides],
+                      *[f"{code(s)} observed" for s in sides]]),
                 _row(["---"] * (2 + 2 * len(sides)))]
         for t in d["tests"]:
             observed = []
             for s in sides:
                 o = t["observed"].get(s)
-                observed.append("not executed" if o is None else f"{md(o['semantic'])} / {md(o['lifecycle'])}"
+                observed.append("not executed" if o is None else f"{code(o['semantic'])} / {code(o['lifecycle'])}"
                                 + ("" if o["trusted"] else " (untrusted)"))
-            out.append(_row([code(t["id"]), md(t["kind"]), *[md(t["expected"].get(s)) for s in sides], *observed]))
+            out.append(_row([code(t["id"]), code(t["kind"]), *[code(t["expected"].get(s)) for s in sides],
+                             *observed]))
         out += ["", "## Security witnesses (structured facts; raw responses are not retained)", ""]
         if not d["witnesses"]:
             out.append("No security witness was recorded.")
         for w in d["witnesses"]:
-            facts = "; ".join(f"{md(k)}={md(v, 100)}" for k, v in w["facts"].items())
-            out.append(f"- {code(w['test_id'])} {md(w['side'])}: {md(w['outcome'])}. {md(w['claim'])}. {facts}")
+            claim = prose(w["claim"]) if w["claim"] in REVIEWED_CLAIMS else md(w["claim"])
+            facts = "; ".join(f"{code(k)} {prose(v)}" if WITHHELD_FACTS.get(k) == v else code(f"{k}={v}")
+                              for k, v in w["facts"].items())
+            out.append(f"- {code(w['test_id'])} {code(w['side'])}: {code(w['outcome'])}. {claim}. {facts}")
         out += ["", "## Executions", "", _row(["Side", "Started", "Target", "Verifier", "Exit", "Stream", "Events"]),
                 _row(["---"] * 7)]
         for e in d["executions"]:
-            out.append(_row([md(e["side"]), md(e["started"]), md(e["target_readiness"]),
-                             md(e["verifier_termination"]), md(e["verifier_exit_code"]), md(e["stream_status"]),
-                             md(e["events_received"])]))
+            out.append(_row([code(e["side"]), code(e["started"]), code(e["target_readiness"]),
+                             code(e["verifier_termination"]), code(e["verifier_exit_code"]),
+                             code(e["stream_status"]), _num(e["events_received"])]))
         out += ["", "## Missing checks, harness errors and uncertainty", ""]
         if not d["missing_or_untrusted"]:
             out.append("None reported by the engine.")
         for m in d["missing_or_untrusted"]:
-            out.append(f"- {md(m['side'])} pair {md(m['pair'])} {code(m['test_id'] or 'whole side')}: "
+            out.append(f"- {code(m['side'])} pair {_num(m['pair'])} {code(m['test_id'] or 'whole-side')}: "
                        f"{code(m['reason_code'])}")
         cl = d["cleanup"]
         out += ["", "## Cleanup and resource preservation", "",
-                f"Cleanup {code(cl['status'])}; containers created {md(cl['containers_created'])}, removed "
-                f"{md(cl['removed'])}, owned remaining {md(cl['remaining_owned_containers'])}; inventory "
+                f"Cleanup {code(cl['status'])}; containers created {_num(cl['containers_created'])}, removed "
+                f"{_num(cl['removed'])}, owned remaining {_num(cl['remaining_owned_containers'])}; inventory "
                 f"{code(cl['inventory_reconciliation'])}; daemon restart suspected "
-                f"{md(cl['daemon_restart_suspected'])}. {md(cl['note'])}",
-                "", "## Remediation summary", "", md(d["remediation"], 600),
+                f"{code(cl['daemon_restart_suspected'])}. {prose(cl['note'])}",
+                "", "## Remediation summary", "", prose(d["remediation"]),
                 "", "## Reproducibility prerequisites", ""]
-        out += [f"- {md(r, 300)}" for r in d["reproducibility"]]
+        out += [f"- {prose(r)}" for r in d["reproducibility"]]
     out += ["", "## Limitations", ""]
-    out += [f"- {md(x, 400)}" for x in d["limitations"]]
-    return _bounded("\n".join(out) + "\n")
+    out += [f"- {prose(x)}" for x in d["limitations"]]
+    return "\n".join(out) + "\n"
 
 
 def write_output(path: Path, text: str, data_root: Path) -> Path:

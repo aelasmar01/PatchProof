@@ -1,6 +1,6 @@
 # STATUS
 
-**Updated:** 2026-10-14 (**PP-009 `IN_PROGRESS`, READY_FOR_REVIEW** (uncommitted; not accepted): the v0.1 CLI
+**Updated:** 2026-10-14 (**PP-009 `IN_PROGRESS`, READY_FOR_REVIEW** (local checkpoints `9bc4268` and a reporting-remediation commit; first live CLI run audited; acceptance gate prepared; not accepted): the v0.1 CLI
 workflow (`project add`, `profile prepare`, `pack validate|approve`, `plan create|show|approve`, `run`, `report`)
 delegating to the accepted PP-005 to PP-008 modules; safe verified JSON/Markdown reports; PROJECT_SPEC.md 13.2
 exit codes; 8,869 Docker-free tests; final security review F1–F8 corrected. **PP-008 `ACCEPTED`** (2026-10-14) and **published**: `origin/main` =
@@ -13,7 +13,9 @@ exit codes; 8,869 Docker-free tests; final security review F1–F8 corrected. **
 
 **Release:** v0.1 — Useful CLI verification
 **Issue:** PP-009 — CLI workflow and JSON/Markdown evidence. **State:** `IN_PROGRESS`, READY_FOR_REVIEW
-(started 2026-10-14 on the owner's authorization; implementation uncommitted; nothing executed live).
+(started 2026-10-14 on the owner's authorization; local checkpoint `9bc4268`; one owner-executed live CLI run,
+independently audited; reporting findings U1–U7 corrected Docker-free; acceptance gate
+`docs/evidence/pp-009-acceptance-gate.md`).
 **Release state:** v0.1 is NOT YET ACCEPTED (PP-009 review and PP-010 remain).
 **Previous issue:** PP-008, `ACCEPTED` 2026-10-14 and published (`d85b6db..0d7d42d`, six commits, ordinary
 fast-forward, 2026-10-14).
@@ -98,12 +100,45 @@ New tests cover every finding, plus:
   filenames;
 - a static transitive-import check that no interruption controller or harness module is reachable from the CLI.
 
+**Checkpoint and first live CLI run (2026-10-14/15).** Implementation checkpoint `9bc4268` (local, not
+pushed). The owner registered `prj-fc41aa023d78b8c6`, created and approved `plan-89e25ceb…`, and ran
+`run-dd93a78f930812bddca76e025eef5d31` through the CLI: `COMPLETE`, `FINALIZED`, `VERIFIED_FOR_CASES` (V-09),
+16/16 trusted cells, 4 containers created and removed, inventory `CONSISTENT`. An independent read-only audit
+(110 scripted checks, 0 failed) rebuilt the verdict input from raw records, reproduced the verdict in every
+field, and confirmed the hardened verifier-console capture live (captured, bounded, hashed, separate from the
+event channel, absent from the `docker-ops-v2` journal). `report` exits 0 (Markdown and JSON); the original
+`run` shell status was not observed. Report-accuracy and documentation defects U1–U4 must be corrected before
+acceptance (U5–U7 recommended; none is a security defect). Evidence
+`docs/evidence/pp-009-first-live-cli-comparison.md`.
+
+**Reporting remediation (owner-approved, Docker-free, 2026-10-14).** U1–U7 corrected:
+- **U1:** pinned `uv run --locked --offline patchproof …` in every hint, the README and `cli-workflow.md`.
+- **U2:** the authorization review no longer claims PaperTrail never ran.
+- **U3:** the fixed-fixture claim label is derived from the validated plan.
+- **U4:** fixed wording is literal after `safe_text.prose` proves it inert; values stay escaped.
+- **U5:** "Evidence integrity checks passed", plus a separate "Fix verified for the selected cases".
+- **U6:** a relative path is a usage error (2); policy refusals stay 21.
+- **U7:** `plan create` says it stores an immutable plan.
+
+**Also found and fixed during testing:**
+- A value with leading spaces at the start of a list item could become an indented code block; `md` now
+  makes a leading space an entity.
+- The CLI `plan approve` path no longer points at the PP-008 utility.
+
+**Unchanged:** the accepted modules are unchanged except `run_authorization`, where only display text
+changed. No evidence was modified; the three recorded runs re-report with exit codes 0, 0 and 20.
+
+**Validation after the remediation:**
+- **Unit tests:** 8,986 Docker-free tests passed, 0 failed (8,985 before the last added test).
+- **Typing and lint:** `mypy --strict` clean on 82 files; Ruff clean.
+- **Mutation check:** 31 mutants; 30 killed on the first pass. U5b (an interrupted run that preserves a
+  verified verdict) was closed by a new test and killed on re-run. Sources were byte-identical after every
+  mutant.
+
 **Owner gates still open:**
-1. Review and acceptance of PP-009.
-2. Approval to commit it.
-3. A live run through the CLI (new plan, authorization and Docker approval).
-4. The live check of the hardened verifier-console capture (plan in `docs/architecture/cli-workflow.md`).
-5. Widening the plan contract for r2/r4 comparisons, which the PP-010 exit gate needs: a security-contract
+1. Formal review and acceptance of PP-009 (acceptance gate `docs/evidence/pp-009-acceptance-gate.md`).
+2. Approval to push.
+3. Widening the plan contract for r2/r4 comparisons, which the PP-010 exit gate needs: a security-contract
    decision.
 
 ## PP-008 gate C — collection and protocol validation COMPLETED with a documented C1b exception (2026-10-13); evidence `docs/evidence/pp-008-gate-c.md`

@@ -67,6 +67,7 @@ from ..runner.policy import PolicyViolation
 from ..runner.profiles import load_profile
 from ..runner.revision import Clock
 from . import exit_codes
+from .invocation import command
 from .preflight import Preflight
 from .projects import ProjectStore
 from .safe_text import plain
@@ -192,13 +193,22 @@ def _ensure_private_dir(path: Path) -> None:
 # ------------------------------------------------------------------ previews
 
 
+PREVIEW_TITLES: Final = {
+    "show": "EXECUTION PLAN PREVIEW (read-only: this approves and executes nothing)",
+    "create": "EXECUTION PLAN: stored once as an immutable record. Creating it approves and executes nothing;",
+}
+CREATE_TITLE_NOTE: Final = ("approval (plan approve) and execution (run) are separate steps, each with its own typed "
+                            "confirmation.")
+
+
 def render_plan_preview(run: AssembledRun, plan_id: str | None, project_line: str | None,
-                        resolved: dict[Side, ResolvedRevision] | None, preflight: Preflight) -> str:
+                        resolved: dict[Side, ResolvedRevision] | None, preflight: Preflight, *,
+                        mode: Literal["show", "create"] = "show") -> str:
     d = run.document
     rt = d.runtime
     res, to = rt.resources, rt.timeouts
     tests = {t.id: t for t in run.review.pack.manifest.tests}
-    lines = ["=" * 78, "EXECUTION PLAN PREVIEW (read-only: this approves and executes nothing)", "=" * 78, ""]
+    lines = ["=" * 78, PREVIEW_TITLES[mode], *([CREATE_TITLE_NOTE] if mode == "create" else []), "=" * 78, ""]
     if plan_id:
         lines += [f"Plan ID           {plan_id}", f"Plan SHA-256      {run.sha256}"]
     lines += [f"Run ID            {d.run_id}   (bound into the plan; a run never reuses it)",
@@ -270,7 +280,8 @@ def create_plan(wenv: WorkflowEnv, terminal: Terminal, git: GitBinary, *, projec
     try:
         project = wenv.projects.load(project_id) if re.fullmatch(r"prj-[0-9a-f]{16}", project_id) else None
         if not pre.mandatory("project is registered", project is not None, project_id):
-            raise WorkflowRefused(f"{project_id} is not a registered project (patchproof project add <path>)")
+            raise WorkflowRefused(f"{project_id} is not a registered project (register it first: "
+                                  f"{command('project', 'add')} <absolute-repository-path>)")
         assert project is not None
         repo = register_repository(project.canonical_path, git, home=home)
         pre.mandatory("repository re-validated at its registered canonical root",
@@ -339,9 +350,10 @@ def create_plan(wenv: WorkflowEnv, terminal: Terminal, git: GitBinary, *, projec
         terminal.write("\nNO PLAN CREATED: input ended.\n")
         return exit_codes.BLOCKED, None
     terminal.write(render_plan_preview(run, plan_id, f"{project_id} at {plain(project.canonical_path, 1024)}",
-                                       resolved, pre))
+                                       resolved, pre, mode="create"))
     terminal.write(f"\nPLAN CREATED: {plan_id}\n  Nothing has been approved or executed. To review and authorize it, "
-                   f"run at your terminal:  patchproof plan approve {plan_id}\n")
+                   f"run at your terminal, from the PatchProof checkout:  "
+                   f"{command('plan', 'approve', plan_id)}\n")
     return exit_codes.OK, plan_id
 
 
@@ -377,7 +389,7 @@ def approve_plan(wenv: WorkflowEnv, terminal: Terminal, plan_id: str, *, now: Ca
         state = authorization_state(wenv.run, document, sha)
         if state == "UNUSED":
             terminal.write(f"{plan_id} is already authorized and unused. Nothing was written. To execute it, run at "
-                           f"your terminal:  patchproof run {plan_id}\n")
+                           f"your terminal, from the PatchProof checkout:  {command('run', plan_id)}\n")
             return exit_codes.OK
         if state != "NONE":
             raise WorkflowRefused(f"this plan's authorization is {state}; a plan is authorized and run at most once. "
@@ -390,7 +402,8 @@ def approve_plan(wenv: WorkflowEnv, terminal: Terminal, plan_id: str, *, now: Ca
     code = run_authorization(wenv.run, terminal, now=now, new_run_id=lambda: document.run_id,
                              expected_plan_sha256=sha)
     if code == 0:
-        terminal.write(f"  CLI: to execute this plan once, run at your terminal:  patchproof run {plan_id}\n")
+        terminal.write(f"  CLI: to execute this plan once, run at your terminal, from the PatchProof checkout:  "
+                       f"{command('run', plan_id)}\n")
         return exit_codes.OK
     return exit_codes.BLOCKED
 
@@ -441,7 +454,7 @@ def run_plan(wenv: WorkflowEnv, terminal: Terminal, plan_id: str, executor_facto
         document, sha = load_plan(wenv, plan_id)
         state = authorization_state(wenv.run, document, sha)
         if state == "NONE":
-            raise WorkflowRefused(f"{plan_id} is not authorized; run `patchproof plan approve {plan_id}` first")
+            raise WorkflowRefused(f"{plan_id} is not authorized; first run: {command('plan', 'approve', plan_id)}")
         if state == "CLAIMED":
             raise WorkflowRefused("this plan's single-use authorization is already consumed; it never runs again")
         if state == "SUPERSEDED":
@@ -452,5 +465,5 @@ def run_plan(wenv: WorkflowEnv, terminal: Terminal, plan_id: str, executor_facto
     once = execute_once(wenv.run, terminal, executor_factory, clock=clock, now=now, expected_plan_sha256=sha)
     result = result_from(once, document.run_id)
     terminal.write(f"\nCLI exit code {result.exit_code} (PROJECT_SPEC.md 13.2; lifecycle takes precedence over "
-                   f"verdict). Report:  patchproof report {document.run_id}\n")
+                   f"verdict). Report:  {command('report', document.run_id)}\n")
     return result

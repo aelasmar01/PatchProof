@@ -1128,7 +1128,7 @@ def test_invalid_utf8_and_huge_values_are_bounded_and_visible() -> None:
     out = safe_text.plain(decoded)
     assert all(not (0xD800 <= ord(c) <= 0xDFFF) for c in out) and "\\u{DCFF}" in out
     huge = safe_text.md("[a](http://e)" * 100_000, 300)
-    assert len(huge) < 1000 and huge.endswith(safe_text.md(safe_text.TRUNCATED, 300))
+    assert len(huge) < 1000 and huge.endswith(" …\\[truncated\\]")  # the visible, escaped truncation marker
 
 
 def test_report_catches_an_established_verdict_that_differs_from_the_engine(e: Env, shared: Path) -> None:  # noqa: F811
@@ -1364,3 +1364,408 @@ def test_a_manifest_status_that_disagrees_with_the_outcome_does_not_verify(e: En
     failed = [c["name"] for c in r.document["integrity"]["checks"] if not c["passed"]]
     assert r.exit_code == 20 and not r.document["integrity"]["verified"]
     assert "manifest status equals the outcome's evidence status" in failed, failed
+
+
+# ------------------------------------------------------------------ PP-009 reporting remediation (U1-U7)
+
+
+def _hints(text: str) -> list[list[str]]:
+    """Every pinned next-step command printed in `text`, as argument lists."""
+    import re
+
+    found = re.finditer(r"uv run --locked --offline patchproof(?: [a-z0-9][a-z0-9._:@=-]*)+", text)
+    return [[arg.rstrip(".") for arg in m.group(0).split()] for m in found]
+
+
+def _assert_executable(argv: list[str]) -> None:
+    """The hint names the pinned invocation and a real command whose arguments parse (nothing is invoked)."""
+    import typer.main
+
+    from patchproof.workflow import invocation
+
+    assert tuple(argv[:5]) == invocation.INVOCATION, argv
+    cmd: Any = typer.main.get_command(app)
+    rest = argv[5:]
+    while hasattr(cmd, "commands"):  # a command group
+        assert rest and rest[0] in cmd.commands, argv
+        cmd, rest = cmd.commands[rest[0]], rest[1:]
+    cmd.make_context("patchproof", list(rest))  # raises on a missing or unexpected argument
+
+
+def test_the_pinned_invocation_is_the_projects_own_entry_point() -> None:
+    import tomllib
+
+    from patchproof.workflow import invocation
+
+    project = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    assert project["project"]["scripts"]["patchproof"] == "patchproof.cli.main:main"
+    assert (ROOT / "uv.lock").is_file() and invocation.INVOCATION[:4] == ("uv", "run", "--locked", "--offline")
+    with pytest.raises(ValueError):
+        invocation.command("report", "run-x; rm -rf /")  # display text only: never a shell fragment
+    with pytest.raises(ValueError):
+        invocation.command("add", "/private/path with spaces")
+
+
+def test_every_next_step_hint_is_the_pinned_executable_command(e: Env, shared: Path) -> None:  # noqa: F811
+    import re
+
+    from patchproof.workflow.invocation import command
+
+    unregistered = create(e, shared)[2].output()
+    assert command("project", "add") in unregistered
+    assert register(e, shared)[0] == 0
+    code, plan_id, created = create(e, shared)
+    assert code == 0 and plan_id
+    result, refused = run(e, plan_id, fake(e))
+    assert result.exit_code == 21
+    approved_code, approved = approve(e, plan_id)
+    assert approved_code == 0
+    result, ran = run(e, plan_id, fake(e))
+    assert result.exit_code == 0
+    expected = {"create": command("plan", "approve", plan_id), "refused": command("plan", "approve", plan_id),
+                "approve": command("run", plan_id), "run": command("report", RUN_ID)}
+    outputs = {"create": created.output(), "refused": refused.output(), "approve": approved.output(),
+               "run": ran.output()}
+    for stage, text in outputs.items():
+        assert expected[stage] in text, stage
+        hints = _hints(text)
+        assert hints, stage
+        for argv in hints:
+            _assert_executable(argv)
+        # No bare `patchproof <command>` instruction that the development checkout cannot run.
+        assert not re.search(r"(?<!--offline )\bpatchproof (?:project|plan|run|report|pack|profile)\b", text), stage
+    assert "run_papertrail_once" not in approved.output()  # the CLI path never points at the PP-008 utility
+
+
+def test_the_standalone_authorization_utility_names_its_own_documented_command(e: Env) -> None:  # noqa: F811
+    from patchproof.run_authorization import UTILITY_COMMAND
+
+    code, terminal = authorize(e)
+    assert code == 0 and UTILITY_COMMAND in terminal.output()
+    assert UTILITY_COMMAND == "uv run --locked --offline python -I -m patchproof.run_papertrail_once"
+
+
+def _expectations_block(text: str) -> str:
+    start = text.index("Declared EXPECTATIONS")
+    return text[start:text.index("Limitations:", start)]
+
+
+def test_the_authorization_review_makes_no_execution_history_claim(e: Env, shared: Path,  # noqa: F811
+                                                                    tmp_path: Path) -> None:
+    plan_id = planned(e, shared)
+    code, first = approve(e, plan_id)
+    assert code == 0
+    block = _expectations_block(first.output())
+    assert "expected results for this proposed run" in block and "not observations from this execution" in block
+    assert "never been executed" not in first.output() and "never been run" not in first.output()
+    # Earlier runs on this machine change nothing: the wording is static and reads no history.
+    second = make_second_env(tmp_path, shared)
+    (second.data / "evidence" / "runs" / ("run-" + "e" * 32)).mkdir(parents=True, mode=0o700)
+    plan2 = planned(second, shared)
+    code2, other = approve(second, plan2)
+    assert code2 == 0 and _expectations_block(other.output()) == block
+
+
+def test_the_report_describes_the_fixed_fixture_without_a_seed(e: Env, shared: Path) -> None:  # noqa: F811
+    finished_run(e, shared)
+    r = report(e)
+    d = r.document
+    assert d["claim"]["label"] == reports.FIXTURE_LABELS["fixed-fixture-v0.1-exception"]
+    assert d["claim"]["fixture_mode"] == d["inputs"]["fixture"]["mode"] == "fixed-fixture-v0.1-exception"
+    assert d["claim"]["fixture_seed"] is None and d["inputs"]["fixture"]["seed"] is None
+    assert d["claim"]["scope"] == reports.CLAIM_SCOPE and "overall security" in reports.CLAIM_SCOPE
+    text = reports.render_markdown(r) + reports.render_json(r)
+    assert "seeded" not in text.lower() and "no variable seed" in text and "one fixed synthetic fixture" in text
+    assert "untested inputs" in reports.render_markdown(r)
+
+
+def test_an_unknown_fixture_mode_has_no_label_and_fails_closed(e: Env, shared: Path,  # noqa: F811
+                                                               monkeypatch: pytest.MonkeyPatch) -> None:
+    finished_run(e, shared)
+    monkeypatch.setattr(reports, "FIXTURE_LABELS", {})
+    r = report(e)
+    assert r.exit_code == 20 and not r.document["integrity"]["verified"]
+
+
+REPORT_CONSTANTS = [reports.HEADLINE_NOT_VERIFIED, reports.HEADLINE_VERIFIED, reports.HEADLINE_NOT_A_RESULT,
+                    reports.INTEGRITY_NOTE, reports.CLAIM_SCOPE, *reports.FIXTURE_LABELS.values(),
+                    *reports.REMEDIATION.values(), *reports.BASE_LIMITATIONS, *sorted(reports.REVIEWED_CLAIMS),
+                    *reports.WITHHELD_FACTS.values()]
+
+
+@pytest.mark.parametrize("wording", REPORT_CONSTANTS)
+def test_every_fixed_wording_is_inert_and_emitted_literally(wording: str) -> None:
+    assert safe_text.prose(wording) == wording
+
+
+@pytest.mark.parametrize("hostile", [
+    "[x](http://evil)", "![i](http://evil/p.png)", "<b>bold</b>", "<!-- c -->", "`code`", "**bold**", "a*b*c",
+    "_em_", "a _b", "b_ c", "~~strike~~", "a | b", "# heading", "- item", "+ item", "1. item", "2) item", "> quote",
+    "=== under", "--- rule", "see http://evil", "www.evil.example", "&amp;", "a\\b", "{x}", "line\nbreak", "tab\there",
+    "\x1b[31mred", "a\u202eb", "zero\u200bwidth", "", " leading space", "end<"])
+def test_fixed_wording_that_could_form_structure_is_refused_not_escaped(hostile: str) -> None:
+    with pytest.raises(safe_text.UnsafeProse):
+        safe_text.prose(hostile)
+
+
+def test_natural_punctuation_is_allowed_in_fixed_wording() -> None:
+    text = "Plain words: commas, semicolons; (parentheses), plan.json, PROJECT_SPEC.md 13.2, 'quotes' - dashes!"
+    assert safe_text.prose(text) == text
+
+
+def _md_tokens(text: str) -> tuple[Any, Any]:
+    from markdown_it import MarkdownIt
+
+    tokens = MarkdownIt("commonmark").enable("table").parse(text)
+    inline = [c for t in tokens if t.children for c in t.children]
+    return tokens, inline
+
+
+def _shape(text: str) -> tuple[int, int, int, int]:
+    tokens, inline = _md_tokens(text)
+    kinds = [t.type for t in tokens]
+    return (kinds.count("heading_open"), kinds.count("table_open"), kinds.count("tr_open"),
+            kinds.count("bullet_list_open"))
+
+
+def test_a_verified_report_is_readable_valid_markdown(e: Env, shared: Path) -> None:  # noqa: F811
+    finished_run(e, shared)
+    text = reports.render_markdown(report(e))
+    tokens, inline = _md_tokens(text)
+    assert _shape(text)[:2] == (13, 5)
+    assert not [t for t in inline if t.type in ("link_open", "image", "html_inline")]
+    assert not [t for t in tokens if t.type == "html_block"]
+    for literal in ("**Verified for the selected cases.**", "| `evidence_status` | `FINALIZED` |",
+                    "Evidence integrity checks passed: **yes**.", "| Fix verified for the selected cases | yes |",
+                    reports.CLAIM_SCOPE, reports.REMEDIATION["VERIFIED_FOR_CASES"]):
+        assert literal in text, literal
+    # PatchProof's own wording carries no escapes; only values from evidence or records may.
+    for line in text.splitlines():
+        if line.startswith(("#", "**")) or (line.startswith("- ") and not line.startswith("- `")) \
+                or "Evidence integrity checks passed" in line:
+            assert "\\" not in line, line
+
+
+HOSTILE_VALUES = [
+    "[click](http://evil.example/x)", "![img](http://evil.example/p.png)", "<script>alert(1)</script>",
+    "<img src=x onerror=alert(1)>", "```\nfenced\n```", "<http://evil.example>", "https://evil.example/a",
+    "www.evil.example", "| cell | break |", "a\n# injected heading\n- injected item", "\x1b[2J\x1b]8;;http://e\x07",
+    "bidi\u202eexe.md", "zero\u200bwidth\ufeff", pytest.param("x" * 5000, id="5000-chars"),
+    "../../etc/passwd\x00.md", "run-\u202ecod.exe",
+    "**bold** _em_ ~~s~~", "&lt;script&gt;", "[x]: http://evil", "\\[escaped](http://evil)", "1. item", "> quote",
+    "    indented code", "---", "===", "line\r\nbreak", "tab\tseparated", "bell\x07\x9b"]
+
+
+def _poison(doc: dict[str, Any], value: str) -> dict[str, Any]:
+    """Every value the renderer takes from evidence or records, replaced by `value`."""
+    d = json.loads(json.dumps(doc))
+    d["run"]["run_id"] = d["run"]["kind"] = d["run"]["plan_sha256"] = d["run"]["authorization_id"] = value
+    for key in ("lifecycle", "evidence_status", "verdict", "engine_verdict", "decision_rule", "run_termination"):
+        d["result"][key] = value
+    d["result"]["reason_codes"] = [value, value]
+    d["integrity"]["manifest_status"] = d["integrity"]["journal_format"] = value
+    d["integrity"]["problems"] = [value]  # the benign baseline has the same list lengths
+    for c in d["integrity"]["checks"]:
+        c["detail"] = value
+    i = d["inputs"]
+    for s in i["sources"].values():
+        for k in s:
+            s[k] = value
+    i["source_inclusion"]["include"] = [value]
+    for group in ("pack", "profile", "images"):
+        for k in i[group]:
+            i[group][k] = value
+    i["fixture"].update(contract=value, sha256=value, mode=value, seed=value)
+    i["pack_approval"].update(approval_id=value, reviewer_basis=value, scope=value)
+    for t in d["tests"]:
+        t["id"] = t["kind"] = value
+        t["expected"] = {s: value for s in t["expected"]}
+        for o in t["observed"].values():
+            if o:
+                o["semantic"] = o["lifecycle"] = value
+    for w in d["witnesses"]:
+        w.update(test_id=value, side=value, outcome=value, claim=value, facts={"caller_id": value, value: value})
+    for x in d["executions"]:
+        for k in x:
+            x[k] = value
+    d["missing_or_untrusted"] = [{"side": value, "pair": value, "test_id": value, "reason_code": value}]
+    for k in ("status", "containers_created", "removed", "remaining_owned_containers", "inventory_reconciliation",
+              "daemon_restart_suspected"):
+        d["cleanup"][k] = value
+    for k in ("selected_checks", "security_checks", "functional_controls", "pairs_planned"):
+        d["claim"][k] = value
+    d["observations"]["trusted_cells"] = d["observations"]["required_cells"] = value
+    return d
+
+
+@pytest.mark.parametrize("hostile", HOSTILE_VALUES)
+def test_hostile_values_in_every_field_cannot_change_the_report_structure(e: Env, shared: Path,  # noqa: F811
+                                                                         hostile: str) -> None:
+    finished_run(e, shared)
+    r = report(e)
+    clean = reports.render_markdown(reports.Report(_poison(r.document, "benign-value"), r.exit_code))
+    text = reports.render_markdown(reports.Report(_poison(r.document, hostile), r.exit_code))
+    tokens, inline = _md_tokens(text)
+    assert _shape(text) == _shape(clean)  # no injected heading, table, row or list
+    assert not [t for t in inline if t.type in ("link_open", "image", "html_inline")]
+    assert not [t for t in tokens if t.type in ("html_block", "fence", "code_block")]
+    assert "\x1b" not in text and "\u202e" not in text and "\u200b" not in text and "\x00" not in text
+    assert "<script" not in text and "<img" not in text and "](http" not in text and "\n# injected" not in text
+    assert len(text.splitlines()) == len(clean.splitlines())
+
+
+@pytest.mark.parametrize("field", ["check name", "claim label", "limitation", "remediation"])
+def test_unexpected_text_in_a_fixed_wording_slot_fails_closed(e: Env, shared: Path, field: str) -> None:  # noqa: F811
+    finished_run(e, shared)
+    r = report(e)
+    d = json.loads(json.dumps(r.document))
+    hostile = "[x](http://evil)"
+    if field == "check name":
+        d["integrity"]["checks"][0]["name"] = hostile
+    elif field == "claim label":
+        d["claim"]["label"] = hostile
+    elif field == "limitation":
+        d["limitations"].append(hostile)
+    else:
+        d["remediation"] = hostile
+    with pytest.raises(reports.ReportError, match="not inert"):
+        reports.render_markdown(reports.Report(d, r.exit_code))
+
+
+@pytest.mark.parametrize(("knobs", "headline_start", "fix", "code"), [
+    ({}, "Verified for the selected cases", True, 0),
+    ({"candidate": "inadequate"}, "NOT_FIXED", False, 10),
+    ({"verifier_oom": True}, "INTERRUPTED", False, 20)])
+def test_integrity_is_reported_separately_from_completeness_verdict_and_fix(e: Env, shared: Path,  # noqa: F811
+                                                                            knobs: dict[str, Any],
+                                                                            headline_start: str, fix: bool,
+                                                                            code: int) -> None:
+    finished_run(e, shared, **knobs)
+    r = report(e)
+    text = reports.render_markdown(r)
+    assert r.exit_code == code and r.document["result"]["fix_verified_for_selected_cases"] is fix
+    assert "Evidence integrity checks passed: **yes**." in text and "Verified:" not in text
+    assert reports.INTEGRITY_NOTE in text
+    assert f"| Fix verified for the selected cases | {'yes' if fix else 'no'} |" in text
+    headline = text.splitlines()[2]
+    assert headline.replace("`", "") == f"**{r.document['headline']}**"  # Markdown mirrors the JSON headline
+    assert headline.replace("`", "").startswith(f"**{headline_start}")
+    if knobs.get("verifier_oom"):
+        assert "Not a verification result" in headline and "Verified for the selected cases" not in text
+
+
+def test_unverified_evidence_says_integrity_checks_did_not_pass(e: Env, shared: Path) -> None:  # noqa: F811
+    finished_run(e, shared)
+    writable(e.evidence)
+    (e.evidence / "verdict.json").write_text("{}")
+    r = report(e)
+    text = reports.render_markdown(r)
+    assert r.exit_code == 20 and "Evidence integrity checks passed: **NO**." in text
+    assert "| Fix verified for the selected cases | no |" in text and text.splitlines()[2].startswith(
+        "**EVIDENCE NOT VERIFIED")
+
+
+@pytest.mark.parametrize("argv", [
+    ["pack", "validate", "examples/packs/papertrail-document-access"],
+    ["profile", "prepare", "profiles/papertrail-reference-1.0.0.json"],
+    ["profile", "prepare", "profiles/papertrail-reference-1.0.0.json", "--check-images"],
+    ["project", "add", "relative/repository"], ["project", "add", "."]])
+def test_a_relative_path_is_a_usage_error_before_anything_runs(argv: list[str]) -> None:
+    result = RUNNER.invoke(app, argv)
+    assert result.exit_code == 2 and "absolute path" in (result.output + (result.stderr or ""))
+
+
+def test_absolute_paths_that_fail_policy_are_still_blocked(tmp_path: Path) -> None:
+    pack = ROOT / "examples/packs/papertrail-document-access"
+    profile = ROOT / "profiles/papertrail-reference-1.0.0.json"
+    assert RUNNER.invoke(app, ["pack", "validate", str(pack)]).exit_code == 0
+    assert RUNNER.invoke(app, ["profile", "prepare", str(profile)]).exit_code == 0
+    os.symlink(pack, tmp_path / "pack-link")
+    os.symlink(profile, tmp_path / "profile-link.json")
+    for argv in (["pack", "validate", str(tmp_path / "pack-link")],
+                 ["profile", "prepare", str(tmp_path / "profile-link.json")],
+                 ["pack", "validate", str(tmp_path / "missing")],
+                 ["profile", "prepare", str(tmp_path / "missing.json")]):
+        assert RUNNER.invoke(app, argv).exit_code == 21, argv
+    assert RUNNER.invoke(app, ["project", "add", str(tmp_path)]).exit_code == 21  # interactive gate, not usage
+
+
+def test_plan_create_says_it_stores_a_plan_and_show_stays_read_only(e: Env, shared: Path) -> None:  # noqa: F811
+    assert register(e, shared)[0] == 0
+    code, plan_id, created = create(e, shared)
+    assert code == 0 and plan_id
+    out = created.output()
+    assert plans.PREVIEW_TITLES["create"] in out and plans.CREATE_TITLE_NOTE in out
+    assert "PREVIEW (read-only" not in out and "approves and executes nothing" in out
+    shown = FakeTerminal({})
+    assert plans.show_plan(wenv_for(e), shown, plan_id) == 0
+    assert plans.PREVIEW_TITLES["show"] in shown.output() and plans.CREATE_TITLE_NOTE not in shown.output()
+
+
+RECORDED_RUNS = {
+    "run-036553ef7b032f59955cc4a790409931": (0, "VERIFIED_FOR_CASES", "V-09", "v1", "COMPLETE", "FINALIZED"),
+    "run-6cee8893b1a0a58690be96bf23fa56b1": (20, "INCONCLUSIVE", "V-05", "docker-ops-v2", "INTERRUPTED",
+                                              "INCOMPLETE"),
+    "run-dd93a78f930812bddca76e025eef5d31": (0, "VERIFIED_FOR_CASES", "V-09", "docker-ops-v2", "COMPLETE",
+                                              "FINALIZED"),
+}
+
+
+@pytest.mark.parametrize("run_id", sorted(RECORDED_RUNS))
+def test_recorded_live_runs_render_readable_safe_reports_read_only(run_id: str) -> None:
+    """The owner's live evidence (PP-008 and the first PP-009 CLI run), if present. Read-only; bytes compared."""
+    data = pa.data_root()
+    try:
+        directory, _ = reports.locate_run(data, run_id)
+    except reports.ReportError:
+        pytest.skip("this recorded run is not on this machine")
+    before = evidence_hashes(directory)
+    r = reports.build_report(data, run_id)
+    code, verdict, rule, fmt, lifecycle, status = RECORDED_RUNS[run_id]
+    d = r.document
+    assert d["integrity"]["verified"], d["integrity"]
+    assert (r.exit_code, d["result"]["engine_verdict"], d["result"]["decision_rule"], d["integrity"]["journal_format"],
+            d["result"]["lifecycle"], d["result"]["evidence_status"], d["cleanup"]["status"]) == (
+        code, verdict, rule, fmt, lifecycle, status, "COMPLETE")
+    md_text, json_text = reports.render_markdown(r), reports.render_json(r)
+    assert md_text == reports.render_markdown(reports.build_report(data, run_id))
+    assert json_text == reports.render_json(reports.build_report(data, run_id))
+    _, inline = _md_tokens(md_text)
+    assert _shape(md_text)[:2] == (13, 5) and not [t for t in inline if t.type in ("link_open", "image")]
+    for text in (md_text, json_text):
+        assert str(Path.home()) not in text and "inst-" not in text and not safe_text.contains_secret(text)
+        assert "seeded" not in text.lower() and "Traceback" not in text and "FAILURES" not in text
+    if code != 0:
+        assert "Not a verification result" in md_text and "| Fix verified for the selected cases | no |" in md_text
+    assert evidence_hashes(directory) == before
+
+
+@pytest.mark.parametrize("value", ["    indented code", " one space", "\tTab start", "  - nested item"])
+def test_a_value_at_the_start_of_a_line_can_never_indent_it(value: str) -> None:
+    out = safe_text.md(value)
+    assert not out.startswith(" ") and out.startswith("&#32;")
+    tokens, _ = _md_tokens(f"- {out}\n\n{out}\n")
+    assert not [t for t in tokens if t.type in ("code_block", "fence")]
+    assert [t.type for t in tokens].count("bullet_list_open") == 1
+
+
+def test_a_preserved_verified_verdict_on_an_interrupted_run_is_never_a_verified_fix(
+        e: Env, shared: Path) -> None:  # noqa: F811
+    """13.2: an INTERRUPTED run may keep an independently established verdict; it still exits 20 and the
+    report must not call it a verified fix, even though the evidence verifies and the verdict says VERIFIED."""
+    finished_run(e, shared)
+    writable(e.evidence)
+    out = outcome(e)
+    assert out["verdict"] == "VERIFIED_FOR_CASES"
+    out["lifecycle"] = "INTERRUPTED"
+    (e.evidence / "outcome.json").write_text(json.dumps(out, indent=2, sort_keys=True))
+    manifest = json.loads((e.evidence / "manifest.json").read_text())
+    manifest["summary"] = out
+    (e.evidence / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True))
+    rehash_manifest(e.evidence, "outcome.json")
+    r = report(e)
+    assert r.document["integrity"]["verified"], [c for c in r.document["integrity"]["checks"] if not c["passed"]]
+    assert r.exit_code == 20 and r.document["result"]["verdict"] == "VERIFIED_FOR_CASES"
+    assert r.document["result"]["fix_verified_for_selected_cases"] is False
+    text = reports.render_markdown(r)
+    assert "| Fix verified for the selected cases | no |" in text and "Not a verification result" in text

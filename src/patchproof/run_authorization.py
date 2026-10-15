@@ -58,6 +58,9 @@ from .pack_approval import (
 )
 from .runner.papertrail_plan import AssembledRun, PlanError, RunEnvironment, assemble_run, papertrail_environment
 
+# The standalone PP-008 utility's documented invocation (this module's docstring), shown only on that path.
+UTILITY_COMMAND = "uv run --locked --offline python -I -m patchproof.run_papertrail_once"
+
 
 def provision_authorization_store(root: Path) -> RunAuthorizationStore:
     """Create (once) and open the private store. Never follows or repairs anything."""
@@ -153,7 +156,8 @@ def render_plan(run: AssembledRun, replaces: StoredAuthorization | None, store_r
         f" response cap {rt.max_response_bytes} B",
         f"  evidence  <user data>/{d.evidence.destination}/ (private, 0600 files)",
         "",
-        "Declared expectations (EXPECTATIONS, not results; PaperTrail has never been executed):",
+        "Declared EXPECTATIONS, not results. The outcomes below are the expected results for this proposed run;",
+        "they are not observations from this execution:",
     ]
     tests = {t.id: t for t in run.review.pack.manifest.tests}
     for t in d.pack.expected_collection:
@@ -166,7 +170,7 @@ def render_plan(run: AssembledRun, replaces: StoredAuthorization | None, store_r
         "  - Inspection is configuration evidence, not proof that the kernel enforced the policy.",
         "  - One pair, fixed synthetic data: no statement about other data, endpoints or seeds.",
         "  - The reviewer identity is a local assertion; this terminal check is a procedural control.",
-        "  - Executing requires the separate command patchproof.run_papertrail_once and a typed confirmation.",
+        "  - Executing is a separate step with its own typed confirmation; authorizing executes nothing.",
         "",
         f"Store: {store_root}",
         "Supersedes: " + (f"{replaces.record.authorization_id} (unused; kept, and never executable)"
@@ -247,8 +251,9 @@ def run_authorization(env: RunEnvironment, terminal: Terminal, *, now: Callable[
         terminal.write("\nNOT AUTHORIZED: input ended. Nothing was written.\n")
         return 2
     terminal.write(f"\nRUN AUTHORIZED: {record.authorization_id}\n  run {record.plan.run_id}\n  plan "
-                   f"{record.plan_sha256}\n  record {written}\n  Nothing has been executed. To execute, run "
-                   "patchproof.run_papertrail_once yourself.\n")
+                   f"{record.plan_sha256}\n  record {written}\n  Nothing has been executed.\n")
+    if expected_plan_sha256 is None:  # the standalone PP-008 path; `plan approve` prints its own next step
+        terminal.write(f"  To execute, run at your terminal, from the PatchProof checkout:  {UTILITY_COMMAND}\n")
     return 0
 
 

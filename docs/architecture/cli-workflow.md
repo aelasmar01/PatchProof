@@ -4,6 +4,22 @@ PP-009 adds the v0.1 command-line workflow of PROJECT_SPEC.md 13.1 on top of the
 to PP-008 components. It adds no execution engine, approval system, Docker policy or verdict logic.
 Each command delegates to the module that already owns its step.
 
+## Invocation
+
+v0.1 runs from a development checkout. From the project directory, every command is:
+
+```
+uv run --locked --offline patchproof <command> ...
+```
+
+- `--locked` uses exactly `uv.lock`; `--offline` never touches the network.
+- The `patchproof` entry point is `patchproof.cli.main:main` (`pyproject.toml`). A bare `patchproof ...`
+  works only where the package is installed on the shell's PATH, which v0.1 does not do.
+- Every next-step hint the CLI prints uses this pinned form (`workflow.invocation.command`), never a
+  host path, and the tests parse each printed hint against the real command tree.
+- The tables below name commands without the prefix, for brevity.
+- Path arguments must be absolute. Use `"$PWD/..."` from the project directory rather than a relative path.
+
 ## Commands
 
 | Command | What it does | Delegates to | Writes |
@@ -72,18 +88,25 @@ evidence needs comparisons the current contract refuses.
 4. The startup-failure and missing-observation cases need a reviewed way to provoke them live (for example
    a profile or fixture variant). That is a further security-contract decision, not a CLI option.
 
+From the project directory (`PP` is only shorthand for the pinned invocation):
+
 ```
-patchproof project add /absolute/path/to/papertrail-reference
-patchproof profile prepare profiles/papertrail-reference-1.0.0.json --check-images
-patchproof pack validate examples/packs/papertrail-document-access
-patchproof pack approve papertrail-document-access        # only if no current approval exists
-patchproof plan create --project prj-… --baseline refs/tags/authz-r1-vulnerable \
-                       --candidate refs/tags/authz-r3-correct
-patchproof plan show plan-…
-patchproof plan approve plan-…                            # typed AUTHORIZE <run-id> <plan-sha256>
-patchproof run plan-…                                     # typed EXECUTE <run-id>; Docker
-patchproof report run-… --format markdown --output report.md
+PP="uv run --locked --offline patchproof"
+$PP project add "/absolute/path/to/papertrail-reference"
+$PP profile prepare "$PWD/profiles/papertrail-reference-1.0.0.json" --check-images
+$PP pack validate "$PWD/examples/packs/papertrail-document-access"
+$PP pack approve papertrail-document-access        # only if no current approval exists
+$PP plan create --project prj-… --baseline refs/tags/authz-r1-vulnerable \
+                --candidate refs/tags/authz-r3-correct
+$PP plan show plan-…
+$PP plan approve plan-…                            # typed AUTHORIZE <run-id> <plan-sha256>
+$PP run plan-…                                     # typed EXECUTE <run-id>; Docker
+$PP report run-… --format markdown --output "$HOME/Desktop/report.md"
 ```
+
+`plan create` stores one immutable plan record and says so; the preview it prints approves and executes
+nothing. `plan show` is read-only. Approval and execution are separate commands, each with its own typed
+confirmation.
 
 ## Records
 
@@ -152,6 +175,10 @@ patchproof report run-… --format markdown --output report.md
 demonstration's controller (harness) exit code is never used as a run's exit code.
 
 **Other commands:** 0 for success (or already done, unchanged), 21 for refused, 2 for a usage error.
+A relative path given to `project add`, `profile prepare` or `pack validate` is a usage error (2), refused
+before anything is read: an argument in the wrong form. The absolute-path policy itself is unchanged. An
+absolute path that is not canonical, is a symlink, is missing or fails the pinned-hash or static checks is
+a policy refusal (21).
 For `report`, an unknown run ID and a refused or unwritable `--output` are usage errors (2), and evidence
 that cannot be read or verified is 20.
 
@@ -206,7 +233,11 @@ and is reported as such. The evidence is opened read-only and never modified.
 
 **Contents** (PROJECT_SPEC.md 12.3):
 - the run ID and lifecycle; the semantic verdict, engine verdict, decision rule, reason codes and flags;
-- the narrow security claim and the legitimate behavior tested, labelled as a seeded synthetic example;
+- the narrow security claim and the legitimate behavior tested. The label is derived from the validated
+  plan's fixture mode (`reports.FIXTURE_LABELS`; an unknown mode fails the report closed). For v0.1 it reads
+  "Synthetic PaperTrail reference application, one fixed synthetic fixture with no variable seed (the narrow
+  v0.1 fixed-fixture exception)", followed by the scope sentence "no statement about untested inputs or the
+  application's overall security";
 - baseline and candidate commits, trees and snapshot manifest hashes; source inclusion;
 - pack, profile, verifier plugin and image identities; the fixture;
 - the pack approval ID, basis and scope;
@@ -216,7 +247,17 @@ and is reported as such. The evidence is opened read-only and never modified.
 - a fixed remediation summary per verdict; reproducibility prerequisites; limitations.
 
 An interrupted run stays `INTERRUPTED`/`INCOMPLETE`/`INCONCLUSIVE` (or "no verdict") in the headline,
-whatever its cleanup status.
+whatever its cleanup status, and says "Not a verification result".
+
+**Separate dimensions.** The Markdown report keeps apart:
+- **Evidence integrity:** "Evidence integrity checks passed: yes/NO", with a note that integrity never means a
+  fix was verified.
+- **Evidence completeness:** the manifest status.
+- **Lifecycle** and the **comparison verdict:** the Result table.
+- **Cleanup:** its own section.
+- **Whether a fix was verified:** the Result row "Fix verified for the selected cases", and the JSON
+  `result.fix_verified_for_selected_cases`. It is yes only when the evidence verifies, the exit code is 0 and
+  the verdict is `VERIFIED_FOR_CASES`.
 
 **Report security:**
 
@@ -227,11 +268,24 @@ whatever its cleanup status.
   `caller_permitted`, `credential`, `document_id`, `owner_id`, `reader_roles`, `status`, `marker_observed`).
   The `marker` value is always withheld. Other keys and unexpected values are withheld. A claim must be one of
   the four reviewed verifier claims.
-- **Escaping:**
+- **Escaping (values):** every value taken from evidence, records or the target is either a code span
+  (`safe_text.code`, only for plainly safe identifiers and hashes) or escaped (`safe_text.md`):
   - control, C1, bidirectional and zero-width characters become visible `\u{XXXX}`;
   - `&`, `<` and `>` become entities and other Markdown-significant characters are backslash-escaped, so no
     link, image (remote or `file:`), HTML, table break or heading can be injected;
+  - a leading space becomes an entity, so a value at the start of a line or list item cannot indent it into
+    a code block;
   - JSON output is `ensure_ascii`.
+- **Fixed wording (PP-009 U4):**
+  - PatchProof's own constant sentences and labels are emitted literally, so the report reads naturally.
+  - Each passes `safe_text.prose` first. It refuses, rather than escapes, anything that could form
+    structure: `` \ ` * { } [ ] < > # | ~ & ``, a scheme or `www.`, an underscore that is not between two
+    letters or digits, a line-starting list, heading, quote or rule marker, and control or invisible
+    characters.
+  - A failure stops the report: no Markdown report is produced, and the CLI exits 20.
+  - The tests check that each fixed text in the report is inert.
+  - They also put hostile values in every value field and parse the result with the locked
+    `markdown-it-py`. No heading, table, row, list, link, image, HTML, code block or line is added.
 - **Defence in depth:**
   - every value is truncated with a visible marker; the whole report is limited to 512 KiB;
   - known secret shapes are redacted, and a rendered report still containing one is refused;
@@ -271,19 +325,22 @@ pack approval and supersession, run authorization and interruption authorization
 It checks effort, not truth, and applies only when a statement is typed. Stored records, including the
 consumed PP-008 interruption authorization, are never revalidated, rewritten or repaired.
 
-## Live validation still owed (not executed)
+## Live validation (executed 2026-10-15, independently audited)
+
+Both items below were owed at the implementation checkpoint. They were run by the owner as
+`run-dd93a78f930812bddca76e025eef5d31` (`plan-89e25ceb…`, `rau-a76fa4d8…`) and audited read-only: 110
+scripted checks, 0 failed (`docs/evidence/pp-009-first-live-cli-comparison.md`). The original plan for
+them is kept below.
 
 1. **A real run through the CLI.** `plan approve` and `run` delegate to the flows already used live in
-   PP-008, but the CLI path itself has run only against the fake Docker. Running it needs a new plan, owner
-   authorization and Docker approval.
+   PP-008; the CLI path had run only against the fake Docker.
 2. **The hardened verifier-console capture in a live verifier execution.** PP-008 hardening is proven
-   Docker-free; the live interruption run never started its verifier. Proposed check, for separate owner
-   approval:
+   Docker-free; the live interruption run never started its verifier. The check:
    1. Use the existing r1 → r3 plan contract (four containers, one pair) through `plan create`,
       `plan approve` and `run`.
    2. **Expected:** `docker-ops-v2` journal; `untrusted-target-stdout/stderr-*` and
       `untrusted-verifier-console-*` artifacts with capture status, size, hash and truncation recorded;
       no raw output in the journal; a real `evaluated_at`.
-   3. **Expected:** `patchproof report` verifies and reproduces `VERIFIED_FOR_CASES` (V-09), and
-      `recover_run` finds nothing.
+   3. **Expected:** the report verifies and reproduces `VERIFIED_FOR_CASES` (V-09), and no owned
+      container remains.
    4. **Budget:** at most four container creations. **Retry:** none.

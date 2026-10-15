@@ -9,6 +9,10 @@
   Newlines become spaces: one value is always one line.
 - **Size:** every value is truncated to a bound with a visible marker.
 
+- **Fixed wording** (`prose`): PatchProof's own constant sentences and labels are emitted
+  literally, so a report reads naturally, but only after a check that they contain nothing that
+  can form Markdown or HTML structure. Values never take this path.
+
 These functions escape; they do not decide what may be shown. Reports pass only allowlisted
 fields (`workflow.reports`), and redaction of known secret shapes is defence in depth on top.
 """
@@ -62,9 +66,39 @@ def plain(value: object, limit: int = DEFAULT_LIMIT) -> str:
 
 
 def md(value: object, limit: int = DEFAULT_LIMIT) -> str:
-    """`plain`, then HTML-significant characters as entities and Markdown-significant ones backslash-escaped."""
-    return "".join(_ENTITIES[ch] if ch in _ENTITIES else "\\" + ch if ch in _MARKDOWN_SPECIAL else ch
+    """`plain`, then HTML-significant characters as entities and Markdown-significant ones backslash-escaped.
+
+    A leading space becomes an entity, so a value placed at the start of a line or list item can
+    never indent it into a code block."""
+    text = "".join(_ENTITIES[ch] if ch in _ENTITIES else "\\" + ch if ch in _MARKDOWN_SPECIAL else ch
                    for ch in plain(value, limit))
+    return "&#32;" + text[1:] if text.startswith(" ") else text
+
+
+class UnsafeProse(ValueError):
+    """Fixed report wording contains a character that could form Markdown or HTML structure."""
+
+
+# Fixed wording may not contain anything that forms Markdown or HTML structure inline: no link,
+# image, autolink, HTML, entity, code span, emphasis, strikethrough, table cell or escape.
+_PROSE_FORBIDDEN: Final = re.compile(r"[\\`*{}\[\]<>#|~&]|://|www\.")
+# An underscore is inert only between two letters or digits (CommonMark intraword rule).
+_LOOSE_UNDERSCORE: Final = re.compile(r"(?<![A-Za-z0-9])_|_(?![A-Za-z0-9])")
+# A line may not begin a block: a list item, heading, quote, thematic break or setext underline.
+_BLOCK_START: Final = re.compile(r"[-+=>]|\d+[.)]|\s")
+
+
+def prose(text: str) -> str:
+    """PatchProof's own fixed wording, emitted literally (no escaping) after proving it is inert.
+
+    Only report-authored constants pass through here; values from evidence, records or the
+    target always go through `md` or `code`. Wording that could form structure is refused, never
+    escaped: the remedy is to rewrite the constant (a programming error, caught by the tests).
+    """
+    if (not text or any(_unsafe(ch) or ch in "\n\r\t" for ch in text) or _PROSE_FORBIDDEN.search(text)
+            or _LOOSE_UNDERSCORE.search(text) or _BLOCK_START.match(text)):
+        raise UnsafeProse(f"fixed report wording is not inert Markdown: {plain(text, 120)!r}")
+    return text
 
 
 def contains_secret(text: str) -> bool:

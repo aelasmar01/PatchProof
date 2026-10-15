@@ -3,7 +3,8 @@
 Exit codes (PROJECT_SPEC.md 13.2): `run` and `report` use the run's lifecycle and verdict
 (lifecycle first). The other commands exit 0 when the requested operation succeeded (or was
 already done, unchanged), 21 when it was refused by approval, policy or preflight, and 2 for a
-usage error before anything ran. Interactive commands refuse unless standard input and output
+usage error before anything ran (a relative path included: paths are never resolved against the
+working directory). Interactive commands refuse unless standard input and output
 are a foreground terminal and no `PATCHPROOF*` variable is set.
 """
 
@@ -66,6 +67,14 @@ def _interactive(*, conversation_fd: int = 1) -> None:
         raise typer.Exit(exit_codes.BLOCKED) from None
 
 
+def _absolute(value: str | Path, param_hint: str) -> None:
+    """A relative path is a usage error (13.2: exit 2), refused before anything is read. An absolute path
+    that is not canonical, or is a symlink, is still refused by the accepted policy check (exit 21)."""
+    if not os.path.isabs(str(value)):
+        raise typer.BadParameter("must be an absolute path (relative paths are never resolved)",
+                                 param_hint=param_hint)
+
+
 def register(app: typer.Typer) -> None:
     project = typer.Typer(help="Register local repositories.", no_args_is_help=True)
     profile = typer.Typer(help="Preview the reviewed execution profile.", no_args_is_help=True)
@@ -84,6 +93,7 @@ def register(app: typer.Typer) -> None:
         from ..workflow.plans import workflow_environment
         from ..workflow.projects import register_project
 
+        _absolute(path, "PATH")
         _interactive()
         wenv = workflow_environment()
         target = papertrail_target()
@@ -111,6 +121,7 @@ def register(app: typer.Typer) -> None:
         from ..runner.docker_cli import DockerCli, resolve_docker_binary
         from ..workflow.previews import prepare_profile
 
+        _absolute(profile_file, "PROFILE_FILE")
         factory = (lambda: DockerCli(resolve_docker_binary(), str(Path.home()))) if check_images else None
         raise typer.Exit(prepare_profile(profile_file, papertrail_target(), _ConsoleTerminal(),
                                          executor_factory=factory))
@@ -120,6 +131,7 @@ def register(app: typer.Typer) -> None:
         """Validate a pack statically (no target code runs); show its approval state. Never approves."""
         from ..workflow.previews import validate_pack_preview
 
+        _absolute(pack_dir, "PACK_DIR")
         raise typer.Exit(validate_pack_preview(pack_dir, papertrail_target(), approval_store_root(),
                                                _ConsoleTerminal()))
 

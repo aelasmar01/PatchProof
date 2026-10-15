@@ -133,10 +133,14 @@ Development setup only. The pinned interpreter is CPython 3.13.16, managed by uv
 dependencies are locked in `uv.lock`.
 
 ```
-uv sync --locked                      # create .venv from the lockfile
-uv run --locked patchproof doctor     # read-only environment report
-uv run --locked pytest tests/unit     # Docker-free unit tests
+uv sync --locked                                # create .venv from the lockfile
+uv run --locked --offline patchproof doctor     # read-only environment report
+uv run --locked pytest tests/unit               # Docker-free unit tests
 ```
+
+Every `patchproof` command runs this way from the project directory, with absolute path arguments. A bare
+`patchproof` works only where the package is installed on the shell's PATH, which v0.1 does not do. The v0.1
+workflow is in `docs/architecture/cli-workflow.md`.
 
 `patchproof doctor --probe-isolation` creates and removes probe containers. It needs the
 approved probe image, a private evidence directory, and interactive confirmation; see
